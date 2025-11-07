@@ -1,1708 +1,1708 @@
-/***************************************************************************************************
-
-The copyright in this software is being made available under the License included below.
-This software may be subject to other third party and contributor rights, including patent
-rights, and no such rights are granted under this license.
-
-Copyright (C) 2025, Hangzhou Hikvision Digital Technology Co., Ltd. All rights reserved.
-
-Redistribution and use in source and binary forms, with or without modification, are permitted
-only for the purpose of developing standards within Audio and Video Coding Standard Workgroup of
-China (AVS) and for testing and promoting such standards. The following conditions are required
-to be met:
-
-* Redistributions of source code must retain the above copyright notice, this list of
-conditions and the following disclaimer.
-* Redistributions in binary form must reproduce the above copyright notice, this list of
-conditions and the following disclaimer in the documentation and/or other materials
-provided with the distribution.
-* The name of Hangzhou Hikvision Digital Technology Co., Ltd. may not be used to endorse or
-promote products derived from this software without specific prior written permission.
-
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR
-IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND
-FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR
-CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
-CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
-SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
-OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-POSSIBILITY OF SUCH DAMAGE.
-
-***************************************************************************************************/
-#include "hlm_com_pred.h"
-#include <string.h>
-
-/***************************************************************************************************
-* π¶  ƒ‹£∫“‘Copy∑Ω ΩÃÓ≥‰À—À˜«¯”Ú
-* ≤Œ   ˝£∫*
-*        search_area        -O        À—À˜«¯”Ú÷∏’Î
-*        src_ptr            -I         ˝æ›‘¥÷∏’Î
-*        src_stride         -I         ˝æ›‘¥stride
-*        len                -I        øΩ±¥ ˝æ›µƒ≥§∂»
-*        height             -I        øΩ±¥ ˝æ›µƒ∏ﬂ∂»
-*        x_in_src           -I        øΩ±¥œÒÀÿ‘⁄ ˝æ›‘¥…œµƒ∫·◊¯±Í
-*        y_in_src           -I        øΩ±¥œÒÀÿ‘⁄ ˝æ›‘¥…œµƒ◊›◊¯±Í
-*        x_in_area          -I        øΩ±¥Œª÷√‘⁄À—À˜«¯”Ú…œµƒ∫·◊¯±Í
-* ∑µªÿ÷µ£∫Œﬁ
-***************************************************************************************************/
-HLM_VOID HLM_COM_SearchAreaCopy(HLM_U16    *search_area,
-                                HLM_U16    *src_ptr,
-                                HLM_U32     src_stride,
-                                HLM_S32     len,
-                                HLM_S32     height,
-                                HLM_S32     x_in_src,
-                                HLM_S32     y_in_src,
-                                HLM_S32     x_in_area)
-{
-    HLM_U16 *dst = 0;
-    HLM_U16 *src = 0;
-    HLM_U08 i    = 0;
-
-    src = src_ptr + y_in_src * src_stride + x_in_src;
-    dst = search_area + x_in_area;
-    for (i = 0; i < height; i++)
-    {
-        memcpy(dst, src, len * sizeof(HLM_U16));
-        src += src_stride;
-        dst += HLM_IBC_SEARCH_AREA_WIDTH;
-    }
-}
-
-/***************************************************************************************************
-* π¶  ƒ‹£∫“‘Padding∑Ω ΩÃÓ≥‰À—À˜«¯”Ú
-* ≤Œ   ˝£∫*
-*        search_area        -O        À—À˜«¯”Ú÷∏’Î
-*        src_ptr            -I         ˝æ›‘¥÷∏’Î£¨ªÒ»° ◊¡–øÈµƒ…œ“ª––œÒÀÿ
-*        bit_depth          -I        ±»ÃÿŒªøÌ
-*        src_stride         -I         ˝æ›‘¥stride
-*        len                -I        Padding ˝æ›µƒ≥§∂»
-*        height             -I        Padding ˝æ›µƒ∏ﬂ∂»
-*        ver_shift          -I        ¥π÷±∑ΩœÚµƒ…´∂»∆´“∆
-*        boundary_x         -I        ∫ÍøÈ‘⁄∏Ù∂œ«¯”Ú÷–µƒ∫·◊¯±Í
-*        boundary_y         -I        ∫ÍøÈ‘⁄∏Ù∂œ«¯”Ú÷–µƒ◊›◊¯±Í
-*        cu_x               -I        ∫ÍøÈ‘⁄patch÷–µƒ∫·◊¯±Í£¨“‘CUŒ™µ•Œª
-*        cu_y               -I        ∫ÍøÈ‘⁄patch÷–µƒ◊›◊¯±Í£¨“‘CUŒ™µ•Œª
-* ∑µªÿ÷µ£∫Œﬁ
-***************************************************************************************************/
-HLM_VOID HLM_COM_SearchAreaPadding(HLM_U16    *search_area,
-                                   HLM_U16    *src_ptr,
-                                   HLM_U32     bit_depth,
-                                   HLM_U32     src_stride,
-                                   HLM_S32     len,
-                                   HLM_S32     height,
-                                   HLM_S08     ver_shift,
-                                   HLM_S32     boundary_x,
-                                   HLM_S32     boundary_y,
-                                   HLM_S32     cu_x,
-                                   HLM_S32     cu_y)
-{
-    HLM_U16 *dst = 0;
-    HLM_U16 *src = 0;
-    HLM_U16 val  = 0;
-    HLM_U08 i    = 0;
-    HLM_U16 j    = 0;
-
-    if (boundary_x == 0)
-    {
-        if (boundary_y == 0)
-        {
-            val = 1 << (bit_depth - 1);
-        }
-        else
-        {
-            val = *(src_ptr + ((cu_y << 3 >> ver_shift) - 1) * src_stride);
-        }
-        dst = search_area;
-        for (i = 0; i < height; i++)
-        {
-            for (j = 0; j < len; j++)
-            {
-                dst[j] = val;
-            }
-            dst += HLM_IBC_SEARCH_AREA_WIDTH;
-        }
-    }
-    else
-    {
-        src = search_area + len;
-        dst = search_area;
-        for (i = 0; i < height; i++)
-        {
-            for (j = 0; j < len; j++)
-            {
-                dst[j] = src[0];
-            }
-            src += HLM_IBC_SEARCH_AREA_WIDTH;
-            dst += HLM_IBC_SEARCH_AREA_WIDTH;
-        }
-    }
-}
-
-#if MIX_IBC
-/***************************************************************************************************
-* π¶  ƒ‹£∫“‘Padding∑Ω ΩÃÓ≥‰À—À˜«¯”Ú
-* ≤Œ   ˝£∫*
-*        search_area        -O        À—À˜«¯”Ú÷∏’Î
-*        ref_ptr            -I        …œ“ª––µƒ÷ÿΩ®œÒÀÿ
-*        hor_shift          -I        ÀÆ∆Ω∑ΩœÚµƒ…´∂»∆´“∆
-*        segment_width      -I        ∏Ù∂œ≤Œøºµ•‘™ªÚPatchµƒøÌ∂»£¨“‘œÒÀÿŒ™µ•Œª
-* ∑µªÿ÷µ£∫Œﬁ
-***************************************************************************************************/
-HLM_VOID HLM_COM_CopyUpRefPixel(HLM_U16    *search_area,
-                                HLM_U16    *ref_ptr,
-                                HLM_S08     hor_shift,
-                                HLM_S32     segment_width)
-{
-    HLM_S32 valid_len = HLM_MIN(HLM_IBC_BUFFER_WIDTH, segment_width) >> hor_shift;
-    HLM_U16 *dst      = HLM_NULL;
-    HLM_U16 stride    = HLM_IBC_SEARCH_AREA_WIDTH;
-    HLM_U08 i         = 0;
-    HLM_U08 j         = 0;
-
-    for (i = 0; i < valid_len; i++)
-    {
-        search_area[i] = ref_ptr[i];
-    }
-    for (i = valid_len; i < HLM_IBC_SEARCH_AREA_WIDTH; i++)
-    {
-        search_area[i] = search_area[valid_len - 1];
-    }
-    dst = search_area + stride;
-    for (j = 1; j < HLM_IBC_SEARCH_AREA_HEIGHT; j++)
-    {
-        memcpy(dst, search_area, HLM_IBC_SEARCH_AREA_WIDTH * sizeof(HLM_U16));
-        dst += stride;
-    }
-}
-
-/***************************************************************************************************
-* π¶  ƒ‹£∫∏˘æ›4x4øÈµƒbv–≈œ¢∏¸–¬ƒ⁄≤øbv
-* ≤Œ   ˝£∫*
-*        com_cu_info            -IO        µ±«∞CU–≈œ¢
-*        zscan_idx              -I         µ±«∞4x4øÈµƒÀ˜“˝
-*        merge_flag             -I         merge∑Ω Ω
-*        part_type              -I         µ±«∞4x4øÈµƒªÆ∑÷¿‡–Õ
-*        bv                     -I         µ±«∞4x4øÈµƒbvªÚ◊”PUµƒbv
-* ∑µªÿ÷µ£∫Œﬁ
-* ±∏  ◊¢£∫
-***************************************************************************************************/
-HLM_VOID HLM_COM_UpdateInnerBv(HLM_CU_INFO         *com_cu_info,
-                               HLM_U32              zscan_idx,
-                               HLM_U08              merge_flag,
-                               HLM_IBC_PART_TYPE    part_type,
-                               HLM_MV              *bv)
-{
-    HLM_U08 pu_x = HLM_INTRA_ZSCAN_TO_PELX[zscan_idx];
-    HLM_U08 pu_y = HLM_INTRA_ZSCAN_TO_PELY[zscan_idx];
-    HLM_MV *le   = com_cu_info->inner_bv_left[merge_flag] + (pu_y << 2);
-    HLM_MV *up   = com_cu_info->inner_bv_up[merge_flag] + (pu_x << 2);
-
-    if (part_type == HLM_IBC_NO_SPLIT)
-    {
-        le[0] = le[1] = le[2] = le[3] = bv[0];
-        up[0] = up[1] = up[2] = up[3] = bv[0];
-    }
-    else if (part_type == HLM_IBC_HOR_SYM4)
-    {
-        le[0] = bv[0];
-        le[1] = bv[1];
-        le[2] = bv[2];
-        le[3] = bv[3];
-        up[0] = up[1] = up[2] = up[3] = bv[3];
-    }
-    else if (part_type == HLM_IBC_VER_SYM4)
-    {
-        up[0] = bv[0];
-        up[1] = bv[1];
-        up[2] = bv[2];
-        up[3] = bv[3];
-        le[0] = le[1] = le[2] = le[3] = bv[3];
-    }
-    else  // QT
-    {
-        le[0] = le[1] = bv[1];
-        le[2] = le[3] = bv[3];
-        up[0] = up[1] = bv[2];
-        up[2] = up[3] = bv[3];
-    }
-}
-
-/***************************************************************************************************
-* π¶  ƒ‹£∫∏˘æ›4x4øÈµƒªÆ∑÷¿‡–ÕªÒ»°◊”pu–≈œ¢£¨∞¸¿®pu_num°¢x/y/w/h
-* ≤Œ   ˝£∫*
-*        part_type              -I         µ±«∞4x4øÈµƒªÆ∑÷¿‡–Õ
-*        pu_info                -O         µ±«∞4x4øÈµƒ◊”PU–≈œ¢
-* ∑µªÿ÷µ£∫Œﬁ
-* ±∏  ◊¢£∫
-***************************************************************************************************/
-HLM_VOID HLM_COM_GetIbcPuInfo(HLM_IBC_PART_TYPE    part_type,
-                              HLM_IBC_PU_INFO     *pu_info)
-{
-    HLM_U08 *x = pu_info->sub_x;
-    HLM_U08 *y = pu_info->sub_y;
-    HLM_U08 *w = pu_info->sub_w;
-    HLM_U08 *h = pu_info->sub_h;
-    HLM_U08 i  = 0;
-
-    pu_info->part_type = part_type;
-    pu_info->sub_pu_num = (part_type == HLM_IBC_NO_SPLIT) ? 1 : 4;
-    if (part_type == HLM_IBC_NO_SPLIT)
-    {
-        w[0] = 4;
-        h[0] = 4;
-        x[0] = 0;
-        y[0] = 0;
-    }
-    else if (part_type == HLM_IBC_VER_SYM4)
-    {
-        for (i = 0; i < pu_info->sub_pu_num; i++)
-        {
-            w[i] = 1;
-            h[i] = 4;
-            x[i] = i;
-            y[i] = 0;
-        }
-    }
-    else if (part_type == HLM_IBC_HOR_SYM4)
-    {
-        for (i = 0; i < pu_info->sub_pu_num; i++)
-        {
-            w[i] = 4;
-            h[i] = 1;
-            x[i] = 0;
-            y[i] = i;
-        }
-    }
-    else  // QT
-    {
-        for (i = 0; i < pu_info->sub_pu_num; i++)
-        {
-            w[i] = 2;
-            h[i] = 2;
-            x[i] = (i & 1) * 2;
-            y[i] = (i >> 1) * 2;
-        }
-    }
-}
-
-/***************************************************************************************************
-* π¶  ƒ‹£∫ªÒ»°420/422∏Ò Ωµƒ…´∂»◊”pb–≈œ¢£¨∞¸¿®pu_num°¢x/y/w/h
-* ≤Œ   ˝£∫*
-*        pu_info                -IO        µ±«∞4x4øÈµƒ◊”PU–≈œ¢
-*        hor_shift              -I         ÀÆ∆Ω∑ΩœÚµƒ≤…—˘“∆Œª
-*        ver_shift              -I         ¥π÷±∑ΩœÚµƒ≤…—˘“∆Œª
-* ∑µªÿ÷µ£∫Œﬁ
-* ±∏  ◊¢£∫
-***************************************************************************************************/
-HLM_VOID HLM_COM_GetChromaPbInfo(HLM_IBC_PU_INFO     *pu_info,
-                                 HLM_U08              hor_shift,
-                                 HLM_U08              ver_shift)
-{
-    HLM_U08 pu_w = 4 >> hor_shift;  // …´∂»4x4øÈµƒ≥ﬂ¥Á
-    HLM_U08 pu_h = 4 >> ver_shift;
-    HLM_U08 *x   = pu_info->sub_x;
-    HLM_U08 *y   = pu_info->sub_y;
-    HLM_U08 *w   = pu_info->sub_w;
-    HLM_U08 *h   = pu_info->sub_h;
-    HLM_U08 i    = 0;
-
-    if (pu_info->part_type == HLM_IBC_NO_SPLIT)
-    {
-        pu_info->sub_pu_num = 1;
-        w[0] = pu_w;
-        h[0] = pu_h;
-        x[0] = 0;
-        y[0] = 0;
-    }
-    else if (pu_info->part_type == HLM_IBC_VER_SYM4)
-    {
-        pu_info->sub_pu_num = pu_w;
-        for (i = 0; i < pu_info->sub_pu_num; i++)
-        {
-            w[i] = 1;
-            h[i] = pu_h;
-            x[i] = i;
-            y[i] = 0;
-        }
-    }
-    else if (pu_info->part_type == HLM_IBC_HOR_SYM4)
-    {
-        pu_info->sub_pu_num = pu_h;
-        for (i = 0; i < pu_info->sub_pu_num; i++)
-        {
-            w[i] = pu_w;
-            h[i] = 1;
-            x[i] = 0;
-            y[i] = i;
-        }
-    }
-    else
-    {
-        pu_info->sub_pu_num = 4;
-        for (i = 0; i < pu_info->sub_pu_num; i++)
-        {
-            w[i] = pu_w >> 1;
-            h[i] = pu_h >> 1;
-            x[i] = (i & 1) * (pu_w >> 1);
-            y[i] = (i >> 1) * (pu_h >> 1);
-        }
-    }
-}
-
-/***************************************************************************************************
-* π¶  ƒ‹£∫ªÒ»°bvp
-* ≤Œ   ˝£∫*
-*        com_cu_info            -I         µ±«∞CU–≈œ¢
-*        merge_flag             -I         merge∑Ω Ω
-*        zscan_idx              -I         4x4øÈµƒÀ˜“˝
-*        pu_idx                 -I         ◊”PUµƒÀ˜“˝
-*        bvp                    -O         µ±«∞4x4øÈµƒbvpªÚ◊”PUµƒbvp
-* ∑µªÿ÷µ£∫Œﬁ
-* ±∏  ◊¢£∫
-***************************************************************************************************/
-HLM_VOID HLM_COM_GetBvp(HLM_CU_INFO         *com_cu_info,
-                        HLM_U08              merge_flag,
-                        HLM_U08              zscan_idx,
-                        HLM_U08              pu_idx,
-                        HLM_MV              *bvp)
-{
-    HLM_S32 pu_x             = HLM_INTRA_ZSCAN_TO_PELX[zscan_idx];
-    HLM_S32 pu_y             = HLM_INTRA_ZSCAN_TO_PELY[zscan_idx];
-    HLM_U08 direct           = tbl_merge_type[merge_flag][zscan_idx];
-    HLM_IBC_PU_INFO *pu_info = &com_cu_info->ibc_pu_info[merge_flag][zscan_idx];
-    HLM_S08 ref_pu_idx       = 0;
-
-    if (pu_idx == 0)  // µ⁄“ª∏ˆ◊”pu
-    {
-        if (direct == 1)  // œÚ◊Û
-        {
-            *bvp = com_cu_info->inner_bv_left[merge_flag][(pu_y << 2) + pu_info->sub_y[pu_idx]];
-        }
-        else if (direct == 2)  // œÚ…œ
-        {
-            *bvp = com_cu_info->inner_bv_up[merge_flag][pu_x];
-            bvp->mvy = 0;
-        }
-        else  // ≤ªmerge£¨∂®≥§¬Î
-        {
-            bvp->mvx = 0;
-            bvp->mvy = 0;
-        }
-    }
-    else
-    {
-        ref_pu_idx = pu_idx - 1;  // ƒ¨»œ≤Œøº«∞“ª∏ˆ◊”pu
-        if (pu_info->part_type == HLM_IBC_QT && (pu_idx == 2 || (pu_idx == 3 && direct == 2)))
-        {
-            ref_pu_idx--;
-        }
-        *bvp = pu_info->sub_bv[ref_pu_idx];
-    }
-}
-
-/***************************************************************************************************
-* π¶  ƒ‹£∫ªÒ»°∂®≥§¬Î±‡¬Îbvxµƒ¬Î≥§
-* ≤Œ   ˝£∫*
-*        com_cu_info            -I         µ±«∞CUµƒ–≈œ¢
-*        segment_enable_flag    -I         ∏Ù∂œ≤Œøº «∑Òø™∆Ù
-*        segment_width_in_log2  -I         ∏Ù∂œ«¯”ÚøÌ∂»£®“‘œÒÀÿŒ™µ•Œª£©µƒlog
-* ∑µªÿ÷µ£∫bvxµƒ¬Î≥§
-* ±∏  ◊¢£∫
-***************************************************************************************************/
-HLM_U08 HLM_COM_GetBvxLen(HLM_CU_INFO *com_cu_info,
-                          HLM_U08      segment_enable_flag,
-                          HLM_U32      segment_width_in_log2)
-{
-    HLM_U32 bound_x = com_cu_info->cu_x;  // “‘CUŒ™µ•Œª
-
-    if (segment_enable_flag)
-    {
-        bound_x = com_cu_info->cu_x % (1 << (segment_width_in_log2 - HLM_LOG2_WIDTH_SIZE));
-    }
-#if FIRST_COLUMN_IBC
-    if (com_cu_info->first_column_ibc_flag)
-    {
-        return HLM_IBC_HOR_SEARCH_LOG;
-    }
-    else if (bound_x >= 8)
-#else
-    if (bound_x >= 8)
-#endif
-    {
-        return HLM_IBC_HOR_SEARCH_LOG;
-    }
-    else
-    {
-        return tbl_bvx_bits[bound_x];
-    }
-}
-#endif
-
-/****************************************************************************************
-* π¶  ƒ‹£∫ªÒ»°≤ªÕ¨øÈ¥Û–°œ¬µƒinterøÈmvp
-* ≤Œ   ˝£∫*
-*        available          -I      µ±«∞øÈœ‡¡⁄øÈø…”√–‘
-*        cu_x               -I      µ±«∞øÈœ‡∂‘cuµƒx∆ ºµ„
-*        cu_y               -I      µ±«∞øÈœ‡∂‘cuµƒy∆ ºµ„
-*        nbi_mv             -I      µ±«∞øÈœ‡¡⁄Œª÷√(æ≠π˝º∆À„∫Õ¥¶¿Ì∫Û)mv
-*        ref_frame          -I      µ±«∞øÈœ‡¡⁄Œª÷√(æ≠π˝º∆À„∫Õ¥¶¿Ì∫Û)≤Œøº÷°id
-*        mvp                -O      µ±«∞øÈmvp
-* ∑µªÿ÷µ£∫Œﬁ
-* ±∏  ◊¢£∫
-****************************************************************************************/
-HLM_VOID HLM_COM_GetMvp(HLM_U32   *available,
-                        HLM_U32    cu_x,
-                        HLM_U32    cu_y,
-                        HLM_MV    *nbi_mv,
-                        HLM_S32   *ref_frame,
-                        HLM_MV    *mvp)
-{
-    HLM_MV  zero_mv       = { 0 };
-    HLM_MV *mv_a          = HLM_NULL;
-    HLM_MV *mv_b          = HLM_NULL;
-    HLM_MV *mv_c          = HLM_NULL;
-    HLM_U32 mvPredType    = 0;  // median
-    HLM_S32 ref_frame_cur = 1;
-    HLM_S32 rFrameL       = available[0] ? ref_frame[0] : -1;
-    HLM_S32 rFrameU       = available[1] ? ref_frame[1] : -1;
-    HLM_S32 rFrameUR      = available[2] ? ref_frame[2] : -1;
-
-    if (rFrameL == ref_frame_cur && rFrameU != ref_frame_cur && rFrameUR != ref_frame_cur)
-    {
-        mvPredType = 1;  // left
-    }
-    else if (rFrameL != ref_frame_cur && rFrameU == ref_frame_cur && rFrameUR != ref_frame_cur)
-    {
-        mvPredType = 2;  // up
-    }
-    else if (rFrameL != ref_frame_cur && rFrameU != ref_frame_cur && rFrameUR == ref_frame_cur)
-    {
-        mvPredType = 3;  // right-up
-    }
-
-    switch (mvPredType)
-    {
-    case 0:  // median
-        if (!(available[1] || available[2]))
-        {
-            *mvp = available[0] ? nbi_mv[0] : zero_mv;
-        }
-        else
-        {
-            mv_a = available[0] ? &nbi_mv[0] : &zero_mv; //left
-            mv_b = available[1] ? &nbi_mv[1] : &zero_mv; //up
-            mv_c = available[2] ? &nbi_mv[2] : &zero_mv; //upright
-
-            mvp->mvx = HLM_INTER_MEDIAN(mv_a->mvx, mv_b->mvx, mv_c->mvx);
-            mvp->mvy = HLM_INTER_MEDIAN(mv_a->mvy, mv_b->mvy, mv_c->mvy);
-        }
-        break;
-    case 1:  // left
-        *mvp = available[0] ? nbi_mv[0] : zero_mv;
-        break;
-    case 2:  // up
-        *mvp = available[1] ? nbi_mv[1] : zero_mv;
-        break;
-    case 3:  // right-up
-        *mvp = available[2] ? nbi_mv[2] : zero_mv;
-        break;
-    default:
-        break;
-    }
-}
-
-/***************************************************************************************************
-* π¶  ƒ‹£∫ªÒ»°interøÈmvp«∞¥¶¿Ì
-* ≤Œ   ˝£∫*
-*        com_cu_info        -I      µ±«∞CU–≈œ¢
-*        blk8_pu0_mv        -I      8x8ªÆ∑÷œ¬µ⁄“ª∏ˆPUµƒmv
-*        nbi_info           -I      µ±«∞CUœ‡¡⁄øÈ–≈œ¢
-*        is_right_cu        -I      µ±«∞cu «∑ÒŒ™ÕºœÒ◊Ó”“≤‡cu£¨mvµƒ”“…œøÈ≤ª¥Ê‘⁄”√◊Û…œøÈ¥˙ÃÊ
-*        proc               -I      µ±«∞CU¥¶¿Ì¡˜≥ÃΩ◊∂Œ
-*        available          -O      µ±«∞CUœ‡¡⁄øÈø…”√–‘
-*        nbi_mv             -O      µ±«∞CUœ‡¡⁄Œª÷√(æ≠π˝º∆À„∫Õ¥¶¿Ì∫Û)mv
-*        ref_frame          -O      µ±«∞CUœ‡¡⁄Œª÷√(æ≠π˝º∆À„∫Õ¥¶¿Ì∫Û)≤Œøº÷°id
-* ∑µªÿ÷µ£∫Œﬁ
-* ±∏  ◊¢£∫
-***************************************************************************************************/
-HLM_VOID HLM_COM_InterMvpPre(HLM_CU_INFO         *com_cu_info,
-                             HLM_MV              *blk8_pu0_mv,
-                             HLM_NEIGHBOR_INFO   *nbi_info,
-                             HLM_S32              is_right_cu,
-                             HLM_PROC             proc,
-                             HLM_U32              available[][3],
-                             HLM_MV               nbi_mv[][3],
-                             HLM_S32              ref_frame[][3])
-{
-    HLM_U32 cur_cu_pos = com_cu_info->cu_x << 2;
-
-    // 16x8
-    if (com_cu_info->cu_x != 0)
-    {
-        available[PART_16x8][0] = 1;
-        nbi_mv[PART_16x8][0] = nbi_info->inter_mv_left[0];
-        if (proc == PROC_PRE)
-        {
-            ref_frame[PART_16x8][0] = 1;
-        }
-        else
-        {
-            ref_frame[PART_16x8][0] = (nbi_info->pred_type_left[0] >= HLM_P_8x8) ? 1 : -1;
-        }
-    }
-    if (com_cu_info->cu_y != 0)
-    {
-        available[PART_16x8][1] = 1;
-        nbi_mv[PART_16x8][1] = nbi_info->inter_mv_up[cur_cu_pos];
-        ref_frame[PART_16x8][1] = (nbi_info->pred_type_up[cur_cu_pos] >= HLM_P_8x8) ? 1 : -1;
-
-        if (!is_right_cu)
-        {
-            available[PART_16x8][2] = 1;
-            nbi_mv[PART_16x8][2] = nbi_info->inter_mv_up[cur_cu_pos + 4];
-            ref_frame[PART_16x8][2] = (nbi_info->pred_type_up[cur_cu_pos + 4] >= HLM_P_8x8) ? 1 : -1;
-        }
-        else if (com_cu_info->cu_x != 0)
-        {
-            available[PART_16x8][2] = 1;
-            nbi_mv[PART_16x8][2] = nbi_info->inter_mv_upleft;
-            ref_frame[PART_16x8][2] = (nbi_info->pred_type_upleft >= HLM_P_8x8) ? 1 : -1;
-        }
-    }
-
-    // 8x8£¨PU0
-    if (com_cu_info->cu_x != 0)
-    {
-        available[PART_8x8_0][0] = 1;
-        nbi_mv[PART_8x8_0][0] = nbi_info->inter_mv_left[0];
-        if (proc == PROC_PRE)
-        {
-            ref_frame[PART_8x8_0][0] = 1;
-        }
-        else
-        {
-            ref_frame[PART_8x8_0][0] = (nbi_info->pred_type_left[0] >= HLM_P_8x8) ? 1 : -1;
-        }
-    }
-    if (com_cu_info->cu_y != 0)
-    {
-        available[PART_8x8_0][1] = 1;
-        nbi_mv[PART_8x8_0][1] = nbi_info->inter_mv_up[cur_cu_pos];
-        ref_frame[PART_8x8_0][1] = (nbi_info->pred_type_up[cur_cu_pos] >= HLM_P_8x8) ? 1 : -1;
-
-        available[PART_8x8_0][2] = 1;
-        nbi_mv[PART_8x8_0][2] = nbi_info->inter_mv_up[cur_cu_pos + 2];
-        ref_frame[PART_8x8_0][2] = (nbi_info->pred_type_up[cur_cu_pos + 2] >= HLM_P_8x8) ? 1 : -1;
-    }
-
-    // 8x8£¨PU1
-    if (proc == PROC_RDO || proc == PROC_BS)
-    {
-        available[PART_8x8_1][0] = 1;
-        nbi_mv[PART_8x8_1][0] = *blk8_pu0_mv;
-        ref_frame[PART_8x8_1][0] = 1;
-    }
-    else if (com_cu_info->cu_x != 0)  // ¥À ±◊Û±ﬂŒﬁ∑®»∑∂®, π”√◊Û≤‡œ‡¡⁄cuøÈmv
-    {
-        available[PART_8x8_1][0] = 1;
-        nbi_mv[PART_8x8_1][0] = nbi_info->inter_mv_left[0];
-        ref_frame[PART_8x8_1][0] = 1;
-    }
-    if (com_cu_info->cu_y != 0)
-    {
-        available[PART_8x8_1][1] = 1;
-        nbi_mv[PART_8x8_1][1] = nbi_info->inter_mv_up[cur_cu_pos + 2];
-        ref_frame[PART_8x8_1][1] = (nbi_info->pred_type_up[cur_cu_pos + 2] >= HLM_P_8x8) ? 1 : -1;
-
-        if (!is_right_cu)
-        {
-            available[PART_8x8_1][2] = 1;
-            nbi_mv[PART_8x8_1][2] = nbi_info->inter_mv_up[cur_cu_pos + 4];
-            ref_frame[PART_8x8_1][2] = (nbi_info->pred_type_up[cur_cu_pos + 4] >= HLM_P_8x8) ? 1 : -1;
-        }
-        else
-        {
-            available[PART_8x8_1][2] = 1;
-            nbi_mv[PART_8x8_1][2] = nbi_info->inter_mv_up[cur_cu_pos + 1];
-            ref_frame[PART_8x8_1][2] = (nbi_info->pred_type_up[cur_cu_pos + 1] >= HLM_P_8x8) ? 1 : -1;
-        }
-    }
-}
-
-/***************************************************************************************************
-* π¶  ƒ‹£∫ªÒ»°skipøÈmvp
-* ≤Œ   ˝£∫*
-*        com_cu_info        -I      µ±«∞CU–≈œ¢
-*        nbi_info           -I      µ±«∞CUœ‡¡⁄øÈ–≈œ¢
-*        is_right_cu        -I      µ±«∞cu «∑ÒŒ™ÕºœÒ◊Ó”“≤‡cu£¨mvµƒ”“…œøÈ≤ª¥Ê‘⁄”√◊Û…œøÈ¥˙ÃÊ
-*        mvp                -O      ƒ⁄≤ø◊”øÈµƒmvp
-* ∑µªÿ÷µ£∫Œﬁ
-* ±∏  ◊¢£∫
-***************************************************************************************************/
-HLM_VOID HLM_COM_InterSkipMvp(HLM_CU_INFO        *com_cu_info,
-                              HLM_NEIGHBOR_INFO  *nbi_info,
-                              HLM_S32             is_right_cu,
-                              HLM_MV             *mvp)
-{
-    HLM_MV  zero_mv = { 0 };
-    HLM_S32 zeroMotionAbove = 0;
-    HLM_S32 zeroMotionLeft = 0;
-    HLM_U32 available[3] = { 0 };
-    HLM_MV  nbi_mv[3] = { 0 };
-    HLM_U32 cur_cu_pos = com_cu_info->cu_x << 2;
-    HLM_S32 ref_idx[3] = { 0 };
-
-    if (com_cu_info->cu_x != 0)
-    {
-        available[0] = 1;
-        nbi_mv[0] = nbi_info->inter_mv_left[0];
-        if (com_cu_info->cu_y == 0)
-        {
-            nbi_mv[1] = nbi_mv[2] = nbi_mv[0];
-        }
-        ref_idx[0] = (nbi_info->pred_type_left[0] >= HLM_P_8x8) ? 1 : -1;
-    }
-    if (com_cu_info->cu_y != 0)
-    {
-        available[1] = 1;
-        nbi_mv[1] = nbi_info->inter_mv_up[cur_cu_pos];
-        ref_idx[1] = (nbi_info->pred_type_up[cur_cu_pos] >= HLM_P_8x8) ? 1 : -1;
-
-        if (!is_right_cu)
-        {
-            available[2] = 1;
-            nbi_mv[2] = nbi_info->inter_mv_up[cur_cu_pos + 4];
-            ref_idx[2] = (nbi_info->pred_type_up[cur_cu_pos + 4] >= HLM_P_8x8) ? 1 : -1;
-        }
-        else
-        {
-            available[2] = 1;
-            nbi_mv[2] = nbi_info->inter_mv_upleft;
-            ref_idx[2] = (nbi_info->pred_type_upleft >= HLM_P_8x8) ? 1 : -1;
-        }
-    }
-
-    zeroMotionLeft = !available[0] ? 1 : (ref_idx[0] == 1 && nbi_mv[0].mvx == 0 && nbi_mv[0].mvy == 0) ? 1 : 0;
-    zeroMotionAbove = !available[1] ? 1 : (ref_idx[1] == 1 && nbi_mv[1].mvx == 0 && nbi_mv[1].mvy == 0) ? 1 : 0;
-    if (zeroMotionAbove || zeroMotionLeft)
-    {
-        *mvp = zero_mv;
-    }
-    else
-    {
-        HLM_COM_GetMvp(available, 0, 0, nbi_mv, ref_idx, mvp);
-    }
-}
-
-/***************************************************************************************************
-* π¶  ƒ‹£∫…˙≥…MPM
-* ≤Œ   ˝£∫*
-*        nbi_info               -I         µ±«∞cuœ‡¡⁄øÈ–≈œ¢
-*        com_cu_info            -I         µ±«∞cu–≈œ¢
-*        zscan_idx              -I         µ±«∞cuµƒŒª÷√
-*        mpm                    -O         ‘§≤‚µƒ÷°ƒ⁄‘§≤‚ƒ£ Ω
-*        proc                   -I         ¥¶¿ÌΩ◊∂Œ
-* ∑µªÿ÷µ£∫Œﬁ
-* ±∏  ◊¢£∫
-***************************************************************************************************/
-HLM_VOID HLM_COM_GetMpm(HLM_NEIGHBOR_INFO   *nbi_info,
-                        HLM_CU_INFO         *com_cu_info,
-                        HLM_U32              zscan_idx,
-                        HLM_U08             *mpm,
-                        HLM_PROC             proc)
-{
-    HLM_U08 pu_x                 = HLM_INTRA_ZSCAN_TO_PELX[zscan_idx];
-    HLM_U08 pu_y                 = HLM_INTRA_ZSCAN_TO_PELY[zscan_idx];
-    HLM_U08 cu_type_left         = 0;
-    HLM_U08 cu_type_top          = 0;
-    HLM_U08 intra_pred_mode_left = 0;
-    HLM_U08 intra_pred_mode_top  = 0;
-    HLM_CU_TYPE target_type      = (proc == PROC_PRE) ? HLM_I_4x4 : com_cu_info->cu_type;
-
-    if ((com_cu_info->left_unavail && 0 == pu_x) || (com_cu_info->up_unavail && 0 == pu_y))
-    {
-        *mpm = HLM_INTRA_4x4_DC;
-        return;
-    }
-
-    if (0 == pu_x)  //◊Û≤‡cu_type
-    {
-        cu_type_left = nbi_info->pred_type_left[pu_y];
-    }
-    else
-    {
-        cu_type_left = target_type;
-    }
-    if (0 == pu_y)  // …œ≤‡cu_type
-    {
-        cu_type_top = nbi_info->pred_type_up[(com_cu_info->cu_x << 2) + pu_x];
-    }
-    else
-    {
-        cu_type_top = target_type;
-    }
-
-    if (cu_type_left == target_type)  // ◊Û≤‡pred_mode
-    {
-        if (0 == pu_x)
-        {
-            intra_pred_mode_left = nbi_info->intra_pred_mode_left[pu_y];
-        }
-        else
-        {
-            intra_pred_mode_left = com_cu_info->cu_pred_info.pu_info[(pu_y << 2) + pu_x - 1].intra_pred_mode;
-        }
-    }
-    else
-    {
-        intra_pred_mode_left = HLM_INTRA_4x4_DC;
-    }
-    if (cu_type_top == target_type)  // …œ≤‡pred_mode
-    {
-        if (0 == pu_y)
-        {
-            intra_pred_mode_top = nbi_info->intra_pred_mode_up[(com_cu_info->cu_x << 2) + pu_x];
-        }
-        else
-        {
-            intra_pred_mode_top = com_cu_info->cu_pred_info.pu_info[((pu_y - 1) << 2) + pu_x].intra_pred_mode;
-        }
-    }
-    else
-    {
-        intra_pred_mode_top = HLM_INTRA_4x4_DC;
-    }
-
-    *mpm = HLM_MIN(intra_pred_mode_top, intra_pred_mode_left);
-}
-
-/***************************************************************************************************
-* π¶  ƒ‹£∫ªÒ»°intra8x8ªÆ∑÷œ¬£¨…´∂»PBµƒ–≈œ¢
-* ≤Œ   ˝£∫*
-*        image_format           -I         ÕºœÒ∏Ò Ω
-*        luma_size              -I         ¡¡∂»PBµƒøÌ∏ﬂ£¨”¶Œ™8
-*        skip_chroma            -O         ¡Ω∏ˆ8x8øÈ «∑Ò∞¸∫¨…´∂»PB
-*        chroma_size            -O         …´∂»PBµƒøÌ∏ﬂ
-*        chroma_size_offset     -O         …´∂»PBµƒøÌ∏ﬂ”Î¡¡∂»PBµƒ±∂ ˝
-* ∑µªÿ÷µ£∫Œﬁ
-* ±∏  ◊¢£∫
-***************************************************************************************************/
-HLM_VOID HLM_COM_Intra8x8ChromaPb(HLM_U32  image_format,
-                                  HLM_U32  luma_size,
-                                  HLM_U32  skip_chroma[2],
-                                  HLM_U32 *chroma_size,
-                                  HLM_U32 *chroma_size_offset)
-{
-    if (HLM_IMG_YUV_422 == image_format)
-    {
-        // …´∂»÷ª”–“ª∏ˆPB£¨øÌ∏ﬂŒ™8x8
-        *chroma_size = luma_size;
-        *chroma_size_offset = 0;
-        skip_chroma[0] = 0;  // µ⁄“ª∏ˆ8x8”–…´∂»PB
-        skip_chroma[1] = 1;  // µ⁄∂˛∏ˆ8x8√ª”–…´∂»PB
-    }
-    else if (HLM_IMG_YUV_420 == image_format)
-    {
-        // …´∂»”–¡Ω∏ˆPB£¨øÌ∏ﬂŒ™4x4
-        *chroma_size = luma_size >> 1;
-        *chroma_size_offset = 1;
-        skip_chroma[0] = 0;
-        skip_chroma[1] = 0;
-    }
-    else if (HLM_IMG_YUV_400 == image_format)
-    {
-        // √ª”–…´∂»–≈œ¢
-        *chroma_size = luma_size;
-        *chroma_size_offset = 0;
-        skip_chroma[0] = 1;
-        skip_chroma[1] = 1;
-    }
-    else
-    {
-        // …´∂»–≈œ¢Õ¨¡¡∂»
-        *chroma_size = luma_size;
-        *chroma_size_offset = 0;
-        skip_chroma[0] = 0;
-        skip_chroma[1] = 0;
-    }
-}
-
-/***************************************************************************************************
-* π¶  ƒ‹£∫ªÒ»°16x8µƒ≤ŒøºœÒÀÿ
-* ≤Œ   ˝£∫*
-*        nbi_info                 -I       µ±«∞cuœ‡¡⁄øÈ–≈œ¢
-*        com_cu_info              -I       µ±«∞cu–≈œ¢
-*        pred_mode                -I       ‘§≤‚ƒ£ Ω
-*        yuv_idx                  -I       YUVÕ®µ¿
-*        ref_pixel                -O       ≤ŒøºœÒÀÿ
-* ∑µªÿ÷µ£∫Œﬁ
-* ±∏  ◊¢£∫
-***************************************************************************************************/
-HLM_VOID HLM_COM_Intra16x8RefPel(HLM_NEIGHBOR_INFO   *nbi_info,
-                                 HLM_CU_INFO         *com_cu_info,
-                                 HLM_U08              pred_mode,
-                                 HLM_U08              yuv_idx,
-                                 HLM_U16             *ref_pixel)
-{
-    HLM_U08 ref_flag      = HLM_INTRA_ALL_NEIGHBORS;
-    HLM_U32 luma_width    = 1 << com_cu_info->cu_width[0];
-    HLM_U32 chroma_width  = 1 << com_cu_info->cu_width[1];
-    HLM_U32 luma_height   = 1 << com_cu_info->cu_height[0];
-    HLM_U32 chroma_height = 1 << com_cu_info->cu_height[1];
-    HLM_U08 left_unavail  = com_cu_info->left_unavail;
-    HLM_U08 up_unavail    = com_cu_info->up_unavail;
-
-    if (left_unavail)
-    {
-        ref_flag &= (HLM_INTRA_TOP | HLM_INTRA_TOP_RIGHT);
-    }
-    if (up_unavail)
-    {
-        ref_flag &= (HLM_INTRA_LEFT);
-    }
-    if (yuv_idx == 0)
-    {
-        if (ref_flag & HLM_INTRA_TOP)
-        {
-            memcpy(ref_pixel + HLM_INTRA_TOP_REF_IDX,
-                nbi_info->intra_rec_up_y + (com_cu_info->cu_x << com_cu_info->cu_width[0]), luma_width * sizeof(HLM_U16));
-        }
-        if (ref_flag & HLM_INTRA_LEFT)
-        {
-            memcpy(ref_pixel + HLM_INTRA_LEFT_REF_IDX, nbi_info->intra_rec_left_y, luma_height * sizeof(HLM_U16));
-        }
-        if (ref_flag & HLM_INTRA_TOP_LEFT)
-        {
-            ref_pixel[HLM_INTRA_TOP_LEFT_REF_IDX] = nbi_info->up_left_y;
-        }
-    }
-    if (yuv_idx == 1)
-    {
-        if (ref_flag & HLM_INTRA_TOP)
-        {
-            memcpy(ref_pixel + HLM_INTRA_TOP_REF_IDX,
-                nbi_info->intra_rec_up_u + (com_cu_info->cu_x << com_cu_info->cu_width[1]), chroma_width * sizeof(HLM_U16));
-        }
-        if (ref_flag & HLM_INTRA_LEFT)
-        {
-            memcpy(ref_pixel + HLM_INTRA_LEFT_REF_IDX, nbi_info->intra_rec_left_u, chroma_height * sizeof(HLM_U16));
-        }
-        if (ref_flag & HLM_INTRA_TOP_LEFT)
-        {
-            ref_pixel[HLM_INTRA_TOP_LEFT_REF_IDX] = nbi_info->up_left_u;
-        }
-    }
-    if (yuv_idx == 2)
-    {
-        if (ref_flag & HLM_INTRA_TOP)
-        {
-            memcpy(ref_pixel + HLM_INTRA_TOP_REF_IDX,
-                nbi_info->intra_rec_up_v + (com_cu_info->cu_x << com_cu_info->cu_width[2]), chroma_width * sizeof(HLM_U16));
-        }
-        if (ref_flag & HLM_INTRA_LEFT)
-        {
-            memcpy(ref_pixel + HLM_INTRA_LEFT_REF_IDX, nbi_info->intra_rec_left_v, chroma_height * sizeof(HLM_U16));
-        }
-        if (ref_flag & HLM_INTRA_TOP_LEFT)
-        {
-            ref_pixel[HLM_INTRA_TOP_LEFT_REF_IDX] = nbi_info->up_left_v;
-        }
-    }
-}
-
-/***************************************************************************************************
-* π¶  ƒ‹£∫ªÒ»°4x4µƒ≤ŒøºœÒÀÿ
-* ≤Œ   ˝£∫*
-*        recon_y_base             -I       ÷ÿΩ®œÒÀÿY∑÷¡øµƒµÿ÷∑
-*        recon_u_base             -I       ÷ÿΩ®œÒÀÿU∑÷¡øµƒµÿ÷∑
-*        recon_v_base             -I       ÷ÿΩ®œÒÀÿV∑÷¡øµƒµÿ÷∑
-*        stride_y                 -I       Y∑÷¡øøÁ∂»
-*        stride_u                 -I       U∑÷¡øøÁ∂»
-*        stride_v                 -I       V∑÷¡øøÁ∂»
-*        patch_width_in_cu        -I       patchøÌ∂»£¨“‘CUŒ™µ•Œª
-*        nbi_info                 -I       µ±«∞cuœ‡¡⁄øÈ–≈œ¢
-*        com_cu_info              -I       µ±«∞cu–≈œ¢
-*        pred_mode                -I       ‘§≤‚ƒ£ Ω
-*        yuv_idx                  -I       YUVÕ®µ¿
-*        zscan_idx                -I       µ±«∞PUµƒŒª÷√
-*        pu_log_size              -I       log2µƒPU≥ﬂ¥Á
-*        ref_pixel                -O       ≤ŒøºœÒÀÿ
-* ∑µªÿ÷µ£∫Œﬁ
-* ±∏  ◊¢£∫
-***************************************************************************************************/
-HLM_VOID HLM_COM_Intra4x4RefPel(HLM_U16             *recon_y_base,
-                                HLM_U16             *recon_u_base,
-                                HLM_U16             *recon_v_base,
-                                HLM_U32              stride_y,
-                                HLM_U32              stride_u,
-                                HLM_U32              stride_v,
-                                HLM_U32              patch_width_in_cu,
-                                HLM_NEIGHBOR_INFO   *nbi_info,
-                                HLM_CU_INFO         *com_cu_info,
-                                HLM_U08              pred_mode,
-                                HLM_U08              yuv_idx,
-                                HLM_U32              zscan_idx,
-                                HLM_U32              pu_log_size,
-                                HLM_U16             *ref_pixel)
-{
-    HLM_U08 ref_flag       = HLM_INTRA_ALL_NEIGHBORS;
-    HLM_U08 pu_pixel_x     = HLM_INTRA_ZSCAN_TO_PELX[zscan_idx] << pu_log_size;
-    HLM_U08 pu_pixel_y     = HLM_INTRA_ZSCAN_TO_PELY[zscan_idx] << pu_log_size;
-    HLM_U32 cu_pixel_x     = com_cu_info->cu_x << ((yuv_idx == 0) ? 4 : 4 - com_cu_info->chroma_offset_x);
-    HLM_U32 cu_pixel_y     = com_cu_info->cu_y << ((yuv_idx == 0) ? 3 : 3 - com_cu_info->chroma_offset_y);
-    HLM_U16 *rec_cu_left_y = nbi_info->intra_rec_left_y;
-    HLM_U16 *rec_cu_left_u = nbi_info->intra_rec_left_u;
-    HLM_U16 *rec_cu_left_v = nbi_info->intra_rec_left_v;
-    HLM_U16 *rec_cu_top_y  = nbi_info->intra_rec_up_y + cu_pixel_x;
-    HLM_U16 *rec_cu_top_u  = nbi_info->intra_rec_up_u + cu_pixel_x;
-    HLM_U16 *rec_cu_top_v  = nbi_info->intra_rec_up_v + cu_pixel_x;
-    HLM_U16 *rec_pu_y      = recon_y_base + (cu_pixel_y + pu_pixel_y) * stride_y + cu_pixel_x + pu_pixel_x;
-    HLM_U16 *rec_pu_u      = recon_u_base + (cu_pixel_y + pu_pixel_y) * stride_u + cu_pixel_x + pu_pixel_x;
-    HLM_U16 *rec_pu_v      = recon_v_base + (cu_pixel_y + pu_pixel_y) * stride_v + cu_pixel_x + pu_pixel_x;
-    HLM_U32 i              = 0;
-    HLM_U32 pu_size        = 1 << pu_log_size;
-    HLM_U08 left_unavail   = com_cu_info->left_unavail;
-    HLM_U08 up_unavail     = com_cu_info->up_unavail;
-
-    if (left_unavail && pu_pixel_x == 0)
-    {
-        ref_flag &= (HLM_INTRA_TOP | HLM_INTRA_TOP_RIGHT);   // HLM_INTRA_TOP || HLM_INTRA_TOP_RIGHT
-    }
-    if (up_unavail && pu_pixel_y == 0)
-    {
-        ref_flag &= (HLM_INTRA_LEFT);  // HLM_INTRA_LEFT
-    }
-    if (yuv_idx == 0)
-    {
-        if (ref_flag & HLM_INTRA_TOP)
-        {
-            if (pu_pixel_y == 0)
-            {
-                memcpy(ref_pixel + HLM_INTRA_TOP_REF_IDX, rec_cu_top_y + pu_pixel_x, pu_size * sizeof(HLM_U16));
-            }
-            else
-            {
-                memcpy(ref_pixel + HLM_INTRA_TOP_REF_IDX, rec_pu_y - stride_y, pu_size * sizeof(HLM_U16));
-            }
-        }
-        if (ref_flag & HLM_INTRA_TOP_RIGHT)
-        {
-            if (((zscan_idx == (com_cu_info->intra_8x8_enable_flag ? 1 : 5)) && (com_cu_info->cu_x == (patch_width_in_cu - 1)))
-                || (zscan_idx == 3) || (zscan_idx == 7) || (zscan_idx == 11) || (zscan_idx == 13) || (zscan_idx == 15))
-            {
-                for (i = 0; i < pu_size; i++)
-                {
-                    ref_pixel[HLM_INTRA_TOP_REF_IDX + pu_size + i] = ref_pixel[HLM_INTRA_TOP_REF_IDX + pu_size - 1];
-                }
-            }
-            else
-            {
-                if (pu_pixel_y == 0)
-                {
-                    memcpy(ref_pixel + HLM_INTRA_TOP_REF_IDX + pu_size, rec_cu_top_y + pu_pixel_x + pu_size, pu_size * sizeof(HLM_U16));
-                }
-                else
-                {
-                    memcpy(ref_pixel + HLM_INTRA_TOP_REF_IDX + pu_size, rec_pu_y - stride_y + pu_size, pu_size * sizeof(HLM_U16));
-                }
-            }
-        }
-        if (ref_flag & HLM_INTRA_LEFT)
-        {
-            if (pu_pixel_x == 0)
-            {
-                memcpy(ref_pixel + HLM_INTRA_LEFT_REF_IDX, rec_cu_left_y + pu_pixel_y, pu_size * sizeof(HLM_U16));
-            }
-            else
-            {
-                for (i = 0; i < pu_size; i++)
-                {
-                    ref_pixel[HLM_INTRA_LEFT_REF_IDX + i] = *(rec_pu_y - 1 + i * stride_y);
-                }
-            }
-        }
-        if (ref_flag & HLM_INTRA_TOP_LEFT)
-        {
-            if (pu_pixel_x == 0 && pu_pixel_y == 0)
-            {
-                ref_pixel[HLM_INTRA_TOP_LEFT_REF_IDX] = nbi_info->up_left_y;
-            }
-            else if (pu_pixel_x == 0)
-            {
-                ref_pixel[HLM_INTRA_TOP_LEFT_REF_IDX] = *(rec_cu_left_y - 1 + pu_pixel_y);
-            }
-            else if (pu_pixel_y == 0)
-            {
-                ref_pixel[HLM_INTRA_TOP_LEFT_REF_IDX] = *(rec_cu_top_y - 1 + pu_pixel_x);
-            }
-            else
-            {
-                ref_pixel[HLM_INTRA_TOP_LEFT_REF_IDX] = *(rec_pu_y - 1 - stride_y);
-            }
-        }
-    }
-    if (yuv_idx == 1)
-    {
-        if (ref_flag & HLM_INTRA_TOP)
-        {
-            if (pu_pixel_y == 0)
-            {
-                memcpy(ref_pixel + HLM_INTRA_TOP_REF_IDX, rec_cu_top_u + pu_pixel_x, pu_size * sizeof(HLM_U16));
-            }
-            else
-            {
-                memcpy(ref_pixel + HLM_INTRA_TOP_REF_IDX, rec_pu_u - stride_u, pu_size * sizeof(HLM_U16));
-            }
-        }
-        if (ref_flag & HLM_INTRA_TOP_RIGHT)
-        {
-            if (((zscan_idx == (com_cu_info->intra_8x8_enable_flag ? 1 : 5)) && (com_cu_info->cu_x == (patch_width_in_cu - 1)))
-                || (zscan_idx == 3) || (zscan_idx == 7) || (zscan_idx == 11) || (zscan_idx == 13) || (zscan_idx == 15))
-            {
-                for (i = 0; i < pu_size; i++)
-                {
-                    ref_pixel[HLM_INTRA_TOP_REF_IDX + pu_size + i] = ref_pixel[HLM_INTRA_TOP_REF_IDX + pu_size - 1];
-                }
-            }
-            else
-            {
-                if (pu_pixel_y == 0)
-                {
-                    memcpy(ref_pixel + HLM_INTRA_TOP_REF_IDX + pu_size, rec_cu_top_u + pu_pixel_x + pu_size, pu_size * sizeof(HLM_U16));
-                }
-                else
-                {
-                    memcpy(ref_pixel + HLM_INTRA_TOP_REF_IDX + pu_size, rec_pu_u - stride_u + pu_size, pu_size * sizeof(HLM_U16));
-                }
-            }
-        }
-        if (ref_flag & HLM_INTRA_LEFT)
-        {
-            if (pu_pixel_x == 0)
-            {
-                memcpy(ref_pixel + HLM_INTRA_LEFT_REF_IDX, rec_cu_left_u + pu_pixel_y, pu_size * sizeof(HLM_U16));
-            }
-            else
-            {
-                for (i = 0; i < pu_size; i++)
-                {
-                    ref_pixel[HLM_INTRA_LEFT_REF_IDX + i] = *(rec_pu_u - 1 + i * stride_u);
-                }
-            }
-        }
-        if (ref_flag & HLM_INTRA_TOP_LEFT)
-        {
-            if (pu_pixel_x == 0 && pu_pixel_y == 0)
-            {
-                ref_pixel[HLM_INTRA_TOP_LEFT_REF_IDX] = nbi_info->up_left_u;
-            }
-            else if (pu_pixel_x == 0)
-            {
-                ref_pixel[HLM_INTRA_TOP_LEFT_REF_IDX] = *(rec_cu_left_u - 1 + pu_pixel_y);
-            }
-            else if (pu_pixel_y == 0)
-            {
-                ref_pixel[HLM_INTRA_TOP_LEFT_REF_IDX] = *(rec_cu_top_u - 1 + pu_pixel_x);
-            }
-            else
-            {
-                ref_pixel[HLM_INTRA_TOP_LEFT_REF_IDX] = *(rec_pu_u - 1 - stride_u);
-            }
-        }
-    }
-    if (yuv_idx == 2)
-    {
-        if (ref_flag & HLM_INTRA_TOP)
-        {
-            if (pu_pixel_y == 0)
-            {
-                memcpy(ref_pixel + HLM_INTRA_TOP_REF_IDX, rec_cu_top_v + pu_pixel_x, pu_size * sizeof(HLM_U16));
-            }
-            else
-            {
-                memcpy(ref_pixel + HLM_INTRA_TOP_REF_IDX, rec_pu_v - stride_v, pu_size * sizeof(HLM_U16));
-            }
-        }
-        if (ref_flag & HLM_INTRA_TOP_RIGHT)
-        {
-            if (((zscan_idx == (com_cu_info->intra_8x8_enable_flag ? 1 : 5)) && (com_cu_info->cu_x == (patch_width_in_cu - 1)))
-                || (zscan_idx == 3) || (zscan_idx == 7) || (zscan_idx == 11) || (zscan_idx == 13) || (zscan_idx == 15))
-            {
-                for (i = 0; i < pu_size; i++)
-                {
-                    ref_pixel[HLM_INTRA_TOP_REF_IDX + pu_size + i] = ref_pixel[HLM_INTRA_TOP_REF_IDX + pu_size - 1];
-                }
-            }
-            else
-            {
-                if (pu_pixel_y == 0)
-                {
-                    memcpy(ref_pixel + HLM_INTRA_TOP_REF_IDX + pu_size, rec_cu_top_v + pu_pixel_x + pu_size, pu_size * sizeof(HLM_U16));
-                }
-                else
-                {
-                    memcpy(ref_pixel + HLM_INTRA_TOP_REF_IDX + pu_size, rec_pu_v - stride_v + pu_size, pu_size * sizeof(HLM_U16));
-                }
-            }
-        }
-        if (ref_flag & HLM_INTRA_LEFT)
-        {
-            if (pu_pixel_x == 0)
-            {
-                memcpy(ref_pixel + HLM_INTRA_LEFT_REF_IDX, rec_cu_left_v + pu_pixel_y, pu_size * sizeof(HLM_U16));
-            }
-            else
-            {
-                for (i = 0; i < pu_size; i++)
-                {
-                    ref_pixel[HLM_INTRA_LEFT_REF_IDX + i] = *(rec_pu_v - 1 + i * stride_v);
-                }
-            }
-        }
-        if (ref_flag & HLM_INTRA_TOP_LEFT)
-        {
-            if (pu_pixel_x == 0 && pu_pixel_y == 0)
-            {
-                ref_pixel[HLM_INTRA_TOP_LEFT_REF_IDX] = nbi_info->up_left_v;
-            }
-            else if (pu_pixel_x == 0)
-            {
-                ref_pixel[HLM_INTRA_TOP_LEFT_REF_IDX] = *(rec_cu_left_v - 1 + pu_pixel_y);
-            }
-            else if (pu_pixel_y == 0)
-            {
-                ref_pixel[HLM_INTRA_TOP_LEFT_REF_IDX] = *(rec_cu_top_v - 1 + pu_pixel_x);
-            }
-            else
-            {
-                ref_pixel[HLM_INTRA_TOP_LEFT_REF_IDX] = *(rec_pu_v - 1 - stride_v);
-            }
-        }
-    }
-}
-
-// planeƒ£ Ω
-HLM_VOID HLM_INTRA_pred_plane(HLM_U16    *ref_pixel,
-                              HLM_U16    *pred_pixel,
-                              HLM_S32     bitdepth,
-                              HLM_U32     pred_stride,
-                              HLM_U08     width,
-                              HLM_U08     height)
-{
-    HLM_U16 *src_le      = ref_pixel;
-    HLM_U16 *src_up      = ref_pixel + HLM_INTRA_TOP_REF_IDX;
-    HLM_S32  w           = width;
-    HLM_S32  h           = height;
-    HLM_U16 *rsrc        = HLM_NULL;
-    HLM_S32  coef_h      = 0;
-    HLM_S32  coef_v      = 0;
-    HLM_S32  a           = 0;
-    HLM_S32  b           = 0;
-    HLM_S32  c           = 0;
-    HLM_S32  x           = 0;
-    HLM_S32  y           = 0;
-    HLM_S32  w2          = w >> 1;
-    HLM_S32  h2          = h >> 1;
-    HLM_S32  ib_mult[5]  = { 13, 17, 5, 11, 23 };
-    HLM_S32  ib_shift[5] = { 7, 10, 11, 15, 19 };
-    HLM_S32  idx_w       = width == 16 ? 2 : width == 8 ? 1 : 0;   // log2(16)-2 = 2
-    HLM_S32  idx_h       = height == 8 ? 1 : 0;   // log2(8)-2 =1;
-    HLM_S32  im_h        = ib_mult[idx_w];
-    HLM_S32  is_h        = ib_shift[idx_w];
-    HLM_S32  im_v        = ib_mult[idx_h];
-    HLM_S32  is_v        = ib_shift[idx_h];
-    HLM_S32  temp        = 0;
-    HLM_S32  temp2       = 0;
-
-    rsrc = src_up + (w2 - 1);
-    for (x = 1; x < w2 + 1; x++)
-    {
-        coef_h += x * (rsrc[x] - rsrc[-x]);
-    }
-    rsrc = src_le + (h2 - 1);
-    for (y = 1; y < h2; y++)
-    {
-        coef_v += y * (rsrc[y] - rsrc[-y]);
-    }
-    coef_v += h2 * (rsrc[h2] - src_up[-1]);
-
-    a = (src_le[h - 1] + src_up[w - 1]) << 4;
-    b = ((coef_h << 5) * im_h + (1 << (is_h - 1))) >> is_h;
-    c = ((coef_v << 5) * im_v + (1 << (is_v - 1))) >> is_v;
-    temp = a - (h2 - 1) * c - (w2 - 1) * b + 16;
-    for (y = 0; y < h; y++)
-    {
-        temp2 = temp;
-        for (x = 0; x < w; x++)
-        {
-            pred_pixel[x] = HLM_CLIP((HLM_S32)(temp2 >> 5), 0, ((1 << bitdepth) - 1));
-            temp2 += b;
-        }
-        temp += c;
-        pred_pixel += pred_stride;
-    }
-}
-
-// ’˝≥£dcƒ£ Ω
-HLM_VOID HLM_INTRA_pred_dc(HLM_U16    *ref_pixel,
-                           HLM_U16    *pred_pixel,
-                           HLM_S32     bitdepth,
-                           HLM_U32     pred_stride,
-                           HLM_U08     width,
-                           HLM_U08     height)
-{
-    HLM_S32 i           = 0;
-    HLM_S32 j           = 0;
-    HLM_U32 dc_value    = 0;
-    HLM_U16 *left_pixel = ref_pixel;
-    HLM_U16 *top_pixel  = ref_pixel + HLM_INTRA_TOP_REF_IDX;
-
-    for (i = 0; i < height; i++)
-    {
-        dc_value += left_pixel[i];
-    }
-    for (i = 0; i < height; i++)
-    {
-        dc_value += top_pixel[i];
-    }
-    dc_value = (dc_value + height) / (2 * height);
-
-    for (j = 0; j < height; j++)
-    {
-        for (i = 0; i < width; i++)
-        {
-            pred_pixel[i] = dc_value;
-        }
-        pred_pixel += pred_stride;
-    }
-}
-
-// ◊Û≤‡dcƒ£ Ω
-HLM_VOID HLM_INTRA_pred_dc_left(HLM_U16    *ref_pixel,
-                                HLM_U16    *pred_pixel,
-                                HLM_S32     bitdepth,
-                                HLM_U32     pred_stride,
-                                HLM_U08     width,
-                                HLM_U08     height)
-{
-    HLM_S32 i           = 0;
-    HLM_S32 j           = 0;
-    HLM_U32 dc_value    = 0;
-    HLM_U16 *left_pixel = ref_pixel;
-
-    for (i = 0; i < height; i++)
-    {
-        dc_value += left_pixel[i];
-    }
-    dc_value = (dc_value + (height >> 1)) / height;
-
-    for (j = 0; j < height; j++)
-    {
-        for (i = 0; i < width; i++)
-        {
-            pred_pixel[i] = dc_value;
-        }
-        pred_pixel += pred_stride;
-    }
-}
-
-// …œ≤‡dcƒ£ Ω
-HLM_VOID HLM_INTRA_pred_dc_top(HLM_U16    *ref_pixel,
-                               HLM_U16    *pred_pixel,
-                               HLM_S32     bitdepth,
-                               HLM_U32     pred_stride,
-                               HLM_U08     width,
-                               HLM_U08     height)
-{
-    HLM_S32 i          = 0;
-    HLM_S32 j          = 0;
-    HLM_U32 dc_value   = 0;
-    HLM_U16 *top_pixel = ref_pixel + HLM_INTRA_TOP_REF_IDX;
-
-    for (i = 0; i < width; i++)
-    {
-        dc_value += top_pixel[i];
-    }
-    dc_value = (dc_value + (width >> 1)) / width;
-
-    for (j = 0; j < height; j++)
-    {
-        for (i = 0; i < width; i++)
-        {
-            pred_pixel[i] = dc_value;
-        }
-        pred_pixel += pred_stride;
-    }
-}
-
-// ƒ¨»œ÷µdcƒ£ Ω
-HLM_VOID HLM_INTRA_pred_dc_default(HLM_U16    *ref_pixel,
-                                   HLM_U16    *pred_pixel,
-                                   HLM_S32     bitdepth,
-                                   HLM_U32     pred_stride,
-                                   HLM_U08     width,
-                                   HLM_U08     height)
-{
-    HLM_U32 dc_value = 1 << (bitdepth - 1);
-    HLM_S32 i        = 0;
-    HLM_S32 j        = 0;
-
-    for (j = 0; j < height; j++)
-    {
-        for (i = 0; i < width; i++)
-        {
-            pred_pixel[i] = dc_value;
-        }
-        pred_pixel += pred_stride;
-    }
-}
-
-// ¥π÷±ƒ£ Ω
-HLM_VOID HLM_INTRA_pred_vertical(HLM_U16    *ref_pixel,
-                                 HLM_U16    *pred_pixel,
-                                 HLM_S32     bitdepth,
-                                 HLM_U32     pred_stride,
-                                 HLM_U08     width,
-                                 HLM_U08     height)
-{
-    HLM_U32 i          = 0;
-    HLM_U32 j          = 0;
-    HLM_U16 *top_pixel = ref_pixel + HLM_INTRA_TOP_REF_IDX;
-
-    for (i = 0; i < height; i++)
-    {
-        for (j = 0; j < width; j++)
-        {
-            pred_pixel[j] = top_pixel[j];
-        }
-        pred_pixel += pred_stride;
-    }
-}
-
-// ÀÆ∆Ωƒ£ Ω
-HLM_VOID HLM_INTRA_pred_horizontal(HLM_U16    *ref_pixel,
-                                   HLM_U16    *pred_pixel,
-                                   HLM_S32     bitdepth,
-                                   HLM_U32     pred_stride,
-                                   HLM_U08     width,
-                                   HLM_U08     height)
-{
-    HLM_U32 i           = 0;
-    HLM_U32 j           = 0;
-    HLM_U16 *left_pixel = ref_pixel;
-
-    for (i = 0; i < height; i++)
-    {
-        for (j = 0; j < width; j++)
-        {
-            pred_pixel[j] = left_pixel[i];
-        }
-        pred_pixel += pred_stride;
-    }
-}
-
-// ∂‘Ω«œÚ◊Ûƒ£ Ω
-HLM_VOID HLM_INTRA_pred_diag_down_left(HLM_U16    *ref_pixel,
-                                       HLM_U16    *pred_pixel,
-                                       HLM_S32     bitdepth,
-                                       HLM_U32     pred_stride,
-                                       HLM_U08     width,
-                                       HLM_U08     height)
-{
-    HLM_U16 *top_pixel = ref_pixel + HLM_INTRA_TOP_REF_IDX - 1;
-    HLM_U08 y          = 0;
-    HLM_U08 x          = 0;
-    HLM_S16 idx        = 0;
-    HLM_S16 pos        = 0;
-
-    for (y = 0; y < height; y++)
-    {
-        for (x = 0; x < width; x++)
-        {
-            idx = x + y + 1;
-            if (idx <2 * width - 1)
-            {
-                pred_pixel[y * pred_stride + x] = (top_pixel[idx] + 2 * top_pixel[idx + 1] + top_pixel[idx + 2] + 2) >> 2;
-            }
-            else
-            {
-                pred_pixel[y * pred_stride + x] = (top_pixel[idx] + 3 * top_pixel[idx + 1] + 2) >> 2;
-            }
-        }
-    }
-}
-
-// ∂‘Ω«œÚ”“ƒ£ Ω
-HLM_VOID HLM_INTRA_pred_diag_down_right(HLM_U16    *ref_pixel,
-                                        HLM_U16    *pred_pixel,
-                                        HLM_S32     bitdepth,
-                                        HLM_U32     pred_stride,
-                                        HLM_U08     width,
-                                        HLM_U08     height)
-{
-    HLM_U16 *left_pixel = ref_pixel;
-    HLM_U16 *top_pixel  = ref_pixel + HLM_INTRA_TOP_REF_IDX;
-    top_pixel           = ref_pixel + HLM_INTRA_TOP_REF_IDX - 1;
-    HLM_U08 y           = 0;
-    HLM_U08 x           = 0;
-    HLM_S16 idx         = 0;
-    HLM_S16 pos         = 0;
-
-    for (y = 0; y < height; y++)
-    {
-        for (x = 0; x < width; x++)
-        {
-            idx = x - y - 1;
-            if (idx >= 0)
-            {
-                pred_pixel[y * pred_stride + x] = (top_pixel[idx] + 2 * top_pixel[idx + 1] + top_pixel[idx + 2] + 2) >> 2;
-            }
-            else if (idx == -1)
-            {
-                pred_pixel[y * pred_stride + x] = (2 * top_pixel[0] + left_pixel[0] + top_pixel[1] + 2) >> 2;
-            }
-            else
-            {
-                pos = -idx - 2;
-                if (pos == 0)
-                {
-                    pred_pixel[y * pred_stride + x] = (2 * left_pixel[pos] + left_pixel[pos + 1] + top_pixel[0] + 2) >> 2;
-                }
-                else
-                {
-                    pred_pixel[y * pred_stride + x] = (left_pixel[pos - 1] + 2 * left_pixel[pos] + left_pixel[pos + 1] + 2) >> 2;
-                }
-            }
-        }
-    }
-}
-
-// ¥π÷±∆´”“ƒ£ Ω
-HLM_VOID HLM_INTRA_pred_vertical_right(HLM_U16    *ref_pixel,
-                                       HLM_U16    *pred_pixel,
-                                       HLM_S32     bitdepth,
-                                       HLM_U32     pred_stride,
-                                       HLM_U08     width,
-                                       HLM_U08     height)
-{
-    HLM_U16 *left_pixel = ref_pixel;
-    HLM_U16 *top_pixel  = ref_pixel + HLM_INTRA_TOP_REF_IDX - 1;
-    HLM_U08 y           = 0;
-    HLM_U08 x           = 0;
-    HLM_S16 idx         = 0;
-    HLM_U16 w           = 0;
-    HLM_U16 i           = 0;
-    HLM_S16 weight      = 0;
-    HLM_S16 pos         = 0;
-    
-    for (y = 0; y < height; y++)
-    {
-        for (x = 0; x < width; x++)
-        {
-            idx = 2 * x - y ;
-            if (idx >= 0 && (idx %2 ==0))
-            {
-                pred_pixel[y * pred_stride + x] = (top_pixel[x - (y >> 1)] + top_pixel[x - (y >> 1) + 1] + 1) >> 1;
-            }
-            else if (idx >= 0)
-            {
-                pred_pixel[y * pred_stride + x] = (top_pixel[x - (y >> 1) - 1] + 2 * top_pixel[x - (y >> 1)] + top_pixel[x - (y >> 1) + 1] + 2) >> 2;
-            }
-            else
-            {
-                if (idx == -1) 
-                {
-                    pred_pixel[y * pred_stride + x] = (2 * top_pixel[0] + left_pixel[0] + top_pixel[1] + 2) >> 2;
-                }
-                else if (idx == -2)
-                {
-                    pred_pixel[y * pred_stride + x] = (top_pixel[0] + 2 * left_pixel[0] + left_pixel[1] + 2) >> 2;
-                }
-                else if (width == 4)
-                {
-                    pred_pixel[y * pred_stride + x] = (left_pixel[y - 1] + 2 * left_pixel[y - 2] + left_pixel[y - 3] + 2) >> 2;
-                }
-                else 
-                {
-                    pred_pixel[y * pred_stride + x] = (left_pixel[y - 2 * x - 1] + 2 * left_pixel[y - 2 * x - 2] + left_pixel[y - 2 * x - 3] + 2) >> 2;
-                }
-            }
-        }
-    }
-}
-
-// ÀÆ∆Ω∆´œ¬ƒ£ Ω
-HLM_VOID HLM_INTRA_pred_horizontal_down(HLM_U16    *ref_pixel,
-                                        HLM_U16    *pred_pixel,
-                                        HLM_S32     bitdepth,
-                                        HLM_U32     pred_stride,
-                                        HLM_U08     width,
-                                        HLM_U08     height)
-{
-    HLM_U16 *left_pixel = ref_pixel;
-    HLM_U16 *top_pixel  = ref_pixel + HLM_INTRA_TOP_REF_IDX - 1;
-    HLM_U08 y           = 0;
-    HLM_U08 x           = 0;
-    HLM_S16 idx         = 0;
-    HLM_U16 w           = 0;
-    HLM_U16 i           = 0;
-    HLM_S16 pos         = 0;
-
-    for (y = 0; y < height; y++)
-    {
-        for (x = 0; x < width; x++)
-        {
-            idx = 2 * y - x;
-            if (idx == 0)
-            {
-                pred_pixel[y * pred_stride + x] = (left_pixel[0] + top_pixel[0] + 1) >> 1;
-            }
-            else if (idx > 0 && (idx %2==0))
-            {
-                pred_pixel[y * pred_stride + x] = (left_pixel[y - (x >> 1)-1] + left_pixel[y - (x >> 1)] + 1) >> 1;
-            }
-            else if (idx > 0)
-            {
-                if (idx == 1)
-                    pred_pixel[y * pred_stride + x] = (top_pixel[0] + 2 * left_pixel[y - (x >> 1) - 1] + left_pixel[y - (x >> 1)] + 2) >> 2;
-                else
-                    pred_pixel[y * pred_stride + x] = (left_pixel[y - (x >> 1) - 2] + 2 * left_pixel[y - (x >> 1) -1] + left_pixel[y - (x >> 1)] + 2) >> 2;
-            }
-            else
-            {
-                if (idx == -1)
-                {
-                    pred_pixel[y * pred_stride + x] = (2 * top_pixel[0] + left_pixel[0] + top_pixel[1] + 2) >> 2;
-                }
-                else if (width == 4)
-                {
-                    pred_pixel[y * pred_stride + x] = (top_pixel[x] + 2 * top_pixel[x - 1] + top_pixel[x - 2] + 2) >> 2;
-                }
-                else
-                {
-                    pred_pixel[y * pred_stride + x] = (top_pixel[x - 2 * y] + 2 * top_pixel[x - 2 * y - 1] + top_pixel[x - 2 * y - 2] + 2) >> 2;
-                }
-            }
-          
-        }
-    }
-}
-
-// ¥π÷±∆´◊Ûƒ£ Ω
-HLM_VOID HLM_INTRA_pred_vertical_left(HLM_U16    *ref_pixel,
-                                      HLM_U16    *pred_pixel,
-                                      HLM_S32     bitdepth,
-                                      HLM_U32     pred_stride,
-                                      HLM_U08     width,
-                                      HLM_U08     height)
-{
-    HLM_U16 *left_pixel = ref_pixel;
-    HLM_U16 *top_pixel  = ref_pixel + HLM_INTRA_TOP_REF_IDX;
-    HLM_U08 y           = 0;
-    HLM_U08 x           = 0;
-    HLM_S16 idx         = 0;
-    HLM_U16 w           = 0;
-    HLM_U16 i           = 0;
-    HLM_S16 pos         = 0;
-
-    for (y = 0; y < height; y++)
-    {
-        for (x = 0; x < width; x++)
-        {
-            idx = y + 2 * x;
-            if (idx & 1)
-            {
-                pos = (idx + 1) >> 1;
-                if (pos >= 2 * width - 1)
-                {
-                    pos = 2 * width - 1;
-                    pred_pixel[y * pred_stride + x] = (top_pixel[pos - 1] + top_pixel[pos] * 2 + top_pixel[pos] + 2) >> 2;
-                }
-                else
-                {
-                    pred_pixel[y * pred_stride + x] = (top_pixel[pos - 1] + top_pixel[pos] * 2 + top_pixel[pos + 1] + 2) >> 2;
-                }
-            }
-            else
-            {
-                pos = idx >> 1;
-                if (pos >= 2 * width - 1)
-                {
-                    pos = 2 * width - 1;
-                    pred_pixel[y * pred_stride + x] = (top_pixel[pos] + top_pixel[pos] + 1) >> 1;
-                }
-                else
-                {
-                    pred_pixel[y * pred_stride + x] = (top_pixel[pos] + top_pixel[pos + 1] + 1) >> 1;
-                }
-            }
-        }
-    }
-}
-
-// ÀÆ∆Ω∆´…œƒ£ Ω
-HLM_VOID HLM_INTRA_pred_horizontal_up(HLM_U16    *ref_pixel,
-                                      HLM_U16    *pred_pixel,
-                                      HLM_S32     bitdepth,
-                                      HLM_U32     pred_stride,
-                                      HLM_U08     width,
-                                      HLM_U08     height)
-{
-    HLM_U16 *left_pixel = ref_pixel;
-    HLM_U08 y           = 0;
-    HLM_U08 x           = 0;
-    HLM_S16 idx         = 0;
-    HLM_U16 w           = 0;
-    HLM_U16 i           = 0;
-    HLM_S16 pos         = 0;
-
-    for (y = 0; y < height; y++)
-    {
-        for (x = 0; x < width; x++)
-        {
-            idx = y * 2 + x;
-            if (idx >= 2 * (height - 1))
-            {
-                pred_pixel[y * pred_stride + x] = ref_pixel[height - 1];
-            }
-            else if (idx & 1)
-            {
-                pos = ((idx + 1) >> 1) >= height - 1 ? height - 1 : ((idx + 1) >> 1);
-                pred_pixel[y * pred_stride + x] = (left_pixel[pos - 1] + left_pixel[pos] * 2 + left_pixel[(pos + 1) >= height ? height - 1 : pos + 1] + 2) >> 2;
-            }
-            else
-            {
-                pos = idx >> 1;
-                pred_pixel[y * pred_stride + x] = (left_pixel[pos] + left_pixel[pos + 1] + 1) >> 1;
-            }
-        }
-    }
-}
-
-const HLM_INTRA_PRED_FUNC HLM_INTRA_PRED_16x8[HLM_INTRA_MODE_NUM_16x8] =
-{
-    HLM_INTRA_pred_vertical,
-    HLM_INTRA_pred_horizontal,
-    HLM_INTRA_pred_dc,
-    HLM_INTRA_pred_plane,
-    HLM_INTRA_pred_dc_left,
-    HLM_INTRA_pred_dc_top,
-    HLM_INTRA_pred_dc_default
-};
-
-const HLM_INTRA_PRED_FUNC HLM_INTRA_PRED_4x4[HLM_INTRA_MODE_NUM_4x4] =
-{
-    HLM_INTRA_pred_vertical,
-    HLM_INTRA_pred_horizontal,
-    HLM_INTRA_pred_dc,
-    HLM_INTRA_pred_diag_down_left,
-    HLM_INTRA_pred_diag_down_right,
-    HLM_INTRA_pred_vertical_right,
-    HLM_INTRA_pred_horizontal_down,
-    HLM_INTRA_pred_vertical_left,
-    HLM_INTRA_pred_horizontal_up,
-    HLM_INTRA_pred_dc_left,
-    HLM_INTRA_pred_dc_top,
-    HLM_INTRA_pred_dc_default
-};
+/***************************************************************************************************
+
+The copyright in this software is being made available under the License included below.
+This software may be subject to other third party and contributor rights, including patent
+rights, and no such rights are granted under this license.
+
+Copyright (C) 2025, Hangzhou Hikvision Digital Technology Co., Ltd. All rights reserved.
+
+Redistribution and use in source and binary forms, with or without modification, are permitted
+only for the purpose of developing standards within Audio and Video Coding Standard Workgroup of
+China (AVS) and for testing and promoting such standards. The following conditions are required
+to be met:
+
+* Redistributions of source code must retain the above copyright notice, this list of
+conditions and the following disclaimer.
+* Redistributions in binary form must reproduce the above copyright notice, this list of
+conditions and the following disclaimer in the documentation and/or other materials
+provided with the distribution.
+* The name of Hangzhou Hikvision Digital Technology Co., Ltd. may not be used to endorse or
+promote products derived from this software without specific prior written permission.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR
+IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND
+FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR
+CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+POSSIBILITY OF SUCH DAMAGE.
+
+***************************************************************************************************/
+#include "hlm_com_pred.h"
+#include <string.h>
+
+/***************************************************************************************************
+* Âäü  ËÉΩÔºö‰ª•CopyÊñπÂºèÂ°´ÂÖÖÊêúÁ¥¢Âå∫Âüü
+* ÂèÇ  Êï∞Ôºö*
+*        search_area        -O        ÊêúÁ¥¢Âå∫ÂüüÊåáÈíà
+*        src_ptr            -I        Êï∞ÊçÆÊ∫êÊåáÈíà
+*        src_stride         -I        Êï∞ÊçÆÊ∫êstride
+*        len                -I        Êã∑Ë¥ùÊï∞ÊçÆÁöÑÈïøÂ∫¶
+*        height             -I        Êã∑Ë¥ùÊï∞ÊçÆÁöÑÈ´òÂ∫¶
+*        x_in_src           -I        Êã∑Ë¥ùÂÉèÁ¥†Âú®Êï∞ÊçÆÊ∫ê‰∏äÁöÑÊ®™ÂùêÊ†á
+*        y_in_src           -I        Êã∑Ë¥ùÂÉèÁ¥†Âú®Êï∞ÊçÆÊ∫ê‰∏äÁöÑÁ∫µÂùêÊ†á
+*        x_in_area          -I        Êã∑Ë¥ù‰ΩçÁΩÆÂú®ÊêúÁ¥¢Âå∫Âüü‰∏äÁöÑÊ®™ÂùêÊ†á
+* ËøîÂõûÂÄºÔºöÊó†
+***************************************************************************************************/
+HLM_VOID HLM_COM_SearchAreaCopy(HLM_U16    *search_area,
+                                HLM_U16    *src_ptr,
+                                HLM_U32     src_stride,
+                                HLM_S32     len,
+                                HLM_S32     height,
+                                HLM_S32     x_in_src,
+                                HLM_S32     y_in_src,
+                                HLM_S32     x_in_area)
+{
+    HLM_U16 *dst = 0;
+    HLM_U16 *src = 0;
+    HLM_U08 i    = 0;
+
+    src = src_ptr + y_in_src * src_stride + x_in_src;
+    dst = search_area + x_in_area;
+    for (i = 0; i < height; i++)
+    {
+        memcpy(dst, src, len * sizeof(HLM_U16));
+        src += src_stride;
+        dst += HLM_IBC_SEARCH_AREA_WIDTH;
+    }
+}
+
+/***************************************************************************************************
+* Âäü  ËÉΩÔºö‰ª•PaddingÊñπÂºèÂ°´ÂÖÖÊêúÁ¥¢Âå∫Âüü
+* ÂèÇ  Êï∞Ôºö*
+*        search_area        -O        ÊêúÁ¥¢Âå∫ÂüüÊåáÈíà
+*        src_ptr            -I        Êï∞ÊçÆÊ∫êÊåáÈíàÔºåËé∑ÂèñÈ¶ñÂàóÂùóÁöÑ‰∏ä‰∏ÄË°åÂÉèÁ¥†
+*        bit_depth          -I        ÊØîÁâπ‰ΩçÂÆΩ
+*        src_stride         -I        Êï∞ÊçÆÊ∫êstride
+*        len                -I        PaddingÊï∞ÊçÆÁöÑÈïøÂ∫¶
+*        height             -I        PaddingÊï∞ÊçÆÁöÑÈ´òÂ∫¶
+*        ver_shift          -I        ÂûÇÁõ¥ÊñπÂêëÁöÑËâ≤Â∫¶ÂÅèÁßª
+*        boundary_x         -I        ÂÆèÂùóÂú®ÈöîÊñ≠Âå∫Âüü‰∏≠ÁöÑÊ®™ÂùêÊ†á
+*        boundary_y         -I        ÂÆèÂùóÂú®ÈöîÊñ≠Âå∫Âüü‰∏≠ÁöÑÁ∫µÂùêÊ†á
+*        cu_x               -I        ÂÆèÂùóÂú®patch‰∏≠ÁöÑÊ®™ÂùêÊ†áÔºå‰ª•CU‰∏∫Âçï‰Ωç
+*        cu_y               -I        ÂÆèÂùóÂú®patch‰∏≠ÁöÑÁ∫µÂùêÊ†áÔºå‰ª•CU‰∏∫Âçï‰Ωç
+* ËøîÂõûÂÄºÔºöÊó†
+***************************************************************************************************/
+HLM_VOID HLM_COM_SearchAreaPadding(HLM_U16    *search_area,
+                                   HLM_U16    *src_ptr,
+                                   HLM_U32     bit_depth,
+                                   HLM_U32     src_stride,
+                                   HLM_S32     len,
+                                   HLM_S32     height,
+                                   HLM_S08     ver_shift,
+                                   HLM_S32     boundary_x,
+                                   HLM_S32     boundary_y,
+                                   HLM_S32     cu_x,
+                                   HLM_S32     cu_y)
+{
+    HLM_U16 *dst = 0;
+    HLM_U16 *src = 0;
+    HLM_U16 val  = 0;
+    HLM_U08 i    = 0;
+    HLM_U16 j    = 0;
+
+    if (boundary_x == 0)
+    {
+        if (boundary_y == 0)
+        {
+            val = 1 << (bit_depth - 1);
+        }
+        else
+        {
+            val = *(src_ptr + ((cu_y << 3 >> ver_shift) - 1) * src_stride);
+        }
+        dst = search_area;
+        for (i = 0; i < height; i++)
+        {
+            for (j = 0; j < len; j++)
+            {
+                dst[j] = val;
+            }
+            dst += HLM_IBC_SEARCH_AREA_WIDTH;
+        }
+    }
+    else
+    {
+        src = search_area + len;
+        dst = search_area;
+        for (i = 0; i < height; i++)
+        {
+            for (j = 0; j < len; j++)
+            {
+                dst[j] = src[0];
+            }
+            src += HLM_IBC_SEARCH_AREA_WIDTH;
+            dst += HLM_IBC_SEARCH_AREA_WIDTH;
+        }
+    }
+}
+
+#if MIX_IBC
+/***************************************************************************************************
+* Âäü  ËÉΩÔºö‰ª•PaddingÊñπÂºèÂ°´ÂÖÖÊêúÁ¥¢Âå∫Âüü
+* ÂèÇ  Êï∞Ôºö*
+*        search_area        -O        ÊêúÁ¥¢Âå∫ÂüüÊåáÈíà
+*        ref_ptr            -I        ‰∏ä‰∏ÄË°åÁöÑÈáçÂª∫ÂÉèÁ¥†
+*        hor_shift          -I        Ê∞¥Âπ≥ÊñπÂêëÁöÑËâ≤Â∫¶ÂÅèÁßª
+*        segment_width      -I        ÈöîÊñ≠ÂèÇËÄÉÂçïÂÖÉÊàñPatchÁöÑÂÆΩÂ∫¶Ôºå‰ª•ÂÉèÁ¥†‰∏∫Âçï‰Ωç
+* ËøîÂõûÂÄºÔºöÊó†
+***************************************************************************************************/
+HLM_VOID HLM_COM_CopyUpRefPixel(HLM_U16    *search_area,
+                                HLM_U16    *ref_ptr,
+                                HLM_S08     hor_shift,
+                                HLM_S32     segment_width)
+{
+    HLM_S32 valid_len = HLM_MIN(HLM_IBC_BUFFER_WIDTH, segment_width) >> hor_shift;
+    HLM_U16 *dst      = HLM_NULL;
+    HLM_U16 stride    = HLM_IBC_SEARCH_AREA_WIDTH;
+    HLM_U08 i         = 0;
+    HLM_U08 j         = 0;
+
+    for (i = 0; i < valid_len; i++)
+    {
+        search_area[i] = ref_ptr[i];
+    }
+    for (i = valid_len; i < HLM_IBC_SEARCH_AREA_WIDTH; i++)
+    {
+        search_area[i] = search_area[valid_len - 1];
+    }
+    dst = search_area + stride;
+    for (j = 1; j < HLM_IBC_SEARCH_AREA_HEIGHT; j++)
+    {
+        memcpy(dst, search_area, HLM_IBC_SEARCH_AREA_WIDTH * sizeof(HLM_U16));
+        dst += stride;
+    }
+}
+
+/***************************************************************************************************
+* Âäü  ËÉΩÔºöÊ†πÊçÆ4x4ÂùóÁöÑbv‰ø°ÊÅØÊõ¥Êñ∞ÂÜÖÈÉ®bv
+* ÂèÇ  Êï∞Ôºö*
+*        com_cu_info            -IO        ÂΩìÂâçCU‰ø°ÊÅØ
+*        zscan_idx              -I         ÂΩìÂâç4x4ÂùóÁöÑÁ¥¢Âºï
+*        merge_flag             -I         mergeÊñπÂºè
+*        part_type              -I         ÂΩìÂâç4x4ÂùóÁöÑÂàíÂàÜÁ±ªÂûã
+*        bv                     -I         ÂΩìÂâç4x4ÂùóÁöÑbvÊàñÂ≠êPUÁöÑbv
+* ËøîÂõûÂÄºÔºöÊó†
+* Â§á  Ê≥®Ôºö
+***************************************************************************************************/
+HLM_VOID HLM_COM_UpdateInnerBv(HLM_CU_INFO         *com_cu_info,
+                               HLM_U32              zscan_idx,
+                               HLM_U08              merge_flag,
+                               HLM_IBC_PART_TYPE    part_type,
+                               HLM_MV              *bv)
+{
+    HLM_U08 pu_x = HLM_INTRA_ZSCAN_TO_PELX[zscan_idx];
+    HLM_U08 pu_y = HLM_INTRA_ZSCAN_TO_PELY[zscan_idx];
+    HLM_MV *le   = com_cu_info->inner_bv_left[merge_flag] + (pu_y << 2);
+    HLM_MV *up   = com_cu_info->inner_bv_up[merge_flag] + (pu_x << 2);
+
+    if (part_type == HLM_IBC_NO_SPLIT)
+    {
+        le[0] = le[1] = le[2] = le[3] = bv[0];
+        up[0] = up[1] = up[2] = up[3] = bv[0];
+    }
+    else if (part_type == HLM_IBC_HOR_SYM4)
+    {
+        le[0] = bv[0];
+        le[1] = bv[1];
+        le[2] = bv[2];
+        le[3] = bv[3];
+        up[0] = up[1] = up[2] = up[3] = bv[3];
+    }
+    else if (part_type == HLM_IBC_VER_SYM4)
+    {
+        up[0] = bv[0];
+        up[1] = bv[1];
+        up[2] = bv[2];
+        up[3] = bv[3];
+        le[0] = le[1] = le[2] = le[3] = bv[3];
+    }
+    else  // QT
+    {
+        le[0] = le[1] = bv[1];
+        le[2] = le[3] = bv[3];
+        up[0] = up[1] = bv[2];
+        up[2] = up[3] = bv[3];
+    }
+}
+
+/***************************************************************************************************
+* Âäü  ËÉΩÔºöÊ†πÊçÆ4x4ÂùóÁöÑÂàíÂàÜÁ±ªÂûãËé∑ÂèñÂ≠êpu‰ø°ÊÅØÔºåÂåÖÊã¨pu_num„ÄÅx/y/w/h
+* ÂèÇ  Êï∞Ôºö*
+*        part_type              -I         ÂΩìÂâç4x4ÂùóÁöÑÂàíÂàÜÁ±ªÂûã
+*        pu_info                -O         ÂΩìÂâç4x4ÂùóÁöÑÂ≠êPU‰ø°ÊÅØ
+* ËøîÂõûÂÄºÔºöÊó†
+* Â§á  Ê≥®Ôºö
+***************************************************************************************************/
+HLM_VOID HLM_COM_GetIbcPuInfo(HLM_IBC_PART_TYPE    part_type,
+                              HLM_IBC_PU_INFO     *pu_info)
+{
+    HLM_U08 *x = pu_info->sub_x;
+    HLM_U08 *y = pu_info->sub_y;
+    HLM_U08 *w = pu_info->sub_w;
+    HLM_U08 *h = pu_info->sub_h;
+    HLM_U08 i  = 0;
+
+    pu_info->part_type = part_type;
+    pu_info->sub_pu_num = (part_type == HLM_IBC_NO_SPLIT) ? 1 : 4;
+    if (part_type == HLM_IBC_NO_SPLIT)
+    {
+        w[0] = 4;
+        h[0] = 4;
+        x[0] = 0;
+        y[0] = 0;
+    }
+    else if (part_type == HLM_IBC_VER_SYM4)
+    {
+        for (i = 0; i < pu_info->sub_pu_num; i++)
+        {
+            w[i] = 1;
+            h[i] = 4;
+            x[i] = i;
+            y[i] = 0;
+        }
+    }
+    else if (part_type == HLM_IBC_HOR_SYM4)
+    {
+        for (i = 0; i < pu_info->sub_pu_num; i++)
+        {
+            w[i] = 4;
+            h[i] = 1;
+            x[i] = 0;
+            y[i] = i;
+        }
+    }
+    else  // QT
+    {
+        for (i = 0; i < pu_info->sub_pu_num; i++)
+        {
+            w[i] = 2;
+            h[i] = 2;
+            x[i] = (i & 1) * 2;
+            y[i] = (i >> 1) * 2;
+        }
+    }
+}
+
+/***************************************************************************************************
+* Âäü  ËÉΩÔºöËé∑Âèñ420/422Ê†ºÂºèÁöÑËâ≤Â∫¶Â≠êpb‰ø°ÊÅØÔºåÂåÖÊã¨pu_num„ÄÅx/y/w/h
+* ÂèÇ  Êï∞Ôºö*
+*        pu_info                -IO        ÂΩìÂâç4x4ÂùóÁöÑÂ≠êPU‰ø°ÊÅØ
+*        hor_shift              -I         Ê∞¥Âπ≥ÊñπÂêëÁöÑÈááÊ†∑Áßª‰Ωç
+*        ver_shift              -I         ÂûÇÁõ¥ÊñπÂêëÁöÑÈááÊ†∑Áßª‰Ωç
+* ËøîÂõûÂÄºÔºöÊó†
+* Â§á  Ê≥®Ôºö
+***************************************************************************************************/
+HLM_VOID HLM_COM_GetChromaPbInfo(HLM_IBC_PU_INFO     *pu_info,
+                                 HLM_U08              hor_shift,
+                                 HLM_U08              ver_shift)
+{
+    HLM_U08 pu_w = 4 >> hor_shift;  // Ëâ≤Â∫¶4x4ÂùóÁöÑÂ∞∫ÂØ∏
+    HLM_U08 pu_h = 4 >> ver_shift;
+    HLM_U08 *x   = pu_info->sub_x;
+    HLM_U08 *y   = pu_info->sub_y;
+    HLM_U08 *w   = pu_info->sub_w;
+    HLM_U08 *h   = pu_info->sub_h;
+    HLM_U08 i    = 0;
+
+    if (pu_info->part_type == HLM_IBC_NO_SPLIT)
+    {
+        pu_info->sub_pu_num = 1;
+        w[0] = pu_w;
+        h[0] = pu_h;
+        x[0] = 0;
+        y[0] = 0;
+    }
+    else if (pu_info->part_type == HLM_IBC_VER_SYM4)
+    {
+        pu_info->sub_pu_num = pu_w;
+        for (i = 0; i < pu_info->sub_pu_num; i++)
+        {
+            w[i] = 1;
+            h[i] = pu_h;
+            x[i] = i;
+            y[i] = 0;
+        }
+    }
+    else if (pu_info->part_type == HLM_IBC_HOR_SYM4)
+    {
+        pu_info->sub_pu_num = pu_h;
+        for (i = 0; i < pu_info->sub_pu_num; i++)
+        {
+            w[i] = pu_w;
+            h[i] = 1;
+            x[i] = 0;
+            y[i] = i;
+        }
+    }
+    else
+    {
+        pu_info->sub_pu_num = 4;
+        for (i = 0; i < pu_info->sub_pu_num; i++)
+        {
+            w[i] = pu_w >> 1;
+            h[i] = pu_h >> 1;
+            x[i] = (i & 1) * (pu_w >> 1);
+            y[i] = (i >> 1) * (pu_h >> 1);
+        }
+    }
+}
+
+/***************************************************************************************************
+* Âäü  ËÉΩÔºöËé∑Âèñbvp
+* ÂèÇ  Êï∞Ôºö*
+*        com_cu_info            -I         ÂΩìÂâçCU‰ø°ÊÅØ
+*        merge_flag             -I         mergeÊñπÂºè
+*        zscan_idx              -I         4x4ÂùóÁöÑÁ¥¢Âºï
+*        pu_idx                 -I         Â≠êPUÁöÑÁ¥¢Âºï
+*        bvp                    -O         ÂΩìÂâç4x4ÂùóÁöÑbvpÊàñÂ≠êPUÁöÑbvp
+* ËøîÂõûÂÄºÔºöÊó†
+* Â§á  Ê≥®Ôºö
+***************************************************************************************************/
+HLM_VOID HLM_COM_GetBvp(HLM_CU_INFO         *com_cu_info,
+                        HLM_U08              merge_flag,
+                        HLM_U08              zscan_idx,
+                        HLM_U08              pu_idx,
+                        HLM_MV              *bvp)
+{
+    HLM_S32 pu_x             = HLM_INTRA_ZSCAN_TO_PELX[zscan_idx];
+    HLM_S32 pu_y             = HLM_INTRA_ZSCAN_TO_PELY[zscan_idx];
+    HLM_U08 direct           = tbl_merge_type[merge_flag][zscan_idx];
+    HLM_IBC_PU_INFO *pu_info = &com_cu_info->ibc_pu_info[merge_flag][zscan_idx];
+    HLM_S08 ref_pu_idx       = 0;
+
+    if (pu_idx == 0)  // Á¨¨‰∏Ä‰∏™Â≠êpu
+    {
+        if (direct == 1)  // ÂêëÂ∑¶
+        {
+            *bvp = com_cu_info->inner_bv_left[merge_flag][(pu_y << 2) + pu_info->sub_y[pu_idx]];
+        }
+        else if (direct == 2)  // Âêë‰∏ä
+        {
+            *bvp = com_cu_info->inner_bv_up[merge_flag][pu_x];
+            bvp->mvy = 0;
+        }
+        else  // ‰∏çmergeÔºåÂÆöÈïøÁ†Å
+        {
+            bvp->mvx = 0;
+            bvp->mvy = 0;
+        }
+    }
+    else
+    {
+        ref_pu_idx = pu_idx - 1;  // ÈªòËÆ§ÂèÇËÄÉÂâç‰∏Ä‰∏™Â≠êpu
+        if (pu_info->part_type == HLM_IBC_QT && (pu_idx == 2 || (pu_idx == 3 && direct == 2)))
+        {
+            ref_pu_idx--;
+        }
+        *bvp = pu_info->sub_bv[ref_pu_idx];
+    }
+}
+
+/***************************************************************************************************
+* Âäü  ËÉΩÔºöËé∑ÂèñÂÆöÈïøÁ†ÅÁºñÁ†ÅbvxÁöÑÁ†ÅÈïø
+* ÂèÇ  Êï∞Ôºö*
+*        com_cu_info            -I         ÂΩìÂâçCUÁöÑ‰ø°ÊÅØ
+*        segment_enable_flag    -I         ÈöîÊñ≠ÂèÇËÄÉÊòØÂê¶ÂºÄÂêØ
+*        segment_width_in_log2  -I         ÈöîÊñ≠Âå∫ÂüüÂÆΩÂ∫¶Ôºà‰ª•ÂÉèÁ¥†‰∏∫Âçï‰ΩçÔºâÁöÑlog
+* ËøîÂõûÂÄºÔºöbvxÁöÑÁ†ÅÈïø
+* Â§á  Ê≥®Ôºö
+***************************************************************************************************/
+HLM_U08 HLM_COM_GetBvxLen(HLM_CU_INFO *com_cu_info,
+                          HLM_U08      segment_enable_flag,
+                          HLM_U32      segment_width_in_log2)
+{
+    HLM_U32 bound_x = com_cu_info->cu_x;  // ‰ª•CU‰∏∫Âçï‰Ωç
+
+    if (segment_enable_flag)
+    {
+        bound_x = com_cu_info->cu_x % (1 << (segment_width_in_log2 - HLM_LOG2_WIDTH_SIZE));
+    }
+#if FIRST_COLUMN_IBC
+    if (com_cu_info->first_column_ibc_flag)
+    {
+        return HLM_IBC_HOR_SEARCH_LOG;
+    }
+    else if (bound_x >= 8)
+#else
+    if (bound_x >= 8)
+#endif
+    {
+        return HLM_IBC_HOR_SEARCH_LOG;
+    }
+    else
+    {
+        return tbl_bvx_bits[bound_x];
+    }
+}
+#endif
+
+/****************************************************************************************
+* Âäü  ËÉΩÔºöËé∑Âèñ‰∏çÂêåÂùóÂ§ßÂ∞è‰∏ãÁöÑinterÂùómvp
+* ÂèÇ  Êï∞Ôºö*
+*        available          -I      ÂΩìÂâçÂùóÁõ∏ÈÇªÂùóÂèØÁî®ÊÄß
+*        cu_x               -I      ÂΩìÂâçÂùóÁõ∏ÂØπcuÁöÑxËµ∑ÂßãÁÇπ
+*        cu_y               -I      ÂΩìÂâçÂùóÁõ∏ÂØπcuÁöÑyËµ∑ÂßãÁÇπ
+*        nbi_mv             -I      ÂΩìÂâçÂùóÁõ∏ÈÇª‰ΩçÁΩÆ(ÁªèËøáËÆ°ÁÆóÂíåÂ§ÑÁêÜÂêé)mv
+*        ref_frame          -I      ÂΩìÂâçÂùóÁõ∏ÈÇª‰ΩçÁΩÆ(ÁªèËøáËÆ°ÁÆóÂíåÂ§ÑÁêÜÂêé)ÂèÇËÄÉÂ∏ßid
+*        mvp                -O      ÂΩìÂâçÂùómvp
+* ËøîÂõûÂÄºÔºöÊó†
+* Â§á  Ê≥®Ôºö
+****************************************************************************************/
+HLM_VOID HLM_COM_GetMvp(HLM_U32   *available,
+                        HLM_U32    cu_x,
+                        HLM_U32    cu_y,
+                        HLM_MV    *nbi_mv,
+                        HLM_S32   *ref_frame,
+                        HLM_MV    *mvp)
+{
+    HLM_MV  zero_mv       = { 0 };
+    HLM_MV *mv_a          = HLM_NULL;
+    HLM_MV *mv_b          = HLM_NULL;
+    HLM_MV *mv_c          = HLM_NULL;
+    HLM_U32 mvPredType    = 0;  // median
+    HLM_S32 ref_frame_cur = 1;
+    HLM_S32 rFrameL       = available[0] ? ref_frame[0] : -1;
+    HLM_S32 rFrameU       = available[1] ? ref_frame[1] : -1;
+    HLM_S32 rFrameUR      = available[2] ? ref_frame[2] : -1;
+
+    if (rFrameL == ref_frame_cur && rFrameU != ref_frame_cur && rFrameUR != ref_frame_cur)
+    {
+        mvPredType = 1;  // left
+    }
+    else if (rFrameL != ref_frame_cur && rFrameU == ref_frame_cur && rFrameUR != ref_frame_cur)
+    {
+        mvPredType = 2;  // up
+    }
+    else if (rFrameL != ref_frame_cur && rFrameU != ref_frame_cur && rFrameUR == ref_frame_cur)
+    {
+        mvPredType = 3;  // right-up
+    }
+
+    switch (mvPredType)
+    {
+    case 0:  // median
+        if (!(available[1] || available[2]))
+        {
+            *mvp = available[0] ? nbi_mv[0] : zero_mv;
+        }
+        else
+        {
+            mv_a = available[0] ? &nbi_mv[0] : &zero_mv; //left
+            mv_b = available[1] ? &nbi_mv[1] : &zero_mv; //up
+            mv_c = available[2] ? &nbi_mv[2] : &zero_mv; //upright
+
+            mvp->mvx = HLM_INTER_MEDIAN(mv_a->mvx, mv_b->mvx, mv_c->mvx);
+            mvp->mvy = HLM_INTER_MEDIAN(mv_a->mvy, mv_b->mvy, mv_c->mvy);
+        }
+        break;
+    case 1:  // left
+        *mvp = available[0] ? nbi_mv[0] : zero_mv;
+        break;
+    case 2:  // up
+        *mvp = available[1] ? nbi_mv[1] : zero_mv;
+        break;
+    case 3:  // right-up
+        *mvp = available[2] ? nbi_mv[2] : zero_mv;
+        break;
+    default:
+        break;
+    }
+}
+
+/***************************************************************************************************
+* Âäü  ËÉΩÔºöËé∑ÂèñinterÂùómvpÂâçÂ§ÑÁêÜ
+* ÂèÇ  Êï∞Ôºö*
+*        com_cu_info        -I      ÂΩìÂâçCU‰ø°ÊÅØ
+*        blk8_pu0_mv        -I      8x8ÂàíÂàÜ‰∏ãÁ¨¨‰∏Ä‰∏™PUÁöÑmv
+*        nbi_info           -I      ÂΩìÂâçCUÁõ∏ÈÇªÂùó‰ø°ÊÅØ
+*        is_right_cu        -I      ÂΩìÂâçcuÊòØÂê¶‰∏∫ÂõæÂÉèÊúÄÂè≥‰æßcuÔºåmvÁöÑÂè≥‰∏äÂùó‰∏çÂ≠òÂú®Áî®Â∑¶‰∏äÂùó‰ª£Êõø
+*        proc               -I      ÂΩìÂâçCUÂ§ÑÁêÜÊµÅÁ®ãÈò∂ÊÆµ
+*        available          -O      ÂΩìÂâçCUÁõ∏ÈÇªÂùóÂèØÁî®ÊÄß
+*        nbi_mv             -O      ÂΩìÂâçCUÁõ∏ÈÇª‰ΩçÁΩÆ(ÁªèËøáËÆ°ÁÆóÂíåÂ§ÑÁêÜÂêé)mv
+*        ref_frame          -O      ÂΩìÂâçCUÁõ∏ÈÇª‰ΩçÁΩÆ(ÁªèËøáËÆ°ÁÆóÂíåÂ§ÑÁêÜÂêé)ÂèÇËÄÉÂ∏ßid
+* ËøîÂõûÂÄºÔºöÊó†
+* Â§á  Ê≥®Ôºö
+***************************************************************************************************/
+HLM_VOID HLM_COM_InterMvpPre(HLM_CU_INFO         *com_cu_info,
+                             HLM_MV              *blk8_pu0_mv,
+                             HLM_NEIGHBOR_INFO   *nbi_info,
+                             HLM_S32              is_right_cu,
+                             HLM_PROC             proc,
+                             HLM_U32              available[][3],
+                             HLM_MV               nbi_mv[][3],
+                             HLM_S32              ref_frame[][3])
+{
+    HLM_U32 cur_cu_pos = com_cu_info->cu_x << 2;
+
+    // 16x8
+    if (com_cu_info->cu_x != 0)
+    {
+        available[PART_16x8][0] = 1;
+        nbi_mv[PART_16x8][0] = nbi_info->inter_mv_left[0];
+        if (proc == PROC_PRE)
+        {
+            ref_frame[PART_16x8][0] = 1;
+        }
+        else
+        {
+            ref_frame[PART_16x8][0] = (nbi_info->pred_type_left[0] >= HLM_P_8x8) ? 1 : -1;
+        }
+    }
+    if (com_cu_info->cu_y != 0)
+    {
+        available[PART_16x8][1] = 1;
+        nbi_mv[PART_16x8][1] = nbi_info->inter_mv_up[cur_cu_pos];
+        ref_frame[PART_16x8][1] = (nbi_info->pred_type_up[cur_cu_pos] >= HLM_P_8x8) ? 1 : -1;
+
+        if (!is_right_cu)
+        {
+            available[PART_16x8][2] = 1;
+            nbi_mv[PART_16x8][2] = nbi_info->inter_mv_up[cur_cu_pos + 4];
+            ref_frame[PART_16x8][2] = (nbi_info->pred_type_up[cur_cu_pos + 4] >= HLM_P_8x8) ? 1 : -1;
+        }
+        else if (com_cu_info->cu_x != 0)
+        {
+            available[PART_16x8][2] = 1;
+            nbi_mv[PART_16x8][2] = nbi_info->inter_mv_upleft;
+            ref_frame[PART_16x8][2] = (nbi_info->pred_type_upleft >= HLM_P_8x8) ? 1 : -1;
+        }
+    }
+
+    // 8x8ÔºåPU0
+    if (com_cu_info->cu_x != 0)
+    {
+        available[PART_8x8_0][0] = 1;
+        nbi_mv[PART_8x8_0][0] = nbi_info->inter_mv_left[0];
+        if (proc == PROC_PRE)
+        {
+            ref_frame[PART_8x8_0][0] = 1;
+        }
+        else
+        {
+            ref_frame[PART_8x8_0][0] = (nbi_info->pred_type_left[0] >= HLM_P_8x8) ? 1 : -1;
+        }
+    }
+    if (com_cu_info->cu_y != 0)
+    {
+        available[PART_8x8_0][1] = 1;
+        nbi_mv[PART_8x8_0][1] = nbi_info->inter_mv_up[cur_cu_pos];
+        ref_frame[PART_8x8_0][1] = (nbi_info->pred_type_up[cur_cu_pos] >= HLM_P_8x8) ? 1 : -1;
+
+        available[PART_8x8_0][2] = 1;
+        nbi_mv[PART_8x8_0][2] = nbi_info->inter_mv_up[cur_cu_pos + 2];
+        ref_frame[PART_8x8_0][2] = (nbi_info->pred_type_up[cur_cu_pos + 2] >= HLM_P_8x8) ? 1 : -1;
+    }
+
+    // 8x8ÔºåPU1
+    if (proc == PROC_RDO || proc == PROC_BS)
+    {
+        available[PART_8x8_1][0] = 1;
+        nbi_mv[PART_8x8_1][0] = *blk8_pu0_mv;
+        ref_frame[PART_8x8_1][0] = 1;
+    }
+    else if (com_cu_info->cu_x != 0)  // Ê≠§Êó∂Â∑¶ËæπÊó†Ê≥ïÁ°ÆÂÆö,‰ΩøÁî®Â∑¶‰æßÁõ∏ÈÇªcuÂùómv
+    {
+        available[PART_8x8_1][0] = 1;
+        nbi_mv[PART_8x8_1][0] = nbi_info->inter_mv_left[0];
+        ref_frame[PART_8x8_1][0] = 1;
+    }
+    if (com_cu_info->cu_y != 0)
+    {
+        available[PART_8x8_1][1] = 1;
+        nbi_mv[PART_8x8_1][1] = nbi_info->inter_mv_up[cur_cu_pos + 2];
+        ref_frame[PART_8x8_1][1] = (nbi_info->pred_type_up[cur_cu_pos + 2] >= HLM_P_8x8) ? 1 : -1;
+
+        if (!is_right_cu)
+        {
+            available[PART_8x8_1][2] = 1;
+            nbi_mv[PART_8x8_1][2] = nbi_info->inter_mv_up[cur_cu_pos + 4];
+            ref_frame[PART_8x8_1][2] = (nbi_info->pred_type_up[cur_cu_pos + 4] >= HLM_P_8x8) ? 1 : -1;
+        }
+        else
+        {
+            available[PART_8x8_1][2] = 1;
+            nbi_mv[PART_8x8_1][2] = nbi_info->inter_mv_up[cur_cu_pos + 1];
+            ref_frame[PART_8x8_1][2] = (nbi_info->pred_type_up[cur_cu_pos + 1] >= HLM_P_8x8) ? 1 : -1;
+        }
+    }
+}
+
+/***************************************************************************************************
+* Âäü  ËÉΩÔºöËé∑ÂèñskipÂùómvp
+* ÂèÇ  Êï∞Ôºö*
+*        com_cu_info        -I      ÂΩìÂâçCU‰ø°ÊÅØ
+*        nbi_info           -I      ÂΩìÂâçCUÁõ∏ÈÇªÂùó‰ø°ÊÅØ
+*        is_right_cu        -I      ÂΩìÂâçcuÊòØÂê¶‰∏∫ÂõæÂÉèÊúÄÂè≥‰æßcuÔºåmvÁöÑÂè≥‰∏äÂùó‰∏çÂ≠òÂú®Áî®Â∑¶‰∏äÂùó‰ª£Êõø
+*        mvp                -O      ÂÜÖÈÉ®Â≠êÂùóÁöÑmvp
+* ËøîÂõûÂÄºÔºöÊó†
+* Â§á  Ê≥®Ôºö
+***************************************************************************************************/
+HLM_VOID HLM_COM_InterSkipMvp(HLM_CU_INFO        *com_cu_info,
+                              HLM_NEIGHBOR_INFO  *nbi_info,
+                              HLM_S32             is_right_cu,
+                              HLM_MV             *mvp)
+{
+    HLM_MV  zero_mv = { 0 };
+    HLM_S32 zeroMotionAbove = 0;
+    HLM_S32 zeroMotionLeft = 0;
+    HLM_U32 available[3] = { 0 };
+    HLM_MV  nbi_mv[3] = { 0 };
+    HLM_U32 cur_cu_pos = com_cu_info->cu_x << 2;
+    HLM_S32 ref_idx[3] = { 0 };
+
+    if (com_cu_info->cu_x != 0)
+    {
+        available[0] = 1;
+        nbi_mv[0] = nbi_info->inter_mv_left[0];
+        if (com_cu_info->cu_y == 0)
+        {
+            nbi_mv[1] = nbi_mv[2] = nbi_mv[0];
+        }
+        ref_idx[0] = (nbi_info->pred_type_left[0] >= HLM_P_8x8) ? 1 : -1;
+    }
+    if (com_cu_info->cu_y != 0)
+    {
+        available[1] = 1;
+        nbi_mv[1] = nbi_info->inter_mv_up[cur_cu_pos];
+        ref_idx[1] = (nbi_info->pred_type_up[cur_cu_pos] >= HLM_P_8x8) ? 1 : -1;
+
+        if (!is_right_cu)
+        {
+            available[2] = 1;
+            nbi_mv[2] = nbi_info->inter_mv_up[cur_cu_pos + 4];
+            ref_idx[2] = (nbi_info->pred_type_up[cur_cu_pos + 4] >= HLM_P_8x8) ? 1 : -1;
+        }
+        else
+        {
+            available[2] = 1;
+            nbi_mv[2] = nbi_info->inter_mv_upleft;
+            ref_idx[2] = (nbi_info->pred_type_upleft >= HLM_P_8x8) ? 1 : -1;
+        }
+    }
+
+    zeroMotionLeft = !available[0] ? 1 : (ref_idx[0] == 1 && nbi_mv[0].mvx == 0 && nbi_mv[0].mvy == 0) ? 1 : 0;
+    zeroMotionAbove = !available[1] ? 1 : (ref_idx[1] == 1 && nbi_mv[1].mvx == 0 && nbi_mv[1].mvy == 0) ? 1 : 0;
+    if (zeroMotionAbove || zeroMotionLeft)
+    {
+        *mvp = zero_mv;
+    }
+    else
+    {
+        HLM_COM_GetMvp(available, 0, 0, nbi_mv, ref_idx, mvp);
+    }
+}
+
+/***************************************************************************************************
+* Âäü  ËÉΩÔºöÁîüÊàêMPM
+* ÂèÇ  Êï∞Ôºö*
+*        nbi_info               -I         ÂΩìÂâçcuÁõ∏ÈÇªÂùó‰ø°ÊÅØ
+*        com_cu_info            -I         ÂΩìÂâçcu‰ø°ÊÅØ
+*        zscan_idx              -I         ÂΩìÂâçcuÁöÑ‰ΩçÁΩÆ
+*        mpm                    -O         È¢ÑÊµãÁöÑÂ∏ßÂÜÖÈ¢ÑÊµãÊ®°Âºè
+*        proc                   -I         Â§ÑÁêÜÈò∂ÊÆµ
+* ËøîÂõûÂÄºÔºöÊó†
+* Â§á  Ê≥®Ôºö
+***************************************************************************************************/
+HLM_VOID HLM_COM_GetMpm(HLM_NEIGHBOR_INFO   *nbi_info,
+                        HLM_CU_INFO         *com_cu_info,
+                        HLM_U32              zscan_idx,
+                        HLM_U08             *mpm,
+                        HLM_PROC             proc)
+{
+    HLM_U08 pu_x                 = HLM_INTRA_ZSCAN_TO_PELX[zscan_idx];
+    HLM_U08 pu_y                 = HLM_INTRA_ZSCAN_TO_PELY[zscan_idx];
+    HLM_U08 cu_type_left         = 0;
+    HLM_U08 cu_type_top          = 0;
+    HLM_U08 intra_pred_mode_left = 0;
+    HLM_U08 intra_pred_mode_top  = 0;
+    HLM_CU_TYPE target_type      = (proc == PROC_PRE) ? HLM_I_4x4 : com_cu_info->cu_type;
+
+    if ((com_cu_info->left_unavail && 0 == pu_x) || (com_cu_info->up_unavail && 0 == pu_y))
+    {
+        *mpm = HLM_INTRA_4x4_DC;
+        return;
+    }
+
+    if (0 == pu_x)  //Â∑¶‰æßcu_type
+    {
+        cu_type_left = nbi_info->pred_type_left[pu_y];
+    }
+    else
+    {
+        cu_type_left = target_type;
+    }
+    if (0 == pu_y)  // ‰∏ä‰æßcu_type
+    {
+        cu_type_top = nbi_info->pred_type_up[(com_cu_info->cu_x << 2) + pu_x];
+    }
+    else
+    {
+        cu_type_top = target_type;
+    }
+
+    if (cu_type_left == target_type)  // Â∑¶‰æßpred_mode
+    {
+        if (0 == pu_x)
+        {
+            intra_pred_mode_left = nbi_info->intra_pred_mode_left[pu_y];
+        }
+        else
+        {
+            intra_pred_mode_left = com_cu_info->cu_pred_info.pu_info[(pu_y << 2) + pu_x - 1].intra_pred_mode;
+        }
+    }
+    else
+    {
+        intra_pred_mode_left = HLM_INTRA_4x4_DC;
+    }
+    if (cu_type_top == target_type)  // ‰∏ä‰æßpred_mode
+    {
+        if (0 == pu_y)
+        {
+            intra_pred_mode_top = nbi_info->intra_pred_mode_up[(com_cu_info->cu_x << 2) + pu_x];
+        }
+        else
+        {
+            intra_pred_mode_top = com_cu_info->cu_pred_info.pu_info[((pu_y - 1) << 2) + pu_x].intra_pred_mode;
+        }
+    }
+    else
+    {
+        intra_pred_mode_top = HLM_INTRA_4x4_DC;
+    }
+
+    *mpm = HLM_MIN(intra_pred_mode_top, intra_pred_mode_left);
+}
+
+/***************************************************************************************************
+* Âäü  ËÉΩÔºöËé∑Âèñintra8x8ÂàíÂàÜ‰∏ãÔºåËâ≤Â∫¶PBÁöÑ‰ø°ÊÅØ
+* ÂèÇ  Êï∞Ôºö*
+*        image_format           -I         ÂõæÂÉèÊ†ºÂºè
+*        luma_size              -I         ‰∫ÆÂ∫¶PBÁöÑÂÆΩÈ´òÔºåÂ∫î‰∏∫8
+*        skip_chroma            -O         ‰∏§‰∏™8x8ÂùóÊòØÂê¶ÂåÖÂê´Ëâ≤Â∫¶PB
+*        chroma_size            -O         Ëâ≤Â∫¶PBÁöÑÂÆΩÈ´ò
+*        chroma_size_offset     -O         Ëâ≤Â∫¶PBÁöÑÂÆΩÈ´ò‰∏é‰∫ÆÂ∫¶PBÁöÑÂÄçÊï∞
+* ËøîÂõûÂÄºÔºöÊó†
+* Â§á  Ê≥®Ôºö
+***************************************************************************************************/
+HLM_VOID HLM_COM_Intra8x8ChromaPb(HLM_U32  image_format,
+                                  HLM_U32  luma_size,
+                                  HLM_U32  skip_chroma[2],
+                                  HLM_U32 *chroma_size,
+                                  HLM_U32 *chroma_size_offset)
+{
+    if (HLM_IMG_YUV_422 == image_format)
+    {
+        // Ëâ≤Â∫¶Âè™Êúâ‰∏Ä‰∏™PBÔºåÂÆΩÈ´ò‰∏∫8x8
+        *chroma_size = luma_size;
+        *chroma_size_offset = 0;
+        skip_chroma[0] = 0;  // Á¨¨‰∏Ä‰∏™8x8ÊúâËâ≤Â∫¶PB
+        skip_chroma[1] = 1;  // Á¨¨‰∫å‰∏™8x8Ê≤°ÊúâËâ≤Â∫¶PB
+    }
+    else if (HLM_IMG_YUV_420 == image_format)
+    {
+        // Ëâ≤Â∫¶Êúâ‰∏§‰∏™PBÔºåÂÆΩÈ´ò‰∏∫4x4
+        *chroma_size = luma_size >> 1;
+        *chroma_size_offset = 1;
+        skip_chroma[0] = 0;
+        skip_chroma[1] = 0;
+    }
+    else if (HLM_IMG_YUV_400 == image_format)
+    {
+        // Ê≤°ÊúâËâ≤Â∫¶‰ø°ÊÅØ
+        *chroma_size = luma_size;
+        *chroma_size_offset = 0;
+        skip_chroma[0] = 1;
+        skip_chroma[1] = 1;
+    }
+    else
+    {
+        // Ëâ≤Â∫¶‰ø°ÊÅØÂêå‰∫ÆÂ∫¶
+        *chroma_size = luma_size;
+        *chroma_size_offset = 0;
+        skip_chroma[0] = 0;
+        skip_chroma[1] = 0;
+    }
+}
+
+/***************************************************************************************************
+* Âäü  ËÉΩÔºöËé∑Âèñ16x8ÁöÑÂèÇËÄÉÂÉèÁ¥†
+* ÂèÇ  Êï∞Ôºö*
+*        nbi_info                 -I       ÂΩìÂâçcuÁõ∏ÈÇªÂùó‰ø°ÊÅØ
+*        com_cu_info              -I       ÂΩìÂâçcu‰ø°ÊÅØ
+*        pred_mode                -I       È¢ÑÊµãÊ®°Âºè
+*        yuv_idx                  -I       YUVÈÄöÈÅì
+*        ref_pixel                -O       ÂèÇËÄÉÂÉèÁ¥†
+* ËøîÂõûÂÄºÔºöÊó†
+* Â§á  Ê≥®Ôºö
+***************************************************************************************************/
+HLM_VOID HLM_COM_Intra16x8RefPel(HLM_NEIGHBOR_INFO   *nbi_info,
+                                 HLM_CU_INFO         *com_cu_info,
+                                 HLM_U08              pred_mode,
+                                 HLM_U08              yuv_idx,
+                                 HLM_U16             *ref_pixel)
+{
+    HLM_U08 ref_flag      = HLM_INTRA_ALL_NEIGHBORS;
+    HLM_U32 luma_width    = 1 << com_cu_info->cu_width[0];
+    HLM_U32 chroma_width  = 1 << com_cu_info->cu_width[1];
+    HLM_U32 luma_height   = 1 << com_cu_info->cu_height[0];
+    HLM_U32 chroma_height = 1 << com_cu_info->cu_height[1];
+    HLM_U08 left_unavail  = com_cu_info->left_unavail;
+    HLM_U08 up_unavail    = com_cu_info->up_unavail;
+
+    if (left_unavail)
+    {
+        ref_flag &= (HLM_INTRA_TOP | HLM_INTRA_TOP_RIGHT);
+    }
+    if (up_unavail)
+    {
+        ref_flag &= (HLM_INTRA_LEFT);
+    }
+    if (yuv_idx == 0)
+    {
+        if (ref_flag & HLM_INTRA_TOP)
+        {
+            memcpy(ref_pixel + HLM_INTRA_TOP_REF_IDX,
+                nbi_info->intra_rec_up_y + (com_cu_info->cu_x << com_cu_info->cu_width[0]), luma_width * sizeof(HLM_U16));
+        }
+        if (ref_flag & HLM_INTRA_LEFT)
+        {
+            memcpy(ref_pixel + HLM_INTRA_LEFT_REF_IDX, nbi_info->intra_rec_left_y, luma_height * sizeof(HLM_U16));
+        }
+        if (ref_flag & HLM_INTRA_TOP_LEFT)
+        {
+            ref_pixel[HLM_INTRA_TOP_LEFT_REF_IDX] = nbi_info->up_left_y;
+        }
+    }
+    if (yuv_idx == 1)
+    {
+        if (ref_flag & HLM_INTRA_TOP)
+        {
+            memcpy(ref_pixel + HLM_INTRA_TOP_REF_IDX,
+                nbi_info->intra_rec_up_u + (com_cu_info->cu_x << com_cu_info->cu_width[1]), chroma_width * sizeof(HLM_U16));
+        }
+        if (ref_flag & HLM_INTRA_LEFT)
+        {
+            memcpy(ref_pixel + HLM_INTRA_LEFT_REF_IDX, nbi_info->intra_rec_left_u, chroma_height * sizeof(HLM_U16));
+        }
+        if (ref_flag & HLM_INTRA_TOP_LEFT)
+        {
+            ref_pixel[HLM_INTRA_TOP_LEFT_REF_IDX] = nbi_info->up_left_u;
+        }
+    }
+    if (yuv_idx == 2)
+    {
+        if (ref_flag & HLM_INTRA_TOP)
+        {
+            memcpy(ref_pixel + HLM_INTRA_TOP_REF_IDX,
+                nbi_info->intra_rec_up_v + (com_cu_info->cu_x << com_cu_info->cu_width[2]), chroma_width * sizeof(HLM_U16));
+        }
+        if (ref_flag & HLM_INTRA_LEFT)
+        {
+            memcpy(ref_pixel + HLM_INTRA_LEFT_REF_IDX, nbi_info->intra_rec_left_v, chroma_height * sizeof(HLM_U16));
+        }
+        if (ref_flag & HLM_INTRA_TOP_LEFT)
+        {
+            ref_pixel[HLM_INTRA_TOP_LEFT_REF_IDX] = nbi_info->up_left_v;
+        }
+    }
+}
+
+/***************************************************************************************************
+* Âäü  ËÉΩÔºöËé∑Âèñ4x4ÁöÑÂèÇËÄÉÂÉèÁ¥†
+* ÂèÇ  Êï∞Ôºö*
+*        recon_y_base             -I       ÈáçÂª∫ÂÉèÁ¥†YÂàÜÈáèÁöÑÂú∞ÂùÄ
+*        recon_u_base             -I       ÈáçÂª∫ÂÉèÁ¥†UÂàÜÈáèÁöÑÂú∞ÂùÄ
+*        recon_v_base             -I       ÈáçÂª∫ÂÉèÁ¥†VÂàÜÈáèÁöÑÂú∞ÂùÄ
+*        stride_y                 -I       YÂàÜÈáèË∑®Â∫¶
+*        stride_u                 -I       UÂàÜÈáèË∑®Â∫¶
+*        stride_v                 -I       VÂàÜÈáèË∑®Â∫¶
+*        patch_width_in_cu        -I       patchÂÆΩÂ∫¶Ôºå‰ª•CU‰∏∫Âçï‰Ωç
+*        nbi_info                 -I       ÂΩìÂâçcuÁõ∏ÈÇªÂùó‰ø°ÊÅØ
+*        com_cu_info              -I       ÂΩìÂâçcu‰ø°ÊÅØ
+*        pred_mode                -I       È¢ÑÊµãÊ®°Âºè
+*        yuv_idx                  -I       YUVÈÄöÈÅì
+*        zscan_idx                -I       ÂΩìÂâçPUÁöÑ‰ΩçÁΩÆ
+*        pu_log_size              -I       log2ÁöÑPUÂ∞∫ÂØ∏
+*        ref_pixel                -O       ÂèÇËÄÉÂÉèÁ¥†
+* ËøîÂõûÂÄºÔºöÊó†
+* Â§á  Ê≥®Ôºö
+***************************************************************************************************/
+HLM_VOID HLM_COM_Intra4x4RefPel(HLM_U16             *recon_y_base,
+                                HLM_U16             *recon_u_base,
+                                HLM_U16             *recon_v_base,
+                                HLM_U32              stride_y,
+                                HLM_U32              stride_u,
+                                HLM_U32              stride_v,
+                                HLM_U32              patch_width_in_cu,
+                                HLM_NEIGHBOR_INFO   *nbi_info,
+                                HLM_CU_INFO         *com_cu_info,
+                                HLM_U08              pred_mode,
+                                HLM_U08              yuv_idx,
+                                HLM_U32              zscan_idx,
+                                HLM_U32              pu_log_size,
+                                HLM_U16             *ref_pixel)
+{
+    HLM_U08 ref_flag       = HLM_INTRA_ALL_NEIGHBORS;
+    HLM_U08 pu_pixel_x     = HLM_INTRA_ZSCAN_TO_PELX[zscan_idx] << pu_log_size;
+    HLM_U08 pu_pixel_y     = HLM_INTRA_ZSCAN_TO_PELY[zscan_idx] << pu_log_size;
+    HLM_U32 cu_pixel_x     = com_cu_info->cu_x << ((yuv_idx == 0) ? 4 : 4 - com_cu_info->chroma_offset_x);
+    HLM_U32 cu_pixel_y     = com_cu_info->cu_y << ((yuv_idx == 0) ? 3 : 3 - com_cu_info->chroma_offset_y);
+    HLM_U16 *rec_cu_left_y = nbi_info->intra_rec_left_y;
+    HLM_U16 *rec_cu_left_u = nbi_info->intra_rec_left_u;
+    HLM_U16 *rec_cu_left_v = nbi_info->intra_rec_left_v;
+    HLM_U16 *rec_cu_top_y  = nbi_info->intra_rec_up_y + cu_pixel_x;
+    HLM_U16 *rec_cu_top_u  = nbi_info->intra_rec_up_u + cu_pixel_x;
+    HLM_U16 *rec_cu_top_v  = nbi_info->intra_rec_up_v + cu_pixel_x;
+    HLM_U16 *rec_pu_y      = recon_y_base + (cu_pixel_y + pu_pixel_y) * stride_y + cu_pixel_x + pu_pixel_x;
+    HLM_U16 *rec_pu_u      = recon_u_base + (cu_pixel_y + pu_pixel_y) * stride_u + cu_pixel_x + pu_pixel_x;
+    HLM_U16 *rec_pu_v      = recon_v_base + (cu_pixel_y + pu_pixel_y) * stride_v + cu_pixel_x + pu_pixel_x;
+    HLM_U32 i              = 0;
+    HLM_U32 pu_size        = 1 << pu_log_size;
+    HLM_U08 left_unavail   = com_cu_info->left_unavail;
+    HLM_U08 up_unavail     = com_cu_info->up_unavail;
+
+    if (left_unavail && pu_pixel_x == 0)
+    {
+        ref_flag &= (HLM_INTRA_TOP | HLM_INTRA_TOP_RIGHT);   // HLM_INTRA_TOP || HLM_INTRA_TOP_RIGHT
+    }
+    if (up_unavail && pu_pixel_y == 0)
+    {
+        ref_flag &= (HLM_INTRA_LEFT);  // HLM_INTRA_LEFT
+    }
+    if (yuv_idx == 0)
+    {
+        if (ref_flag & HLM_INTRA_TOP)
+        {
+            if (pu_pixel_y == 0)
+            {
+                memcpy(ref_pixel + HLM_INTRA_TOP_REF_IDX, rec_cu_top_y + pu_pixel_x, pu_size * sizeof(HLM_U16));
+            }
+            else
+            {
+                memcpy(ref_pixel + HLM_INTRA_TOP_REF_IDX, rec_pu_y - stride_y, pu_size * sizeof(HLM_U16));
+            }
+        }
+        if (ref_flag & HLM_INTRA_TOP_RIGHT)
+        {
+            if (((zscan_idx == (com_cu_info->intra_8x8_enable_flag ? 1 : 5)) && (com_cu_info->cu_x == (patch_width_in_cu - 1)))
+                || (zscan_idx == 3) || (zscan_idx == 7) || (zscan_idx == 11) || (zscan_idx == 13) || (zscan_idx == 15))
+            {
+                for (i = 0; i < pu_size; i++)
+                {
+                    ref_pixel[HLM_INTRA_TOP_REF_IDX + pu_size + i] = ref_pixel[HLM_INTRA_TOP_REF_IDX + pu_size - 1];
+                }
+            }
+            else
+            {
+                if (pu_pixel_y == 0)
+                {
+                    memcpy(ref_pixel + HLM_INTRA_TOP_REF_IDX + pu_size, rec_cu_top_y + pu_pixel_x + pu_size, pu_size * sizeof(HLM_U16));
+                }
+                else
+                {
+                    memcpy(ref_pixel + HLM_INTRA_TOP_REF_IDX + pu_size, rec_pu_y - stride_y + pu_size, pu_size * sizeof(HLM_U16));
+                }
+            }
+        }
+        if (ref_flag & HLM_INTRA_LEFT)
+        {
+            if (pu_pixel_x == 0)
+            {
+                memcpy(ref_pixel + HLM_INTRA_LEFT_REF_IDX, rec_cu_left_y + pu_pixel_y, pu_size * sizeof(HLM_U16));
+            }
+            else
+            {
+                for (i = 0; i < pu_size; i++)
+                {
+                    ref_pixel[HLM_INTRA_LEFT_REF_IDX + i] = *(rec_pu_y - 1 + i * stride_y);
+                }
+            }
+        }
+        if (ref_flag & HLM_INTRA_TOP_LEFT)
+        {
+            if (pu_pixel_x == 0 && pu_pixel_y == 0)
+            {
+                ref_pixel[HLM_INTRA_TOP_LEFT_REF_IDX] = nbi_info->up_left_y;
+            }
+            else if (pu_pixel_x == 0)
+            {
+                ref_pixel[HLM_INTRA_TOP_LEFT_REF_IDX] = *(rec_cu_left_y - 1 + pu_pixel_y);
+            }
+            else if (pu_pixel_y == 0)
+            {
+                ref_pixel[HLM_INTRA_TOP_LEFT_REF_IDX] = *(rec_cu_top_y - 1 + pu_pixel_x);
+            }
+            else
+            {
+                ref_pixel[HLM_INTRA_TOP_LEFT_REF_IDX] = *(rec_pu_y - 1 - stride_y);
+            }
+        }
+    }
+    if (yuv_idx == 1)
+    {
+        if (ref_flag & HLM_INTRA_TOP)
+        {
+            if (pu_pixel_y == 0)
+            {
+                memcpy(ref_pixel + HLM_INTRA_TOP_REF_IDX, rec_cu_top_u + pu_pixel_x, pu_size * sizeof(HLM_U16));
+            }
+            else
+            {
+                memcpy(ref_pixel + HLM_INTRA_TOP_REF_IDX, rec_pu_u - stride_u, pu_size * sizeof(HLM_U16));
+            }
+        }
+        if (ref_flag & HLM_INTRA_TOP_RIGHT)
+        {
+            if (((zscan_idx == (com_cu_info->intra_8x8_enable_flag ? 1 : 5)) && (com_cu_info->cu_x == (patch_width_in_cu - 1)))
+                || (zscan_idx == 3) || (zscan_idx == 7) || (zscan_idx == 11) || (zscan_idx == 13) || (zscan_idx == 15))
+            {
+                for (i = 0; i < pu_size; i++)
+                {
+                    ref_pixel[HLM_INTRA_TOP_REF_IDX + pu_size + i] = ref_pixel[HLM_INTRA_TOP_REF_IDX + pu_size - 1];
+                }
+            }
+            else
+            {
+                if (pu_pixel_y == 0)
+                {
+                    memcpy(ref_pixel + HLM_INTRA_TOP_REF_IDX + pu_size, rec_cu_top_u + pu_pixel_x + pu_size, pu_size * sizeof(HLM_U16));
+                }
+                else
+                {
+                    memcpy(ref_pixel + HLM_INTRA_TOP_REF_IDX + pu_size, rec_pu_u - stride_u + pu_size, pu_size * sizeof(HLM_U16));
+                }
+            }
+        }
+        if (ref_flag & HLM_INTRA_LEFT)
+        {
+            if (pu_pixel_x == 0)
+            {
+                memcpy(ref_pixel + HLM_INTRA_LEFT_REF_IDX, rec_cu_left_u + pu_pixel_y, pu_size * sizeof(HLM_U16));
+            }
+            else
+            {
+                for (i = 0; i < pu_size; i++)
+                {
+                    ref_pixel[HLM_INTRA_LEFT_REF_IDX + i] = *(rec_pu_u - 1 + i * stride_u);
+                }
+            }
+        }
+        if (ref_flag & HLM_INTRA_TOP_LEFT)
+        {
+            if (pu_pixel_x == 0 && pu_pixel_y == 0)
+            {
+                ref_pixel[HLM_INTRA_TOP_LEFT_REF_IDX] = nbi_info->up_left_u;
+            }
+            else if (pu_pixel_x == 0)
+            {
+                ref_pixel[HLM_INTRA_TOP_LEFT_REF_IDX] = *(rec_cu_left_u - 1 + pu_pixel_y);
+            }
+            else if (pu_pixel_y == 0)
+            {
+                ref_pixel[HLM_INTRA_TOP_LEFT_REF_IDX] = *(rec_cu_top_u - 1 + pu_pixel_x);
+            }
+            else
+            {
+                ref_pixel[HLM_INTRA_TOP_LEFT_REF_IDX] = *(rec_pu_u - 1 - stride_u);
+            }
+        }
+    }
+    if (yuv_idx == 2)
+    {
+        if (ref_flag & HLM_INTRA_TOP)
+        {
+            if (pu_pixel_y == 0)
+            {
+                memcpy(ref_pixel + HLM_INTRA_TOP_REF_IDX, rec_cu_top_v + pu_pixel_x, pu_size * sizeof(HLM_U16));
+            }
+            else
+            {
+                memcpy(ref_pixel + HLM_INTRA_TOP_REF_IDX, rec_pu_v - stride_v, pu_size * sizeof(HLM_U16));
+            }
+        }
+        if (ref_flag & HLM_INTRA_TOP_RIGHT)
+        {
+            if (((zscan_idx == (com_cu_info->intra_8x8_enable_flag ? 1 : 5)) && (com_cu_info->cu_x == (patch_width_in_cu - 1)))
+                || (zscan_idx == 3) || (zscan_idx == 7) || (zscan_idx == 11) || (zscan_idx == 13) || (zscan_idx == 15))
+            {
+                for (i = 0; i < pu_size; i++)
+                {
+                    ref_pixel[HLM_INTRA_TOP_REF_IDX + pu_size + i] = ref_pixel[HLM_INTRA_TOP_REF_IDX + pu_size - 1];
+                }
+            }
+            else
+            {
+                if (pu_pixel_y == 0)
+                {
+                    memcpy(ref_pixel + HLM_INTRA_TOP_REF_IDX + pu_size, rec_cu_top_v + pu_pixel_x + pu_size, pu_size * sizeof(HLM_U16));
+                }
+                else
+                {
+                    memcpy(ref_pixel + HLM_INTRA_TOP_REF_IDX + pu_size, rec_pu_v - stride_v + pu_size, pu_size * sizeof(HLM_U16));
+                }
+            }
+        }
+        if (ref_flag & HLM_INTRA_LEFT)
+        {
+            if (pu_pixel_x == 0)
+            {
+                memcpy(ref_pixel + HLM_INTRA_LEFT_REF_IDX, rec_cu_left_v + pu_pixel_y, pu_size * sizeof(HLM_U16));
+            }
+            else
+            {
+                for (i = 0; i < pu_size; i++)
+                {
+                    ref_pixel[HLM_INTRA_LEFT_REF_IDX + i] = *(rec_pu_v - 1 + i * stride_v);
+                }
+            }
+        }
+        if (ref_flag & HLM_INTRA_TOP_LEFT)
+        {
+            if (pu_pixel_x == 0 && pu_pixel_y == 0)
+            {
+                ref_pixel[HLM_INTRA_TOP_LEFT_REF_IDX] = nbi_info->up_left_v;
+            }
+            else if (pu_pixel_x == 0)
+            {
+                ref_pixel[HLM_INTRA_TOP_LEFT_REF_IDX] = *(rec_cu_left_v - 1 + pu_pixel_y);
+            }
+            else if (pu_pixel_y == 0)
+            {
+                ref_pixel[HLM_INTRA_TOP_LEFT_REF_IDX] = *(rec_cu_top_v - 1 + pu_pixel_x);
+            }
+            else
+            {
+                ref_pixel[HLM_INTRA_TOP_LEFT_REF_IDX] = *(rec_pu_v - 1 - stride_v);
+            }
+        }
+    }
+}
+
+// planeÊ®°Âºè
+HLM_VOID HLM_INTRA_pred_plane(HLM_U16    *ref_pixel,
+                              HLM_U16    *pred_pixel,
+                              HLM_S32     bitdepth,
+                              HLM_U32     pred_stride,
+                              HLM_U08     width,
+                              HLM_U08     height)
+{
+    HLM_U16 *src_le      = ref_pixel;
+    HLM_U16 *src_up      = ref_pixel + HLM_INTRA_TOP_REF_IDX;
+    HLM_S32  w           = width;
+    HLM_S32  h           = height;
+    HLM_U16 *rsrc        = HLM_NULL;
+    HLM_S32  coef_h      = 0;
+    HLM_S32  coef_v      = 0;
+    HLM_S32  a           = 0;
+    HLM_S32  b           = 0;
+    HLM_S32  c           = 0;
+    HLM_S32  x           = 0;
+    HLM_S32  y           = 0;
+    HLM_S32  w2          = w >> 1;
+    HLM_S32  h2          = h >> 1;
+    HLM_S32  ib_mult[5]  = { 13, 17, 5, 11, 23 };
+    HLM_S32  ib_shift[5] = { 7, 10, 11, 15, 19 };
+    HLM_S32  idx_w       = width == 16 ? 2 : width == 8 ? 1 : 0;   // log2(16)-2 = 2
+    HLM_S32  idx_h       = height == 8 ? 1 : 0;   // log2(8)-2 =1;
+    HLM_S32  im_h        = ib_mult[idx_w];
+    HLM_S32  is_h        = ib_shift[idx_w];
+    HLM_S32  im_v        = ib_mult[idx_h];
+    HLM_S32  is_v        = ib_shift[idx_h];
+    HLM_S32  temp        = 0;
+    HLM_S32  temp2       = 0;
+
+    rsrc = src_up + (w2 - 1);
+    for (x = 1; x < w2 + 1; x++)
+    {
+        coef_h += x * (rsrc[x] - rsrc[-x]);
+    }
+    rsrc = src_le + (h2 - 1);
+    for (y = 1; y < h2; y++)
+    {
+        coef_v += y * (rsrc[y] - rsrc[-y]);
+    }
+    coef_v += h2 * (rsrc[h2] - src_up[-1]);
+
+    a = (src_le[h - 1] + src_up[w - 1]) << 4;
+    b = ((coef_h << 5) * im_h + (1 << (is_h - 1))) >> is_h;
+    c = ((coef_v << 5) * im_v + (1 << (is_v - 1))) >> is_v;
+    temp = a - (h2 - 1) * c - (w2 - 1) * b + 16;
+    for (y = 0; y < h; y++)
+    {
+        temp2 = temp;
+        for (x = 0; x < w; x++)
+        {
+            pred_pixel[x] = HLM_CLIP((HLM_S32)(temp2 >> 5), 0, ((1 << bitdepth) - 1));
+            temp2 += b;
+        }
+        temp += c;
+        pred_pixel += pred_stride;
+    }
+}
+
+// Ê≠£Â∏∏dcÊ®°Âºè
+HLM_VOID HLM_INTRA_pred_dc(HLM_U16    *ref_pixel,
+                           HLM_U16    *pred_pixel,
+                           HLM_S32     bitdepth,
+                           HLM_U32     pred_stride,
+                           HLM_U08     width,
+                           HLM_U08     height)
+{
+    HLM_S32 i           = 0;
+    HLM_S32 j           = 0;
+    HLM_U32 dc_value    = 0;
+    HLM_U16 *left_pixel = ref_pixel;
+    HLM_U16 *top_pixel  = ref_pixel + HLM_INTRA_TOP_REF_IDX;
+
+    for (i = 0; i < height; i++)
+    {
+        dc_value += left_pixel[i];
+    }
+    for (i = 0; i < height; i++)
+    {
+        dc_value += top_pixel[i];
+    }
+    dc_value = (dc_value + height) / (2 * height);
+
+    for (j = 0; j < height; j++)
+    {
+        for (i = 0; i < width; i++)
+        {
+            pred_pixel[i] = dc_value;
+        }
+        pred_pixel += pred_stride;
+    }
+}
+
+// Â∑¶‰æßdcÊ®°Âºè
+HLM_VOID HLM_INTRA_pred_dc_left(HLM_U16    *ref_pixel,
+                                HLM_U16    *pred_pixel,
+                                HLM_S32     bitdepth,
+                                HLM_U32     pred_stride,
+                                HLM_U08     width,
+                                HLM_U08     height)
+{
+    HLM_S32 i           = 0;
+    HLM_S32 j           = 0;
+    HLM_U32 dc_value    = 0;
+    HLM_U16 *left_pixel = ref_pixel;
+
+    for (i = 0; i < height; i++)
+    {
+        dc_value += left_pixel[i];
+    }
+    dc_value = (dc_value + (height >> 1)) / height;
+
+    for (j = 0; j < height; j++)
+    {
+        for (i = 0; i < width; i++)
+        {
+            pred_pixel[i] = dc_value;
+        }
+        pred_pixel += pred_stride;
+    }
+}
+
+// ‰∏ä‰æßdcÊ®°Âºè
+HLM_VOID HLM_INTRA_pred_dc_top(HLM_U16    *ref_pixel,
+                               HLM_U16    *pred_pixel,
+                               HLM_S32     bitdepth,
+                               HLM_U32     pred_stride,
+                               HLM_U08     width,
+                               HLM_U08     height)
+{
+    HLM_S32 i          = 0;
+    HLM_S32 j          = 0;
+    HLM_U32 dc_value   = 0;
+    HLM_U16 *top_pixel = ref_pixel + HLM_INTRA_TOP_REF_IDX;
+
+    for (i = 0; i < width; i++)
+    {
+        dc_value += top_pixel[i];
+    }
+    dc_value = (dc_value + (width >> 1)) / width;
+
+    for (j = 0; j < height; j++)
+    {
+        for (i = 0; i < width; i++)
+        {
+            pred_pixel[i] = dc_value;
+        }
+        pred_pixel += pred_stride;
+    }
+}
+
+// ÈªòËÆ§ÂÄºdcÊ®°Âºè
+HLM_VOID HLM_INTRA_pred_dc_default(HLM_U16    *ref_pixel,
+                                   HLM_U16    *pred_pixel,
+                                   HLM_S32     bitdepth,
+                                   HLM_U32     pred_stride,
+                                   HLM_U08     width,
+                                   HLM_U08     height)
+{
+    HLM_U32 dc_value = 1 << (bitdepth - 1);
+    HLM_S32 i        = 0;
+    HLM_S32 j        = 0;
+
+    for (j = 0; j < height; j++)
+    {
+        for (i = 0; i < width; i++)
+        {
+            pred_pixel[i] = dc_value;
+        }
+        pred_pixel += pred_stride;
+    }
+}
+
+// ÂûÇÁõ¥Ê®°Âºè
+HLM_VOID HLM_INTRA_pred_vertical(HLM_U16    *ref_pixel,
+                                 HLM_U16    *pred_pixel,
+                                 HLM_S32     bitdepth,
+                                 HLM_U32     pred_stride,
+                                 HLM_U08     width,
+                                 HLM_U08     height)
+{
+    HLM_U32 i          = 0;
+    HLM_U32 j          = 0;
+    HLM_U16 *top_pixel = ref_pixel + HLM_INTRA_TOP_REF_IDX;
+
+    for (i = 0; i < height; i++)
+    {
+        for (j = 0; j < width; j++)
+        {
+            pred_pixel[j] = top_pixel[j];
+        }
+        pred_pixel += pred_stride;
+    }
+}
+
+// Ê∞¥Âπ≥Ê®°Âºè
+HLM_VOID HLM_INTRA_pred_horizontal(HLM_U16    *ref_pixel,
+                                   HLM_U16    *pred_pixel,
+                                   HLM_S32     bitdepth,
+                                   HLM_U32     pred_stride,
+                                   HLM_U08     width,
+                                   HLM_U08     height)
+{
+    HLM_U32 i           = 0;
+    HLM_U32 j           = 0;
+    HLM_U16 *left_pixel = ref_pixel;
+
+    for (i = 0; i < height; i++)
+    {
+        for (j = 0; j < width; j++)
+        {
+            pred_pixel[j] = left_pixel[i];
+        }
+        pred_pixel += pred_stride;
+    }
+}
+
+// ÂØπËßíÂêëÂ∑¶Ê®°Âºè
+HLM_VOID HLM_INTRA_pred_diag_down_left(HLM_U16    *ref_pixel,
+                                       HLM_U16    *pred_pixel,
+                                       HLM_S32     bitdepth,
+                                       HLM_U32     pred_stride,
+                                       HLM_U08     width,
+                                       HLM_U08     height)
+{
+    HLM_U16 *top_pixel = ref_pixel + HLM_INTRA_TOP_REF_IDX - 1;
+    HLM_U08 y          = 0;
+    HLM_U08 x          = 0;
+    HLM_S16 idx        = 0;
+    HLM_S16 pos        = 0;
+
+    for (y = 0; y < height; y++)
+    {
+        for (x = 0; x < width; x++)
+        {
+            idx = x + y + 1;
+            if (idx <2 * width - 1)
+            {
+                pred_pixel[y * pred_stride + x] = (top_pixel[idx] + 2 * top_pixel[idx + 1] + top_pixel[idx + 2] + 2) >> 2;
+            }
+            else
+            {
+                pred_pixel[y * pred_stride + x] = (top_pixel[idx] + 3 * top_pixel[idx + 1] + 2) >> 2;
+            }
+        }
+    }
+}
+
+// ÂØπËßíÂêëÂè≥Ê®°Âºè
+HLM_VOID HLM_INTRA_pred_diag_down_right(HLM_U16    *ref_pixel,
+                                        HLM_U16    *pred_pixel,
+                                        HLM_S32     bitdepth,
+                                        HLM_U32     pred_stride,
+                                        HLM_U08     width,
+                                        HLM_U08     height)
+{
+    HLM_U16 *left_pixel = ref_pixel;
+    HLM_U16 *top_pixel  = ref_pixel + HLM_INTRA_TOP_REF_IDX;
+    top_pixel           = ref_pixel + HLM_INTRA_TOP_REF_IDX - 1;
+    HLM_U08 y           = 0;
+    HLM_U08 x           = 0;
+    HLM_S16 idx         = 0;
+    HLM_S16 pos         = 0;
+
+    for (y = 0; y < height; y++)
+    {
+        for (x = 0; x < width; x++)
+        {
+            idx = x - y - 1;
+            if (idx >= 0)
+            {
+                pred_pixel[y * pred_stride + x] = (top_pixel[idx] + 2 * top_pixel[idx + 1] + top_pixel[idx + 2] + 2) >> 2;
+            }
+            else if (idx == -1)
+            {
+                pred_pixel[y * pred_stride + x] = (2 * top_pixel[0] + left_pixel[0] + top_pixel[1] + 2) >> 2;
+            }
+            else
+            {
+                pos = -idx - 2;
+                if (pos == 0)
+                {
+                    pred_pixel[y * pred_stride + x] = (2 * left_pixel[pos] + left_pixel[pos + 1] + top_pixel[0] + 2) >> 2;
+                }
+                else
+                {
+                    pred_pixel[y * pred_stride + x] = (left_pixel[pos - 1] + 2 * left_pixel[pos] + left_pixel[pos + 1] + 2) >> 2;
+                }
+            }
+        }
+    }
+}
+
+// ÂûÇÁõ¥ÂÅèÂè≥Ê®°Âºè
+HLM_VOID HLM_INTRA_pred_vertical_right(HLM_U16    *ref_pixel,
+                                       HLM_U16    *pred_pixel,
+                                       HLM_S32     bitdepth,
+                                       HLM_U32     pred_stride,
+                                       HLM_U08     width,
+                                       HLM_U08     height)
+{
+    HLM_U16 *left_pixel = ref_pixel;
+    HLM_U16 *top_pixel  = ref_pixel + HLM_INTRA_TOP_REF_IDX - 1;
+    HLM_U08 y           = 0;
+    HLM_U08 x           = 0;
+    HLM_S16 idx         = 0;
+    HLM_U16 w           = 0;
+    HLM_U16 i           = 0;
+    HLM_S16 weight      = 0;
+    HLM_S16 pos         = 0;
+    
+    for (y = 0; y < height; y++)
+    {
+        for (x = 0; x < width; x++)
+        {
+            idx = 2 * x - y ;
+            if (idx >= 0 && (idx %2 ==0))
+            {
+                pred_pixel[y * pred_stride + x] = (top_pixel[x - (y >> 1)] + top_pixel[x - (y >> 1) + 1] + 1) >> 1;
+            }
+            else if (idx >= 0)
+            {
+                pred_pixel[y * pred_stride + x] = (top_pixel[x - (y >> 1) - 1] + 2 * top_pixel[x - (y >> 1)] + top_pixel[x - (y >> 1) + 1] + 2) >> 2;
+            }
+            else
+            {
+                if (idx == -1) 
+                {
+                    pred_pixel[y * pred_stride + x] = (2 * top_pixel[0] + left_pixel[0] + top_pixel[1] + 2) >> 2;
+                }
+                else if (idx == -2)
+                {
+                    pred_pixel[y * pred_stride + x] = (top_pixel[0] + 2 * left_pixel[0] + left_pixel[1] + 2) >> 2;
+                }
+                else if (width == 4)
+                {
+                    pred_pixel[y * pred_stride + x] = (left_pixel[y - 1] + 2 * left_pixel[y - 2] + left_pixel[y - 3] + 2) >> 2;
+                }
+                else 
+                {
+                    pred_pixel[y * pred_stride + x] = (left_pixel[y - 2 * x - 1] + 2 * left_pixel[y - 2 * x - 2] + left_pixel[y - 2 * x - 3] + 2) >> 2;
+                }
+            }
+        }
+    }
+}
+
+// Ê∞¥Âπ≥ÂÅè‰∏ãÊ®°Âºè
+HLM_VOID HLM_INTRA_pred_horizontal_down(HLM_U16    *ref_pixel,
+                                        HLM_U16    *pred_pixel,
+                                        HLM_S32     bitdepth,
+                                        HLM_U32     pred_stride,
+                                        HLM_U08     width,
+                                        HLM_U08     height)
+{
+    HLM_U16 *left_pixel = ref_pixel;
+    HLM_U16 *top_pixel  = ref_pixel + HLM_INTRA_TOP_REF_IDX - 1;
+    HLM_U08 y           = 0;
+    HLM_U08 x           = 0;
+    HLM_S16 idx         = 0;
+    HLM_U16 w           = 0;
+    HLM_U16 i           = 0;
+    HLM_S16 pos         = 0;
+
+    for (y = 0; y < height; y++)
+    {
+        for (x = 0; x < width; x++)
+        {
+            idx = 2 * y - x;
+            if (idx == 0)
+            {
+                pred_pixel[y * pred_stride + x] = (left_pixel[0] + top_pixel[0] + 1) >> 1;
+            }
+            else if (idx > 0 && (idx %2==0))
+            {
+                pred_pixel[y * pred_stride + x] = (left_pixel[y - (x >> 1)-1] + left_pixel[y - (x >> 1)] + 1) >> 1;
+            }
+            else if (idx > 0)
+            {
+                if (idx == 1)
+                    pred_pixel[y * pred_stride + x] = (top_pixel[0] + 2 * left_pixel[y - (x >> 1) - 1] + left_pixel[y - (x >> 1)] + 2) >> 2;
+                else
+                    pred_pixel[y * pred_stride + x] = (left_pixel[y - (x >> 1) - 2] + 2 * left_pixel[y - (x >> 1) -1] + left_pixel[y - (x >> 1)] + 2) >> 2;
+            }
+            else
+            {
+                if (idx == -1)
+                {
+                    pred_pixel[y * pred_stride + x] = (2 * top_pixel[0] + left_pixel[0] + top_pixel[1] + 2) >> 2;
+                }
+                else if (width == 4)
+                {
+                    pred_pixel[y * pred_stride + x] = (top_pixel[x] + 2 * top_pixel[x - 1] + top_pixel[x - 2] + 2) >> 2;
+                }
+                else
+                {
+                    pred_pixel[y * pred_stride + x] = (top_pixel[x - 2 * y] + 2 * top_pixel[x - 2 * y - 1] + top_pixel[x - 2 * y - 2] + 2) >> 2;
+                }
+            }
+          
+        }
+    }
+}
+
+// ÂûÇÁõ¥ÂÅèÂ∑¶Ê®°Âºè
+HLM_VOID HLM_INTRA_pred_vertical_left(HLM_U16    *ref_pixel,
+                                      HLM_U16    *pred_pixel,
+                                      HLM_S32     bitdepth,
+                                      HLM_U32     pred_stride,
+                                      HLM_U08     width,
+                                      HLM_U08     height)
+{
+    HLM_U16 *left_pixel = ref_pixel;
+    HLM_U16 *top_pixel  = ref_pixel + HLM_INTRA_TOP_REF_IDX;
+    HLM_U08 y           = 0;
+    HLM_U08 x           = 0;
+    HLM_S16 idx         = 0;
+    HLM_U16 w           = 0;
+    HLM_U16 i           = 0;
+    HLM_S16 pos         = 0;
+
+    for (y = 0; y < height; y++)
+    {
+        for (x = 0; x < width; x++)
+        {
+            idx = y + 2 * x;
+            if (idx & 1)
+            {
+                pos = (idx + 1) >> 1;
+                if (pos >= 2 * width - 1)
+                {
+                    pos = 2 * width - 1;
+                    pred_pixel[y * pred_stride + x] = (top_pixel[pos - 1] + top_pixel[pos] * 2 + top_pixel[pos] + 2) >> 2;
+                }
+                else
+                {
+                    pred_pixel[y * pred_stride + x] = (top_pixel[pos - 1] + top_pixel[pos] * 2 + top_pixel[pos + 1] + 2) >> 2;
+                }
+            }
+            else
+            {
+                pos = idx >> 1;
+                if (pos >= 2 * width - 1)
+                {
+                    pos = 2 * width - 1;
+                    pred_pixel[y * pred_stride + x] = (top_pixel[pos] + top_pixel[pos] + 1) >> 1;
+                }
+                else
+                {
+                    pred_pixel[y * pred_stride + x] = (top_pixel[pos] + top_pixel[pos + 1] + 1) >> 1;
+                }
+            }
+        }
+    }
+}
+
+// Ê∞¥Âπ≥ÂÅè‰∏äÊ®°Âºè
+HLM_VOID HLM_INTRA_pred_horizontal_up(HLM_U16    *ref_pixel,
+                                      HLM_U16    *pred_pixel,
+                                      HLM_S32     bitdepth,
+                                      HLM_U32     pred_stride,
+                                      HLM_U08     width,
+                                      HLM_U08     height)
+{
+    HLM_U16 *left_pixel = ref_pixel;
+    HLM_U08 y           = 0;
+    HLM_U08 x           = 0;
+    HLM_S16 idx         = 0;
+    HLM_U16 w           = 0;
+    HLM_U16 i           = 0;
+    HLM_S16 pos         = 0;
+
+    for (y = 0; y < height; y++)
+    {
+        for (x = 0; x < width; x++)
+        {
+            idx = y * 2 + x;
+            if (idx >= 2 * (height - 1))
+            {
+                pred_pixel[y * pred_stride + x] = ref_pixel[height - 1];
+            }
+            else if (idx & 1)
+            {
+                pos = ((idx + 1) >> 1) >= height - 1 ? height - 1 : ((idx + 1) >> 1);
+                pred_pixel[y * pred_stride + x] = (left_pixel[pos - 1] + left_pixel[pos] * 2 + left_pixel[(pos + 1) >= height ? height - 1 : pos + 1] + 2) >> 2;
+            }
+            else
+            {
+                pos = idx >> 1;
+                pred_pixel[y * pred_stride + x] = (left_pixel[pos] + left_pixel[pos + 1] + 1) >> 1;
+            }
+        }
+    }
+}
+
+const HLM_INTRA_PRED_FUNC HLM_INTRA_PRED_16x8[HLM_INTRA_MODE_NUM_16x8] =
+{
+    HLM_INTRA_pred_vertical,
+    HLM_INTRA_pred_horizontal,
+    HLM_INTRA_pred_dc,
+    HLM_INTRA_pred_plane,
+    HLM_INTRA_pred_dc_left,
+    HLM_INTRA_pred_dc_top,
+    HLM_INTRA_pred_dc_default
+};
+
+const HLM_INTRA_PRED_FUNC HLM_INTRA_PRED_4x4[HLM_INTRA_MODE_NUM_4x4] =
+{
+    HLM_INTRA_pred_vertical,
+    HLM_INTRA_pred_horizontal,
+    HLM_INTRA_pred_dc,
+    HLM_INTRA_pred_diag_down_left,
+    HLM_INTRA_pred_diag_down_right,
+    HLM_INTRA_pred_vertical_right,
+    HLM_INTRA_pred_horizontal_down,
+    HLM_INTRA_pred_vertical_left,
+    HLM_INTRA_pred_horizontal_up,
+    HLM_INTRA_pred_dc_left,
+    HLM_INTRA_pred_dc_top,
+    HLM_INTRA_pred_dc_default
+};

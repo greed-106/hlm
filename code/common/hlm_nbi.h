@@ -1,84 +1,84 @@
-/***************************************************************************************************
-
-The copyright in this software is being made available under the License included below.
-This software may be subject to other third party and contributor rights, including patent
-rights, and no such rights are granted under this license.
-
-Copyright (C) 2025, Hangzhou Hikvision Digital Technology Co., Ltd. All rights reserved.
-
-Redistribution and use in source and binary forms, with or without modification, are permitted
-only for the purpose of developing standards within Audio and Video Coding Standard Workgroup of
-China (AVS) and for testing and promoting such standards. The following conditions are required
-to be met:
-
-* Redistributions of source code must retain the above copyright notice, this list of
-conditions and the following disclaimer.
-* Redistributions in binary form must reproduce the above copyright notice, this list of
-conditions and the following disclaimer in the documentation and/or other materials
-provided with the distribution.
-* The name of Hangzhou Hikvision Digital Technology Co., Ltd. may not be used to endorse or
-promote products derived from this software without specific prior written permission.
-
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR
-IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND
-FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR
-CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
-CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
-SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
-OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-POSSIBILITY OF SUCH DAMAGE.
-
-***************************************************************************************************/
-#ifndef _HLM_NBI_H_
-#define _HLM_NBI_H_
-
-#include "hlm_com_pred.h"
-
-#ifdef __cplusplus
-extern "C" {
-#endif
-
-/***************************************************************************************************
-* π¶  ƒ‹£∫œ‡¡⁄–≈œ¢π‹¿Ì
-* ≤Œ   ˝£∫*
-*        cur_cu                 -I      µ±«∞CU–≈œ¢
-*        nbi_info               -IO     œ‡¡⁄–≈œ¢ ˝æ›
-*        frame_type             -I      µ±«∞÷°¿‡–Õ
-*        blk8_pu0_info          -I      8x8ªÆ∑÷œ¬µ⁄“ª∏ˆPUµƒ–≈œ¢
-*        blk8_pu1_info          -I      8x8ªÆ∑÷œ¬µ⁄∂˛∏ˆPUµƒ–≈œ¢
-* ∑µªÿ÷µ£∫Œﬁ
-* ±∏  ◊¢£∫
-***************************************************************************************************/
-HLM_VOID HLM_NBI_Process(HLM_CU_INFO         *com_cu_info,
-                         HLM_NEIGHBOR_INFO   *nbi_info,
-                         HLM_U32              frame_type,
-                         HLM_PU_INFO         *blk8_pu0_info,
-                         HLM_PU_INFO         *blk8_pu1_info);
-
-/***************************************************************************************************
-* π¶  ƒ‹£∫∏¸–¬œ‡¡⁄µƒ÷ÿΩ®œÒÀÿ
-* ≤Œ   ˝£∫*
-*        com_cu_info            -I      µ±«∞CU–≈œ¢
-*        nbi_info               -IO     œ‡¡⁄–≈œ¢ ˝æ›
-*        recon_y_base           -I      ¡¡∂»÷ÿΩ® ◊µÿ÷∑
-*        recon_cb_base          -I      …´∂»÷ÿΩ® ◊µÿ÷∑
-*        recon_cr_base          -I      …´∂»÷ÿΩ® ◊µÿ÷∑
-*        luma_stride            -I      ¡¡∂»≤Ω≥§
-*        chroma_stride          -I      …´∂»≤Ω≥§
-* ∑µªÿ÷µ£∫Œﬁ
-* ±∏  ◊¢£∫
-***************************************************************************************************/
-HLM_VOID HLM_NBI_UpdateRec(HLM_CU_INFO         *com_cu_info,
-                           HLM_NEIGHBOR_INFO   *nbi_info,
-                           HLM_U16             *recon_y_base,
-                           HLM_U16             *recon_cb_base,
-                           HLM_U16             *recon_cr_base,
-                           HLM_U32              luma_stride,
-                           HLM_U32              chroma_stride);
-
-#ifdef __cplusplus
-}
-#endif
-
-#endif // _HLM_NBI_H_
+/***************************************************************************************************
+
+The copyright in this software is being made available under the License included below.
+This software may be subject to other third party and contributor rights, including patent
+rights, and no such rights are granted under this license.
+
+Copyright (C) 2025, Hangzhou Hikvision Digital Technology Co., Ltd. All rights reserved.
+
+Redistribution and use in source and binary forms, with or without modification, are permitted
+only for the purpose of developing standards within Audio and Video Coding Standard Workgroup of
+China (AVS) and for testing and promoting such standards. The following conditions are required
+to be met:
+
+* Redistributions of source code must retain the above copyright notice, this list of
+conditions and the following disclaimer.
+* Redistributions in binary form must reproduce the above copyright notice, this list of
+conditions and the following disclaimer in the documentation and/or other materials
+provided with the distribution.
+* The name of Hangzhou Hikvision Digital Technology Co., Ltd. may not be used to endorse or
+promote products derived from this software without specific prior written permission.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR
+IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND
+FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR
+CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+POSSIBILITY OF SUCH DAMAGE.
+
+***************************************************************************************************/
+#ifndef _HLM_NBI_H_
+#define _HLM_NBI_H_
+
+#include "hlm_com_pred.h"
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+/***************************************************************************************************
+* Âäü  ËÉΩÔºöÁõ∏ÈÇª‰ø°ÊÅØÁÆ°ÁêÜ
+* ÂèÇ  Êï∞Ôºö*
+*        cur_cu                 -I      ÂΩìÂâçCU‰ø°ÊÅØ
+*        nbi_info               -IO     Áõ∏ÈÇª‰ø°ÊÅØÊï∞ÊçÆ
+*        frame_type             -I      ÂΩìÂâçÂ∏ßÁ±ªÂûã
+*        blk8_pu0_info          -I      8x8ÂàíÂàÜ‰∏ãÁ¨¨‰∏Ä‰∏™PUÁöÑ‰ø°ÊÅØ
+*        blk8_pu1_info          -I      8x8ÂàíÂàÜ‰∏ãÁ¨¨‰∫å‰∏™PUÁöÑ‰ø°ÊÅØ
+* ËøîÂõûÂÄºÔºöÊó†
+* Â§á  Ê≥®Ôºö
+***************************************************************************************************/
+HLM_VOID HLM_NBI_Process(HLM_CU_INFO         *com_cu_info,
+                         HLM_NEIGHBOR_INFO   *nbi_info,
+                         HLM_U32              frame_type,
+                         HLM_PU_INFO         *blk8_pu0_info,
+                         HLM_PU_INFO         *blk8_pu1_info);
+
+/***************************************************************************************************
+* Âäü  ËÉΩÔºöÊõ¥Êñ∞Áõ∏ÈÇªÁöÑÈáçÂª∫ÂÉèÁ¥†
+* ÂèÇ  Êï∞Ôºö*
+*        com_cu_info            -I      ÂΩìÂâçCU‰ø°ÊÅØ
+*        nbi_info               -IO     Áõ∏ÈÇª‰ø°ÊÅØÊï∞ÊçÆ
+*        recon_y_base           -I      ‰∫ÆÂ∫¶ÈáçÂª∫È¶ñÂú∞ÂùÄ
+*        recon_cb_base          -I      Ëâ≤Â∫¶ÈáçÂª∫È¶ñÂú∞ÂùÄ
+*        recon_cr_base          -I      Ëâ≤Â∫¶ÈáçÂª∫È¶ñÂú∞ÂùÄ
+*        luma_stride            -I      ‰∫ÆÂ∫¶Ê≠•Èïø
+*        chroma_stride          -I      Ëâ≤Â∫¶Ê≠•Èïø
+* ËøîÂõûÂÄºÔºöÊó†
+* Â§á  Ê≥®Ôºö
+***************************************************************************************************/
+HLM_VOID HLM_NBI_UpdateRec(HLM_CU_INFO         *com_cu_info,
+                           HLM_NEIGHBOR_INFO   *nbi_info,
+                           HLM_U16             *recon_y_base,
+                           HLM_U16             *recon_cb_base,
+                           HLM_U16             *recon_cr_base,
+                           HLM_U32              luma_stride,
+                           HLM_U32              chroma_stride);
+
+#ifdef __cplusplus
+}
+#endif
+
+#endif // _HLM_NBI_H_

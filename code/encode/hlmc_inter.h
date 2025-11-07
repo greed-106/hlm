@@ -1,77 +1,77 @@
-/***************************************************************************************************
-
-The copyright in this software is being made available under the License included below.
-This software may be subject to other third party and contributor rights, including patent
-rights, and no such rights are granted under this license.
-
-Copyright (C) 2025, Hangzhou Hikvision Digital Technology Co., Ltd. All rights reserved.
-
-Redistribution and use in source and binary forms, with or without modification, are permitted
-only for the purpose of developing standards within Audio and Video Coding Standard Workgroup of
-China (AVS) and for testing and promoting such standards. The following conditions are required
-to be met:
-
-* Redistributions of source code must retain the above copyright notice, this list of
-conditions and the following disclaimer.
-* Redistributions in binary form must reproduce the above copyright notice, this list of
-conditions and the following disclaimer in the documentation and/or other materials
-provided with the distribution.
-* The name of Hangzhou Hikvision Digital Technology Co., Ltd. may not be used to endorse or
-promote products derived from this software without specific prior written permission.
-
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR
-IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND
-FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR
-CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
-CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
-SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
-OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-POSSIBILITY OF SUCH DAMAGE.
-
-***************************************************************************************************/
-#ifndef _HLMC_INTER_H_
-#define _HLMC_INTER_H_
-
-#include "hlmc_defs.h"
-
-#ifdef __cplusplus
-extern "C" {
-#endif
-
-/***************************************************************************************************
-* π¶  ƒ‹£∫’˚œÒÀÿ‘À∂ØÀ—À˜
-* ≤Œ   ˝£∫*
-*        regs                 -I    µ±«∞ ˝æ›”≤º˛ºƒ¥Ê∆˜
-*        nbi_info             -I    œ‡¡⁄øÈ–≈œ¢
-*        cur_cu               -IO   µ±«∞cu–≈œ¢
-* ∑µªÿ÷µ£∫Œﬁ
-* ±∏  ◊¢£∫
-***************************************************************************************************/
-HLM_VOID HLMC_INTER_MODE(HLMC_REGS           *regs,
-                         HLM_NEIGHBOR_INFO   *nbi_info,
-                         HLMC_CU_INFO        *cur_cu);
-
-/***************************************************************************************************
-* π¶  ƒ‹£∫÷°º‰RDOƒ£øÈ
-* ≤Œ   ˝£∫*
-*        channel_index        -I    µ±«∞Õ®µ¿µƒÀ˜“˝
-*        channel_size         -I    µ±«∞Õ®µ¿µƒ¥Û–°
-*        regs                 -I    µ±«∞ ˝æ›”≤º˛ºƒ¥Ê∆˜
-*        nbi_info             -I    œ‡¡⁄øÈ–≈œ¢
-*        best_cu              -O    ◊Ó”≈cu–≈œ¢
-*        cur_cu               -I    µ±«∞cu–≈œ¢
-* ∑µªÿ÷µ£∫Œﬁ
-***************************************************************************************************/
-HLM_VOID HLMC_INTER_RDO(HLM_U32                 channel_index,
-                        HLM_U32                 channel_size,
-                        HLMC_REGS              *regs,
-                        HLM_NEIGHBOR_INFO      *nbi_info,
-                        HLMC_CU_INFO           *best_cu,
-                        HLMC_CU_INFO           *cur_cu);
-
-#ifdef __cplusplus
-}
-#endif
-
-#endif // _HLMC_INTER_H_
+/***************************************************************************************************
+
+The copyright in this software is being made available under the License included below.
+This software may be subject to other third party and contributor rights, including patent
+rights, and no such rights are granted under this license.
+
+Copyright (C) 2025, Hangzhou Hikvision Digital Technology Co., Ltd. All rights reserved.
+
+Redistribution and use in source and binary forms, with or without modification, are permitted
+only for the purpose of developing standards within Audio and Video Coding Standard Workgroup of
+China (AVS) and for testing and promoting such standards. The following conditions are required
+to be met:
+
+* Redistributions of source code must retain the above copyright notice, this list of
+conditions and the following disclaimer.
+* Redistributions in binary form must reproduce the above copyright notice, this list of
+conditions and the following disclaimer in the documentation and/or other materials
+provided with the distribution.
+* The name of Hangzhou Hikvision Digital Technology Co., Ltd. may not be used to endorse or
+promote products derived from this software without specific prior written permission.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR
+IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND
+FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR
+CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+POSSIBILITY OF SUCH DAMAGE.
+
+***************************************************************************************************/
+#ifndef _HLMC_INTER_H_
+#define _HLMC_INTER_H_
+
+#include "hlmc_defs.h"
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+/***************************************************************************************************
+* Âäü  ËÉΩÔºöÊï¥ÂÉèÁ¥†ËøêÂä®ÊêúÁ¥¢
+* ÂèÇ  Êï∞Ôºö*
+*        regs                 -I    ÂΩìÂâçÊï∞ÊçÆÁ°¨‰ª∂ÂØÑÂ≠òÂô®
+*        nbi_info             -I    Áõ∏ÈÇªÂùó‰ø°ÊÅØ
+*        cur_cu               -IO   ÂΩìÂâçcu‰ø°ÊÅØ
+* ËøîÂõûÂÄºÔºöÊó†
+* Â§á  Ê≥®Ôºö
+***************************************************************************************************/
+HLM_VOID HLMC_INTER_MODE(HLMC_REGS           *regs,
+                         HLM_NEIGHBOR_INFO   *nbi_info,
+                         HLMC_CU_INFO        *cur_cu);
+
+/***************************************************************************************************
+* Âäü  ËÉΩÔºöÂ∏ßÈó¥RDOÊ®°Âùó
+* ÂèÇ  Êï∞Ôºö*
+*        channel_index        -I    ÂΩìÂâçÈÄöÈÅìÁöÑÁ¥¢Âºï
+*        channel_size         -I    ÂΩìÂâçÈÄöÈÅìÁöÑÂ§ßÂ∞è
+*        regs                 -I    ÂΩìÂâçÊï∞ÊçÆÁ°¨‰ª∂ÂØÑÂ≠òÂô®
+*        nbi_info             -I    Áõ∏ÈÇªÂùó‰ø°ÊÅØ
+*        best_cu              -O    ÊúÄ‰ºòcu‰ø°ÊÅØ
+*        cur_cu               -I    ÂΩìÂâçcu‰ø°ÊÅØ
+* ËøîÂõûÂÄºÔºöÊó†
+***************************************************************************************************/
+HLM_VOID HLMC_INTER_RDO(HLM_U32                 channel_index,
+                        HLM_U32                 channel_size,
+                        HLMC_REGS              *regs,
+                        HLM_NEIGHBOR_INFO      *nbi_info,
+                        HLMC_CU_INFO           *best_cu,
+                        HLMC_CU_INFO           *cur_cu);
+
+#ifdef __cplusplus
+}
+#endif
+
+#endif // _HLMC_INTER_H_

@@ -1,93 +1,93 @@
-/***************************************************************************************************
-
-The copyright in this software is being made available under the License included below.
-This software may be subject to other third party and contributor rights, including patent
-rights, and no such rights are granted under this license.
-
-Copyright (C) 2025, Hangzhou Hikvision Digital Technology Co., Ltd. All rights reserved.
-
-Redistribution and use in source and binary forms, with or without modification, are permitted
-only for the purpose of developing standards within Audio and Video Coding Standard Workgroup of
-China (AVS) and for testing and promoting such standards. The following conditions are required
-to be met:
-
-* Redistributions of source code must retain the above copyright notice, this list of
-conditions and the following disclaimer.
-* Redistributions in binary form must reproduce the above copyright notice, this list of
-conditions and the following disclaimer in the documentation and/or other materials
-provided with the distribution.
-* The name of Hangzhou Hikvision Digital Technology Co., Ltd. may not be used to endorse or
-promote products derived from this software without specific prior written permission.
-
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR
-IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND
-FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR
-CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
-CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
-SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
-OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-POSSIBILITY OF SUCH DAMAGE.
-
-***************************************************************************************************/
-#ifndef _HLMD_HLS_H_
-#define _HLMD_HLS_H_
-
-#include "hlmd_defs.h"
-
-#ifdef __cplusplus
-extern "C" {
-#endif
-
-#define HLMD_NALU_HEADER_LEN           1             // nalu header³¤¶È£¬¹Ì¶¨Îª1×Ö½Ú
-
-/***************************************************************************************************
-* ¹¦  ÄÜ£º»ñµÃÒ»¸önaluµ¥ÔªÂëÁ÷Êı¾İ
-* ²Î  Êı£º*
-*         stream_buf            -I    ´ı½âÂëÂëÁ÷Ö¸Õë£¨ÂëÁ÷Ö¸ÕëËæ½âÎö¹ı³ÌÆ«ÒÆ£©
-*         stream_len            -I    ´ı½âÂëÂëÁ÷³¤¶È
-*         nalu_buf              -O    ebsp naluµØÖ·
-*         nalu_len              -O    ebsp nalu³¤¶È
-*         start_code_len        -O    naluÆğÊ¼ÂëµÄ³¤¶È
-* ·µ»ØÖµ£º×´Ì¬Âë
-* ±¸  ×¢£º
-***************************************************************************************************/
-HLM_STATUS HLMD_HLS_GetNalu(HLM_U08           *stream_buf,
-                            HLM_S64            stream_len,
-                            HLM_U08          **nalu_buf,
-                            HLM_S32           *nalu_len,
-                            HLM_S32           *start_code_len);
-
-/***************************************************************************************************
-* ¹¦  ÄÜ£º½âÎönaluÍ·ĞÅÏ¢
-* ²Î  Êı£º*
-*         nalu_buf              -I    Ìø¹ıÆğÊ¼ÂëµÄebsp naluÂëÁ÷
-*         nalu_len              -I    naluÂëÁ÷³¤¶È
-*         nalu_header           -O    ½âÎöºóµÄnaluÍ·ĞÅÏ¢
-* ·µ»ØÖµ£º×´Ì¬Âë
-* ±¸  ×¢£º
-***************************************************************************************************/
-HLM_STATUS HLMD_HLS_ProcessNaluHeader(HLM_U08           *nalu_buf,
-                                      HLM_S32            nalu_len,
-                                      HLMD_NALU_HEADER  *nalu_header);
-
-/***************************************************************************************************
-* ¹¦  ÄÜ£º´¦ÀíÒ»¸önaluµ¥Ôª
-* ²Î  Êı£º*
-*        spec                 -I    ½âÎö¸ß²ã¾ä±ú
-*        nalu_buf             -I    ebsp naluÂëÁ÷
-*        nalu_len             -I    naluÂëÁ÷³¤¶È
-*        yuv_out              -O    Êä³öÏÔÊ¾Í¼Ïñ
-* ·µ»ØÖµ£º×´Ì¬Âë
-* ±¸  ×¢£º
-***************************************************************************************************/
-HLM_STATUS HLMD_HLS_ProcessNalu(HLMD_SW_SPEC      *spec,
-                                HLM_U08           *nalu_buf,
-                                HLM_S32            nalu_len,
-                                HLMD_PROCESS_OUT  *yuv_out);
-
-#ifdef __cplusplus
-}
-#endif
-
-#endif // _HLMD_HLS_H_
+/***************************************************************************************************
+
+The copyright in this software is being made available under the License included below.
+This software may be subject to other third party and contributor rights, including patent
+rights, and no such rights are granted under this license.
+
+Copyright (C) 2025, Hangzhou Hikvision Digital Technology Co., Ltd. All rights reserved.
+
+Redistribution and use in source and binary forms, with or without modification, are permitted
+only for the purpose of developing standards within Audio and Video Coding Standard Workgroup of
+China (AVS) and for testing and promoting such standards. The following conditions are required
+to be met:
+
+* Redistributions of source code must retain the above copyright notice, this list of
+conditions and the following disclaimer.
+* Redistributions in binary form must reproduce the above copyright notice, this list of
+conditions and the following disclaimer in the documentation and/or other materials
+provided with the distribution.
+* The name of Hangzhou Hikvision Digital Technology Co., Ltd. may not be used to endorse or
+promote products derived from this software without specific prior written permission.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR
+IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND
+FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR
+CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+POSSIBILITY OF SUCH DAMAGE.
+
+***************************************************************************************************/
+#ifndef _HLMD_HLS_H_
+#define _HLMD_HLS_H_
+
+#include "hlmd_defs.h"
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+#define HLMD_NALU_HEADER_LEN           1             // nalu headeré•¿åº¦ï¼Œå›ºå®šä¸º1å­—èŠ‚
+
+/***************************************************************************************************
+* åŠŸ  èƒ½ï¼šè·å¾—ä¸€ä¸ªnaluå•å…ƒç æµæ•°æ®
+* å‚  æ•°ï¼š*
+*         stream_buf            -I    å¾…è§£ç ç æµæŒ‡é’ˆï¼ˆç æµæŒ‡é’ˆéšè§£æè¿‡ç¨‹åç§»ï¼‰
+*         stream_len            -I    å¾…è§£ç ç æµé•¿åº¦
+*         nalu_buf              -O    ebsp naluåœ°å€
+*         nalu_len              -O    ebsp nalué•¿åº¦
+*         start_code_len        -O    naluèµ·å§‹ç çš„é•¿åº¦
+* è¿”å›å€¼ï¼šçŠ¶æ€ç 
+* å¤‡  æ³¨ï¼š
+***************************************************************************************************/
+HLM_STATUS HLMD_HLS_GetNalu(HLM_U08           *stream_buf,
+                            HLM_S64            stream_len,
+                            HLM_U08          **nalu_buf,
+                            HLM_S32           *nalu_len,
+                            HLM_S32           *start_code_len);
+
+/***************************************************************************************************
+* åŠŸ  èƒ½ï¼šè§£ænaluå¤´ä¿¡æ¯
+* å‚  æ•°ï¼š*
+*         nalu_buf              -I    è·³è¿‡èµ·å§‹ç çš„ebsp naluç æµ
+*         nalu_len              -I    naluç æµé•¿åº¦
+*         nalu_header           -O    è§£æåçš„naluå¤´ä¿¡æ¯
+* è¿”å›å€¼ï¼šçŠ¶æ€ç 
+* å¤‡  æ³¨ï¼š
+***************************************************************************************************/
+HLM_STATUS HLMD_HLS_ProcessNaluHeader(HLM_U08           *nalu_buf,
+                                      HLM_S32            nalu_len,
+                                      HLMD_NALU_HEADER  *nalu_header);
+
+/***************************************************************************************************
+* åŠŸ  èƒ½ï¼šå¤„ç†ä¸€ä¸ªnaluå•å…ƒ
+* å‚  æ•°ï¼š*
+*        spec                 -I    è§£æé«˜å±‚å¥æŸ„
+*        nalu_buf             -I    ebsp naluç æµ
+*        nalu_len             -I    naluç æµé•¿åº¦
+*        yuv_out              -O    è¾“å‡ºæ˜¾ç¤ºå›¾åƒ
+* è¿”å›å€¼ï¼šçŠ¶æ€ç 
+* å¤‡  æ³¨ï¼š
+***************************************************************************************************/
+HLM_STATUS HLMD_HLS_ProcessNalu(HLMD_SW_SPEC      *spec,
+                                HLM_U08           *nalu_buf,
+                                HLM_S32            nalu_len,
+                                HLMD_PROCESS_OUT  *yuv_out);
+
+#ifdef __cplusplus
+}
+#endif
+
+#endif // _HLMD_HLS_H_

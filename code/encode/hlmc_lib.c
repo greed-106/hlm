@@ -1,467 +1,467 @@
-/***************************************************************************************************
-
-The copyright in this software is being made available under the License included below.
-This software may be subject to other third party and contributor rights, including patent
-rights, and no such rights are granted under this license.
-
-Copyright (C) 2025, Hangzhou Hikvision Digital Technology Co., Ltd. All rights reserved.
-
-Redistribution and use in source and binary forms, with or without modification, are permitted
-only for the purpose of developing standards within Audio and Video Coding Standard Workgroup of
-China (AVS) and for testing and promoting such standards. The following conditions are required
-to be met:
-
-* Redistributions of source code must retain the above copyright notice, this list of
-conditions and the following disclaimer.
-* Redistributions in binary form must reproduce the above copyright notice, this list of
-conditions and the following disclaimer in the documentation and/or other materials
-provided with the distribution.
-* The name of Hangzhou Hikvision Digital Technology Co., Ltd. may not be used to endorse or
-promote products derived from this software without specific prior written permission.
-
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR
-IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND
-FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR
-CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
-CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
-SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
-OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-POSSIBILITY OF SUCH DAMAGE.
-
-***************************************************************************************************/
-#include "hlmc_lib.h"
-#include "hlmc_defs.h"
-#include "hlmc_init.h"
-#include "hlmc_rc.h"
-#include "hlmc_dpb.h"
-#include "hlmc_ecd.h"
-#include "hlmc_hls.h"
-#include "hlmc_patch.h"
-
-/***************************************************************************************************
-* ¹¦  ÄÜ£º»ñÈ¡±àÂëËã·¨Ä£ĞÍËùĞè´æ´¢ĞÅÏ¢
-* ²Î  Êı£º*
-*         ability          -I    ÄÜÁ¦¼¯²ÎÊıÖ¸Õë
-*         mem_tab          -O    ´æ´¢¿Õ¼ä²ÎÊı½á¹¹Ìå
-*         coding_ctrl      -I    ±àÂë¿ØÖÆ½á¹¹Ìå
-* ·µ»ØÖµ£º×´Ì¬Âë
-* ±¸  ×¢£ºÈç¹ûmtab[i].sizeÎª0£¬Ôò²»ĞèÒª·ÖÅä¸Ã¿éÄÚ´æ
-***************************************************************************************************/
-HLM_STATUS HLMC_LIB_GetMemSize(HLMC_ABILITY      *ability,
-                               HLM_MEM_TAB        mem_tab[HLM_MEM_TAB_NUM],
-                               HLMC_CODING_CTRL  *coding_ctrl)
-{
-    HLM_STATUS   sts                        = HLM_STS_ERR;
-    HLM_SPEC     spec                       = {0};
-    HLM_SZT      tmp_buf_size               = 0;
-    HLM_SZT      ddr_persist_size           = 0;
-    HLM_SZT      ddr_scratch_size           = 0;
-    HLM_SZT      ram_scratch_size           = 0;
-    HLM_SZT      modu_status_size           = 0;
-    HLM_SZT      modu_work_size             = 0;
-    HLM_MEM_TAB  mtab_tmp[HLM_MEM_TAB_NUM] = {0};
-    HLM_MEM_TAB *mtab_ddr_persist           = HLM_NULL;
-    HLM_MEM_TAB *mtab_ddr_scratch           = HLM_NULL;
-    HLM_MEM_TAB *mtab_ram_scratch           = HLM_NULL;
-
-    //²ÎÊı¼ì²â
-    HLM_CHECK_ERROR((HLM_NULL == ability) || (HLM_NULL == mem_tab), HLM_STS_ERR_NULL_PTR);
-
-    sts = HLMC_INIT_CheckAbilityParam(ability);
-    HLM_CHECK_ERROR((HLM_STS_OK != sts), sts);
-
-    // ³õÊ¼»¯¾Ö²¿±äÁ¿
-    ddr_persist_size = 0;
-    ddr_scratch_size = 0;
-    ram_scratch_size = 0;
-    mtab_ddr_persist = &mtab_tmp[HLM_MEM_TAB_DDR_PERSIST];
-    mtab_ddr_scratch = &mtab_tmp[HLM_MEM_TAB_DDR_SCRATCH];
-    mtab_ram_scratch = &mtab_tmp[HLM_MEM_TAB_RAM_SCRATCH];
-
-    // ³õÊ¼»¯ÁÙÊ± spec
-    memset(&spec, 0, sizeof(HLM_SPEC));
-    memcpy(&spec.ability, ability, sizeof(HLMC_ABILITY));
-    memcpy(&spec.coding_ctrl, coding_ctrl, sizeof(HLMC_CODING_CTRL));
-
-    // »ñÈ¡½Ó¿ÚÄ£¿éËùĞèÍâ²¿DDR²»¿É¸´ÓÃµÄ»º´æ´óĞ¡
-    mtab_ddr_persist->size      = HLM_MAX_MEM_SIZE;     // ĞéÄâ·ÖÅä×ã¹»´ó¿Õ¼ä
-    mtab_ddr_persist->alignment = HLM_MEM_ALIGN_16BYTE;
-    mtab_ddr_persist->base      = (HLM_VOID *)&spec;
-
-    sts = HLMC_INIT_AllocDdrPersistMem(&spec, mtab_ddr_persist, &tmp_buf_size);
-    HLM_CHECK_ERROR(sts != HLM_STS_OK, sts);
-    ddr_persist_size += tmp_buf_size;
-
-    // »ñÈ¡½Ó¿ÚÄ£¿éËùĞèÍâ²¿DDR¿É¸´ÓÃµÄ»º´æ´óĞ¡
-    mtab_ddr_scratch->size      = HLM_MAX_MEM_SIZE;    // ĞéÄâ·ÖÅä×ã¹»´ó¿Õ¼ä
-    mtab_ddr_scratch->alignment = HLM_MEM_ALIGN_16BYTE;
-    mtab_ddr_scratch->base      = (HLM_VOID *)&spec;
-
-    // »ñÈ¡½Ó¿ÚÄ£¿éËùĞèÄÚ²¿RAM»º´æ´óĞ¡
-    mtab_ram_scratch->size      = HLM_MAX_MEM_SIZE;     // ĞéÄâ·ÖÅä×ã¹»´ó¿Õ¼ä
-    mtab_ram_scratch->alignment = HLM_MEM_ALIGN_16BYTE; // ÔÚASICÓ²¼şÖĞ£¬RAM²»ĞèÒª×Ö½Ú¶ÔÆë£¬µ«ÔÚC modelÖĞ16×Ö½Ú¶ÔÆëÓĞÀûÓÚÈí¼şÊµÏÖ
-    mtab_ram_scratch->base      = (HLM_VOID *)&spec;
-
-    sts = HLMC_INIT_AllocRamScratchMem(&spec, mtab_ram_scratch, &tmp_buf_size);
-    HLM_CHECK_ERROR(sts != HLM_STS_OK, sts);
-    ram_scratch_size += tmp_buf_size;
-
-    //¼ÆËã¸÷Ä£¿éËùĞèµÄÄÚ´æ£¬°üÀ¨×´Ì¬ÄÚ´æ¡¢¹¤×÷ÄÚ´æ
-    sts = HLMC_INIT_GetModuleBuf(&spec, &modu_status_size, &modu_work_size);
-    HLM_CHECK_ERROR(sts != HLM_STS_OK, sts);
-    ddr_persist_size += modu_status_size;
-    ddr_scratch_size += modu_work_size;
-
-    //×Ü´óĞ¡
-    ddr_persist_size  = HLM_SIZE_ALIGN(ddr_persist_size, HLM_MEM_ALIGN_16BYTE);
-    ddr_scratch_size  = HLM_SIZE_ALIGN(ddr_scratch_size, HLM_MEM_ALIGN_16BYTE);
-    ram_scratch_size  = HLM_SIZE_ALIGN(ram_scratch_size, HLM_MEM_ALIGN_16BYTE);
-
-    // ÔÚÓ²¼şASICÖĞ£¬»º´æ´óĞ¡ÊÇÓĞÏŞµÄ£¬ĞèÒªĞ£Ñé£¬ÔÚC ModelÖĞ¼ÙÉè»º´æ´óĞ¡ÉÏÏŞÎªHLM_MAX_MEM_SIZE
-    HLM_CHECK_ERROR((ddr_persist_size + ddr_scratch_size + ram_scratch_size) > HLM_MAX_MEM_SIZE, 
-                    HLM_STS_ERR_OVER_MAX_MEM);
-
-    mtab_ddr_persist            = &mem_tab[HLM_MEM_TAB_DDR_PERSIST];
-    mtab_ddr_persist->size      = ddr_persist_size;
-    mtab_ddr_persist->alignment = HLM_MEM_ALIGN_16BYTE;
-    mtab_ddr_persist->space     = HLM_MEM_EXTERNAL_DDR;
-    mtab_ddr_persist->attrs     = HLM_MEM_PERSIST;
-    mtab_ddr_persist->base      = HLM_NULL;
-
-    mtab_ddr_scratch            = &mem_tab[HLM_MEM_TAB_DDR_SCRATCH];
-    mtab_ddr_scratch->size      = ddr_scratch_size;
-    mtab_ddr_scratch->alignment = HLM_MEM_ALIGN_16BYTE;  // ÔÚASICÓ²¼şÖĞ£¬ROM²»ĞèÒª×Ö½Ú¶ÔÆë£¬µ«ÔÚC modelÖĞ±ØĞë×Ö½Ú¶ÔÆë
-    mtab_ddr_scratch->space     = HLM_MEM_INTERNAL_ROM;
-    mtab_ddr_scratch->attrs     = HLM_MEM_PERSIST;      // ROM»º´æÎ¬³Ö¹Ì¶¨Öµ£¬¶ÏµçÇ°²»¿É²Á³ı
-    mtab_ddr_scratch->base      = HLM_NULL;
-
-    mtab_ram_scratch            = &mem_tab[HLM_MEM_TAB_RAM_SCRATCH];
-    mtab_ram_scratch->size      = ram_scratch_size;
-    mtab_ram_scratch->alignment = HLM_MEM_ALIGN_16BYTE;
-    mtab_ram_scratch->space     = HLM_MEM_EXTERNAL_DDR;
-    mtab_ram_scratch->attrs     = HLM_MEM_PERSIST;
-    mtab_ram_scratch->base      = HLM_NULL;
-
-    return HLM_STS_OK;
-}
-
-/***************************************************************************************************
-* ¹¦  ÄÜ£º´´½¨±àÂëËã·¨Ä£ĞÍÊµÀı,ÄÚ´æ³õÊ¼»¯
-* ²Î  Êı£º*
-*         ability          -I    ÄÜÁ¦¼¯²ÎÊıÖ¸Õë
-*         mem_tab          -O    ´æ´¢¿Õ¼ä²ÎÊı½á¹¹Ìå
-*         handle           -O    ±àÂëÊµÀı¾ä±úÖ¸Õë
-*         coding_ctrl      -I    ±àÂë¿ØÖÆ½á¹¹Ìå
-* ·µ»ØÖµ£º×´Ì¬Âë
-* ±¸  ×¢£º
-***************************************************************************************************/
-HLM_STATUS HLMC_LIB_Create(HLMC_ABILITY     *ability,
-                           HLM_MEM_TAB       mem_tab[HLM_MEM_TAB_NUM],
-                           HLM_VOID        **handle,
-                           HLMC_CODING_CTRL *coding_ctrl)
-{
-    HLM_STATUS   sts                        = HLM_STS_ERR;
-    HLM_SPEC    *spec                       = HLM_NULL;
-    HLM_MEM_TAB  mtab_tmp[HLM_MEM_TAB_NUM] = {0};
-    HLM_MEM_TAB *mtab_ddr_persist           = HLM_NULL;
-    HLM_MEM_TAB *mtab_ddr_scratch           = HLM_NULL;
-    HLM_MEM_TAB *mtab_ram_scratch           = HLM_NULL;
-    HLM_U08     *left_ddr_persist_buf       = HLM_NULL;
-    HLM_U08     *left_ddr_scratch_buf       = HLM_NULL;
-    HLM_U08     *left_ram_scratch_buf       = HLM_NULL;
-    HLM_SZT      left_ddr_persist_size      = 0;
-    HLM_SZT      left_ddr_scratch_size      = 0;
-    HLM_SZT      left_ram_scratch_size      = 0;
-    HLM_SZT      tmp_buf_size               = 0;
-
-    // ²ÎÊı¼ì²â
-    HLM_CHECK_ERROR((HLM_NULL == ability) || (HLM_NULL == mem_tab) || (HLM_NULL == handle),
-        HLM_STS_ERR_NULL_PTR);
-
-    // ¼ì²é»º´æ±íÊÇ·ñºÏ·¨
-    sts = HLM_MEM_CheckMemTab(mem_tab, (HLM_S32)HLM_MEM_TAB_NUM, HLM_MEM_ALIGN_16BYTE);
-    HLM_CHECK_ERROR(sts != HLM_STS_OK, sts);
-
-    // ¼ì²éÅäÖÃ²ÎÊıÊÇ·ñÔÚÓĞĞ§·¶Î§
-    sts = HLMC_INIT_CheckAbilityParam(ability);
-    HLM_CHECK_ERROR(sts != HLM_STS_OK, sts);
-
-    // ³õÊ¼»¯
-    mtab_ddr_persist            = &mem_tab[HLM_MEM_TAB_DDR_PERSIST];
-    mtab_ddr_persist->alignment = HLM_MEM_ALIGN_16BYTE;
-    left_ddr_persist_size       = mtab_ddr_persist->size;
-    left_ddr_persist_buf        = (HLM_U08 *)mtab_ddr_persist->base;
-
-    mtab_ddr_scratch            = &mem_tab[HLM_MEM_TAB_DDR_SCRATCH];
-    mtab_ddr_scratch->alignment = HLM_MEM_ALIGN_16BYTE;
-    left_ddr_scratch_size       = mtab_ddr_scratch->size;
-    left_ddr_scratch_buf        = (HLM_U08 *)mtab_ddr_scratch->base;
-
-    mtab_ram_scratch            = &mem_tab[HLM_MEM_TAB_RAM_SCRATCH];
-    mtab_ram_scratch->alignment = HLM_MEM_ALIGN_16BYTE;
-    left_ram_scratch_size       = mtab_ram_scratch->size;
-    left_ram_scratch_buf        = (HLM_U08 *)mtab_ram_scratch->base;
-
-    // ·ÖÅäspec²ÎÊıÊµÀı
-    tmp_buf_size = sizeof(HLM_SPEC);
-    tmp_buf_size = HLM_SIZE_ALIGN_16(tmp_buf_size);
-    HLM_CHECK_ERROR(left_ddr_persist_size < tmp_buf_size, HLM_STS_ERR_MEM_LACK);
-    spec = (HLM_SPEC *)(left_ddr_persist_buf); //¸Ã½á¹¹Ìå´óĞ¡ÔÚalloc persistÀïÃæ·ÖÅä£¬²»ÓÃ¿Û³ı´óĞ¡
-
-    // ³õÊ¼»¯spec½á¹¹Ìå²ÎÊı
-    memset(spec, 0, sizeof(HLM_SPEC));
-    memcpy(&spec->ability, ability, sizeof(HLMC_ABILITY));
-    memcpy(&spec->coding_ctrl, coding_ctrl, sizeof(HLMC_CODING_CTRL));
-
-    // ·ÖÅä½Ó¿ÚÄ£¿éËùĞèÍâ²¿DDR²»¿É¸´ÓÃµÄ»º´æ´óĞ¡
-    mtab_ddr_persist            = &mtab_tmp[HLM_MEM_TAB_DDR_PERSIST];
-    mtab_ddr_persist->size      = left_ddr_persist_size;     // ĞéÄâ·ÖÅä×ã¹»´ó¿Õ¼ä
-    mtab_ddr_persist->alignment = HLM_MEM_ALIGN_16BYTE;
-    mtab_ddr_persist->base      = left_ddr_persist_buf;
-
-    sts = HLMC_INIT_AllocDdrPersistMem(spec, mtab_ddr_persist, &tmp_buf_size);
-    HLM_CHECK_ERROR(sts != HLM_STS_OK, sts);
-    left_ddr_persist_size -= tmp_buf_size;
-    left_ddr_persist_buf  += tmp_buf_size;
-
-    // ·ÖÅä½Ó¿ÚÄ£¿éËùĞèÍâ²¿DDR¿É¸´ÓÃµÄ»º´æ´óĞ¡
-    mtab_ddr_scratch            = &mtab_tmp[HLM_MEM_TAB_DDR_SCRATCH];
-    mtab_ddr_scratch->size      = left_ddr_scratch_size;
-    mtab_ddr_scratch->alignment = HLM_MEM_ALIGN_16BYTE;
-    mtab_ddr_scratch->base      = left_ddr_scratch_buf;
-
-    // ·ÖÅä½Ó¿ÚÄ£¿éËùĞèÄÚ²¿RAM»º´æ
-    mtab_ram_scratch            = &mtab_tmp[HLM_MEM_TAB_RAM_SCRATCH];
-    mtab_ram_scratch->size      = left_ram_scratch_size;
-    mtab_ram_scratch->alignment = HLM_MEM_ALIGN_16BYTE;
-    mtab_ram_scratch->base      = left_ram_scratch_buf;
-
-    sts = HLMC_INIT_AllocRamScratchMem(spec, mtab_ram_scratch, &tmp_buf_size);
-    HLM_CHECK_ERROR(sts != HLM_STS_OK, sts);
-    //left_ram_scratch_size -= tmp_buf_size;
-    //left_ram_scratch_buf  += tmp_buf_size;
-
-    //·ÖÅä×ÓÄ£¿éËùĞèÄÚ´æ£¬²¢´´½¨×ÓÄ£¿é
-    sts = HLMC_INIT_AllocModuleBuf(spec, left_ddr_persist_buf, left_ddr_persist_size,
-        left_ddr_scratch_buf, left_ddr_scratch_size);
-    HLM_CHECK_ERROR(sts != HLM_STS_OK, sts);
-
-    //Êä³öÊµÀı¾ä±ú
-    *handle = (HLM_VOID *)spec;
-
-    return HLM_STS_OK;
-}
-
-/***************************************************************************************************
-* ¹¦  ÄÜ£ºÉèÖÃĞòÁĞ¼¶±àÂë¿ØÖÆ²ÎÊı
-* ²Î  Êı£º*
-*         handle       -O  ±àÂëÊµÀı¾ä±úÖ¸Õë
-*         code_params  -I   ±àÂëÄ£ĞÍÅäÖÃ²ÎÊı
-* ·µ»ØÖµ£º×´Ì¬Âë
-* ±¸  ×¢£º
-***************************************************************************************************/
-HLM_STATUS HLMC_LIB_SetCodingCtrl(HLM_VOID          *handle,
-                                  HLMC_CODING_CTRL  *code_params)
-{
-    HLM_STATUS        sts         = HLM_STS_ERR;
-    HLM_SPEC         *spec        = HLM_NULL;
-    HLMC_CODING_CTRL *coding_ctrl = HLM_NULL;
-
-    // ²ÎÊı¼ì²â
-    sts = HLMC_INIT_CheckCodingCtrl(handle, code_params);
-    HLM_CHECK_ERROR(sts != HLM_STS_OK, sts);
-
-    // ³õÊ¼»¯
-    spec        = (HLM_SPEC *)handle;
-    coding_ctrl = &(spec->coding_ctrl);
-
-    memcpy(coding_ctrl, code_params, sizeof(HLMC_CODING_CTRL));
-
-    // ÆäËû¹¤×÷²ÎÊı£¬ÓÉÉÏÊöÅäÖÃ²ÎÊıÍÆµ¼¶øµÃ
-    spec->cu_cols = HLM_SIZE_ALIGN_16(coding_ctrl->width) >> HLM_LOG2_WIDTH_SIZE;
-    spec->cu_rows = HLM_SIZE_ALIGN_8(coding_ctrl->height) >> HLM_LOG2_HEIGHT_SIZE;
-
-    return HLM_STS_OK;
-}
-
-/***************************************************************************************************
-* ¹¦  ÄÜ£ºÉèÖÃDPB¼°²Î¿¼½á¹¹²ÎÊı
-* ²Î  Êı£º*
-*         handle        -O   ±àÂëÊµÀı¾ä±úÖ¸Õë
-*         dpb_params    -I   DPB½á¹¹ºÍ²Î¿¼¹ØÏµ¿ØÖÆ²ÎÊı
-* ·µ»ØÖµ£º×´Ì¬Âë
-* ±¸  ×¢£º
-***************************************************************************************************/
-HLM_STATUS HLMC_LIB_SetDpbRefCtrl(HLM_VOID           *handle,
-                                  HLMC_DPB_REF_CTRL  *dpb_params)
-{
-    HLM_STATUS  sts     = HLM_STS_ERR;
-    HLM_SPEC   *spec    = (HLM_SPEC *)handle;
-    HLM_U32     dpb_num = 0;
-
-    // ²ÎÊı¼ì²â
-    HLM_CHECK_ERROR((HLM_NULL == handle) || (HLM_NULL == dpb_params), HLM_STS_ERR_NULL_PTR);
-    HLM_CHECK_ERROR((dpb_params->base_period < 1), HLM_STS_ERR_PARAM_VALUE);
-    HLM_CHECK_ERROR((dpb_params->reffed_enable > 1), HLM_STS_ERR_PARAM_VALUE);
-
-    memcpy(&spec->dpb_ref_ctrl, dpb_params, sizeof(HLMC_DPB_REF_CTRL));
-    sts = HLMC_DPB_SetDpbRefCtrl(spec->dpb_handle, dpb_params, &dpb_num);
-    HLM_CHECK_ERROR(sts != HLM_STS_OK, sts);
-
-    return HLM_STS_OK;
-}
-
-/***************************************************************************************************
-* ¹¦  ÄÜ£º±àÂëÒ»Ö¡Í¼Ïñ
-* ²Î  Êı£º*
-*         handle    -I  ±àÂëÊµÀı¾ä±úÖ¸Õë
-*         in_buf    -I  ±àÂëÄ£ĞÍÊäÈë²ÎÊıµØÖ·
-*         in_size   -I  ±àÂëÄ£ĞÍÊäÈë²ÎÊı´óĞ¡
-*         out_buf   -O  ±àÂëÄ£ĞÍÊä³ö²ÎÊıµØÖ·
-*         out_size  -I  ±àÂëÄ£ĞÍÊä³ö²ÎÊı´óĞ¡
-* ·µ»ØÖµ£º×´Ì¬Âë
-* ±¸  ×¢£º
-***************************************************************************************************/
-HLM_STATUS HLMC_LIB_EncodeFrame(HLM_VOID *handle,
-                                HLM_VOID *in_buf,
-                                HLM_SZT   in_size,
-                                HLM_VOID *out_buf,
-                                HLM_SZT   out_size)
-{
-    HLM_STATUS              sts             = HLM_STS_ERR;
-    HLMC_PROCESS_IN        *input           = HLM_NULL;
-    HLMC_PROCESS_OUT       *output          = HLM_NULL;
-    HLM_SPEC               *spec            = HLM_NULL;
-    HLM_PATCH_HEADER       *patch_ctx       = HLM_NULL;
-    HLMC_BITSTREAM         *bs              = HLM_NULL;
-    HLMC_BITSTREAM         *out_bs          = HLM_NULL;
-    HLM_S32                 poc_out         = 0;
-    HLMC_PATCH_REF_TYPE     patch_type      = HLMC_BASE_IDRPATCH;
-    static HLMC_REGS        regs            = { 0 };
-    VENC_RATE_CTRL_OUT_REGS rc_out_regs     = { 0 };
-    HLM_S32                 ref_dpb_idx     = 0;
-    HLM_S32                 rec_dpb_idx     = 0;
-    HLM_U32                 sps_pps_bits    = 0;  // ¼ÇÂ¼SPSºÍPPSµÄ±ÈÌØÊı
-
-    // ²ÎÊı¼ì²â
-    sts = HLMC_INIT_CheckPrcIOParam(handle, in_buf, in_size, out_buf, out_size);
-    HLM_CHECK_ERROR(sts != HLM_STS_OK, sts);
-
-    // ²ÎÊı³õÊ¼»¯
-    spec   = (HLM_SPEC *)handle;
-    input  = (HLMC_PROCESS_IN *)in_buf;
-    output = (HLMC_PROCESS_OUT *)out_buf;
-    bs     = &(spec->bs);
-    out_bs = &(spec->out_bs);
-
-    // ³õÊ¼»¯ËÄ¸öÂëÁ÷ĞÅÏ¢½á¹¹Ìå
-    HLMC_ECD_InitBitstream(input->stream_buf, input->stream_buf_size, bs);
-    HLMC_ECD_InitBitstream(input->out_stream_buf, input->stream_buf_size, out_bs);
-
-    sts = HLMC_DPB_Get(spec->dpb_handle, spec->poc, input->force_idr, &poc_out,
-        &ref_dpb_idx, &rec_dpb_idx, &patch_type);
-    HLM_CHECK_ERROR(sts != HLM_STS_OK, sts);
-
-    // »ñÈ¡Ö¡¼¶QP
-    sts = HLMC_RC_Process(spec->rc_handle, patch_type, &rc_out_regs, spec->coding_ctrl.bitdepth);
-    HLM_CHECK_ERROR(sts != HLM_STS_OK, sts);
-
-    // Èç¹ûÊÇIDRÖ¡£¬ÔòĞèÒª²úÉúSPS
-    if (HLMC_BASE_IDRPATCH == patch_type)
-    {
-        HLMC_HLS_InitSeqHeader(&(spec->coding_ctrl), &(spec->sps), &((HLMC_RC_SPEC *)spec->rc_handle)->rate_ctrl);
-        HLMC_HLS_GeneratSeqHeader(&(spec->sps), bs);
-        HLMC_ECD_WriteEmulaPreventBytes(bs, out_bs);
-        sps_pps_bits += bs->bit_cnt;
-    }
-
-    // ±àÂëÍ¼ÏñÍ·
-    bs->ptr_start = bs->ptr;
-    bs->bit_cnt = 0;
-    HLMC_HLS_InitPicHeader(&(spec->coding_ctrl), patch_type, spec->poc, rc_out_regs.reg_patch_qp, &(spec->pps));
-    HLMC_HLS_GeneratPicHeader(&(spec->pps), &(spec->sps), bs);
-    HLMC_ECD_WriteEmulaPreventBytes(bs, out_bs);
-    sps_pps_bits += bs->bit_cnt;
-
-    // ÅäÖÃ¼Ä´æÆ÷
-    bs->ptr_start = bs->ptr;
-    bs->bit_cnt = sps_pps_bits;  // ÔÚ¼ÆËãÂëÁ÷»º³åÇøµÄÊ£Óà¿Õ¼äÊ±£¬½«ÒÑ¾­ÓÃµôµÄsps_pps_bits¿Û³ı
-    sts = HLMC_HLS_WriteReg(spec, input, rec_dpb_idx, ref_dpb_idx, patch_type, &regs, &rc_out_regs);
-    HLM_CHECK_ERROR(sts != HLM_STS_OK, sts);
-
-    // ´Ó¼Ä´æÆ÷»ñÈ¡SDKÅäÖÃ¸øASICµÄ±àÂë²ÎÊı
-    HLMC_HLS_InitSpec(&regs, spec);
-    patch_ctx = &(spec->patch_ctx);
-
-    // ±ÜÃâÃ¿¸öpatchÖØ¸´¿ª±ÙÄÚ´æ
-    sts = HLMC_HLS_AllocRam(&(spec->ram_buf_pic), &(spec->cur_cu), &(spec->best_cu), &(spec->nbi_info), &regs);
-    HLM_CHECK_ERROR((HLM_STS_OK != sts), sts);
-
-    do
-    {
-        HLMC_PATCH_Init(spec, patch_ctx);
-        HLMC_PATCH_Padding(spec, patch_ctx);
-        HLMC_PATCH_Encode(spec, patch_ctx);
-        HLMC_PATCH_WriteRec(spec, patch_ctx);
-        patch_ctx->patch_idx++;
-    } while (patch_ctx->patch_idx < spec->sps.patch_info.patch_num);
-
-    // ´Ó¼Ä´æÆ÷»ñÈ¡±àÂë½á¹û
-    HLMC_HLS_ReadReg(spec, output, &regs, sps_pps_bits);
-
-    // ½«MD5Ğ´ÈëSEIÖĞ
-    bs->ptr_start = bs->ptr;
-    bs->bit_cnt = 0;
-    HLMC_HLS_GeneratSEI(&regs, bs);
-    HLMC_ECD_WriteEmulaPreventBytes(bs, out_bs);
-    output->sei_len = bs->bit_cnt >> 3;
-
-    // ¸üĞÂ×´Ì¬²ÎÊı
-    spec->frame_num++;
-    spec->poc++;
-    if (spec->poc == spec->dpb_ref_ctrl.intra_period)
-    {
-        spec->poc = 0;
-    }
-
-    return HLM_STS_OK;
-}
-
-/***************************************************************************************************
-* ¹¦  ÄÜ£ºÂëÂÊ¿ØÖÆÄ£¿é³õÊ¼»¯
-* ²Î  Êı£º*
-*         lib_handle         -IO       Ëã·¨Ä£ĞÍ¾ä±ú
-*         pic_width          -I        Í¼Ïñ¿í
-*         pic_height         -I        Í¼Ïñ¸ß
-*         rate_ctrl          -I        Âë¿Ø²ÎÊı
-* ·µ»ØÖµ£ºÎŞ
-* ±¸  ×¢£º
-***************************************************************************************************/
-HLM_VOID HLMC_LIB_InitRc(HLM_VOID        *lib_handle,
-                         HLM_U32          pic_width,
-                         HLM_U32          pic_height,
-                         HLMC_RATE_CTRL  *rate_ctrl)
-{
-    HLM_SPEC *hlm_spec    = (HLM_SPEC *)lib_handle;
-    HLMC_RC_SPEC *rc_spec = (HLMC_RC_SPEC*)hlm_spec->rc_handle;
-    HLM_S32 bitdepth      = hlm_spec->coding_ctrl.bitdepth;
-    HLM_S64 bpp           = 0;
-    HLM_S64 rate          = 0;
-
-    memcpy(&rc_spec->rate_ctrl, rate_ctrl, sizeof(HLMC_RATE_CTRL));
-    rc_spec->rate_ctrl.rc_cbr_ctrl.qp_min   = 4;
-    rc_spec->rate_ctrl.rc_cbr_ctrl.qp_max   = HLM_MAX_QP(bitdepth);
-    rc_spec->rate_ctrl.rc_cbr_ctrl.qp_min_i = 4;
-    rc_spec->rate_ctrl.rc_cbr_ctrl.qp_max_i = HLM_MAX_QP(bitdepth);
-
-    // IÖ¡
-    bpp = rate_ctrl->rc_cbr_ctrl.bpp_i;
-    rate = (bpp * pic_width * pic_height + 8) >> 4;
-    rc_spec->m_targetRate_i = (HLM_S32)rate;
-
-    // PÖ¡
-    bpp = rate_ctrl->rc_cbr_ctrl.bpp_p;
-    rate = (bpp * pic_width * pic_height + 8) >> 4;
-    rc_spec->m_targetRate_p = (HLM_S32)rate;
-}
+/***************************************************************************************************
+
+The copyright in this software is being made available under the License included below.
+This software may be subject to other third party and contributor rights, including patent
+rights, and no such rights are granted under this license.
+
+Copyright (C) 2025, Hangzhou Hikvision Digital Technology Co., Ltd. All rights reserved.
+
+Redistribution and use in source and binary forms, with or without modification, are permitted
+only for the purpose of developing standards within Audio and Video Coding Standard Workgroup of
+China (AVS) and for testing and promoting such standards. The following conditions are required
+to be met:
+
+* Redistributions of source code must retain the above copyright notice, this list of
+conditions and the following disclaimer.
+* Redistributions in binary form must reproduce the above copyright notice, this list of
+conditions and the following disclaimer in the documentation and/or other materials
+provided with the distribution.
+* The name of Hangzhou Hikvision Digital Technology Co., Ltd. may not be used to endorse or
+promote products derived from this software without specific prior written permission.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR
+IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND
+FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR
+CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+POSSIBILITY OF SUCH DAMAGE.
+
+***************************************************************************************************/
+#include "hlmc_lib.h"
+#include "hlmc_defs.h"
+#include "hlmc_init.h"
+#include "hlmc_rc.h"
+#include "hlmc_dpb.h"
+#include "hlmc_ecd.h"
+#include "hlmc_hls.h"
+#include "hlmc_patch.h"
+
+/***************************************************************************************************
+* åŠŸ  èƒ½ï¼šè·å–ç¼–ç ç®—æ³•æ¨¡å‹æ‰€éœ€å­˜å‚¨ä¿¡æ¯
+* å‚  æ•°ï¼š*
+*         ability          -I    èƒ½åŠ›é›†å‚æ•°æŒ‡é’ˆ
+*         mem_tab          -O    å­˜å‚¨ç©ºé—´å‚æ•°ç»“æ„ä½“
+*         coding_ctrl      -I    ç¼–ç æ§åˆ¶ç»“æ„ä½“
+* è¿”å›å€¼ï¼šçŠ¶æ€ç 
+* å¤‡  æ³¨ï¼šå¦‚æœmtab[i].sizeä¸º0ï¼Œåˆ™ä¸éœ€è¦åˆ†é…è¯¥å—å†…å­˜
+***************************************************************************************************/
+HLM_STATUS HLMC_LIB_GetMemSize(HLMC_ABILITY      *ability,
+                               HLM_MEM_TAB        mem_tab[HLM_MEM_TAB_NUM],
+                               HLMC_CODING_CTRL  *coding_ctrl)
+{
+    HLM_STATUS   sts                        = HLM_STS_ERR;
+    HLM_SPEC     spec                       = {0};
+    HLM_SZT      tmp_buf_size               = 0;
+    HLM_SZT      ddr_persist_size           = 0;
+    HLM_SZT      ddr_scratch_size           = 0;
+    HLM_SZT      ram_scratch_size           = 0;
+    HLM_SZT      modu_status_size           = 0;
+    HLM_SZT      modu_work_size             = 0;
+    HLM_MEM_TAB  mtab_tmp[HLM_MEM_TAB_NUM] = {0};
+    HLM_MEM_TAB *mtab_ddr_persist           = HLM_NULL;
+    HLM_MEM_TAB *mtab_ddr_scratch           = HLM_NULL;
+    HLM_MEM_TAB *mtab_ram_scratch           = HLM_NULL;
+
+    //å‚æ•°æ£€æµ‹
+    HLM_CHECK_ERROR((HLM_NULL == ability) || (HLM_NULL == mem_tab), HLM_STS_ERR_NULL_PTR);
+
+    sts = HLMC_INIT_CheckAbilityParam(ability);
+    HLM_CHECK_ERROR((HLM_STS_OK != sts), sts);
+
+    // åˆå§‹åŒ–å±€éƒ¨å˜é‡
+    ddr_persist_size = 0;
+    ddr_scratch_size = 0;
+    ram_scratch_size = 0;
+    mtab_ddr_persist = &mtab_tmp[HLM_MEM_TAB_DDR_PERSIST];
+    mtab_ddr_scratch = &mtab_tmp[HLM_MEM_TAB_DDR_SCRATCH];
+    mtab_ram_scratch = &mtab_tmp[HLM_MEM_TAB_RAM_SCRATCH];
+
+    // åˆå§‹åŒ–ä¸´æ—¶ spec
+    memset(&spec, 0, sizeof(HLM_SPEC));
+    memcpy(&spec.ability, ability, sizeof(HLMC_ABILITY));
+    memcpy(&spec.coding_ctrl, coding_ctrl, sizeof(HLMC_CODING_CTRL));
+
+    // è·å–æ¥å£æ¨¡å—æ‰€éœ€å¤–éƒ¨DDRä¸å¯å¤ç”¨çš„ç¼“å­˜å¤§å°
+    mtab_ddr_persist->size      = HLM_MAX_MEM_SIZE;     // è™šæ‹Ÿåˆ†é…è¶³å¤Ÿå¤§ç©ºé—´
+    mtab_ddr_persist->alignment = HLM_MEM_ALIGN_16BYTE;
+    mtab_ddr_persist->base      = (HLM_VOID *)&spec;
+
+    sts = HLMC_INIT_AllocDdrPersistMem(&spec, mtab_ddr_persist, &tmp_buf_size);
+    HLM_CHECK_ERROR(sts != HLM_STS_OK, sts);
+    ddr_persist_size += tmp_buf_size;
+
+    // è·å–æ¥å£æ¨¡å—æ‰€éœ€å¤–éƒ¨DDRå¯å¤ç”¨çš„ç¼“å­˜å¤§å°
+    mtab_ddr_scratch->size      = HLM_MAX_MEM_SIZE;    // è™šæ‹Ÿåˆ†é…è¶³å¤Ÿå¤§ç©ºé—´
+    mtab_ddr_scratch->alignment = HLM_MEM_ALIGN_16BYTE;
+    mtab_ddr_scratch->base      = (HLM_VOID *)&spec;
+
+    // è·å–æ¥å£æ¨¡å—æ‰€éœ€å†…éƒ¨RAMç¼“å­˜å¤§å°
+    mtab_ram_scratch->size      = HLM_MAX_MEM_SIZE;     // è™šæ‹Ÿåˆ†é…è¶³å¤Ÿå¤§ç©ºé—´
+    mtab_ram_scratch->alignment = HLM_MEM_ALIGN_16BYTE; // åœ¨ASICç¡¬ä»¶ä¸­ï¼ŒRAMä¸éœ€è¦å­—èŠ‚å¯¹é½ï¼Œä½†åœ¨C modelä¸­16å­—èŠ‚å¯¹é½æœ‰åˆ©äºè½¯ä»¶å®ç°
+    mtab_ram_scratch->base      = (HLM_VOID *)&spec;
+
+    sts = HLMC_INIT_AllocRamScratchMem(&spec, mtab_ram_scratch, &tmp_buf_size);
+    HLM_CHECK_ERROR(sts != HLM_STS_OK, sts);
+    ram_scratch_size += tmp_buf_size;
+
+    //è®¡ç®—å„æ¨¡å—æ‰€éœ€çš„å†…å­˜ï¼ŒåŒ…æ‹¬çŠ¶æ€å†…å­˜ã€å·¥ä½œå†…å­˜
+    sts = HLMC_INIT_GetModuleBuf(&spec, &modu_status_size, &modu_work_size);
+    HLM_CHECK_ERROR(sts != HLM_STS_OK, sts);
+    ddr_persist_size += modu_status_size;
+    ddr_scratch_size += modu_work_size;
+
+    //æ€»å¤§å°
+    ddr_persist_size  = HLM_SIZE_ALIGN(ddr_persist_size, HLM_MEM_ALIGN_16BYTE);
+    ddr_scratch_size  = HLM_SIZE_ALIGN(ddr_scratch_size, HLM_MEM_ALIGN_16BYTE);
+    ram_scratch_size  = HLM_SIZE_ALIGN(ram_scratch_size, HLM_MEM_ALIGN_16BYTE);
+
+    // åœ¨ç¡¬ä»¶ASICä¸­ï¼Œç¼“å­˜å¤§å°æ˜¯æœ‰é™çš„ï¼Œéœ€è¦æ ¡éªŒï¼Œåœ¨C Modelä¸­å‡è®¾ç¼“å­˜å¤§å°ä¸Šé™ä¸ºHLM_MAX_MEM_SIZE
+    HLM_CHECK_ERROR((ddr_persist_size + ddr_scratch_size + ram_scratch_size) > HLM_MAX_MEM_SIZE, 
+                    HLM_STS_ERR_OVER_MAX_MEM);
+
+    mtab_ddr_persist            = &mem_tab[HLM_MEM_TAB_DDR_PERSIST];
+    mtab_ddr_persist->size      = ddr_persist_size;
+    mtab_ddr_persist->alignment = HLM_MEM_ALIGN_16BYTE;
+    mtab_ddr_persist->space     = HLM_MEM_EXTERNAL_DDR;
+    mtab_ddr_persist->attrs     = HLM_MEM_PERSIST;
+    mtab_ddr_persist->base      = HLM_NULL;
+
+    mtab_ddr_scratch            = &mem_tab[HLM_MEM_TAB_DDR_SCRATCH];
+    mtab_ddr_scratch->size      = ddr_scratch_size;
+    mtab_ddr_scratch->alignment = HLM_MEM_ALIGN_16BYTE;  // åœ¨ASICç¡¬ä»¶ä¸­ï¼ŒROMä¸éœ€è¦å­—èŠ‚å¯¹é½ï¼Œä½†åœ¨C modelä¸­å¿…é¡»å­—èŠ‚å¯¹é½
+    mtab_ddr_scratch->space     = HLM_MEM_INTERNAL_ROM;
+    mtab_ddr_scratch->attrs     = HLM_MEM_PERSIST;      // ROMç¼“å­˜ç»´æŒå›ºå®šå€¼ï¼Œæ–­ç”µå‰ä¸å¯æ“¦é™¤
+    mtab_ddr_scratch->base      = HLM_NULL;
+
+    mtab_ram_scratch            = &mem_tab[HLM_MEM_TAB_RAM_SCRATCH];
+    mtab_ram_scratch->size      = ram_scratch_size;
+    mtab_ram_scratch->alignment = HLM_MEM_ALIGN_16BYTE;
+    mtab_ram_scratch->space     = HLM_MEM_EXTERNAL_DDR;
+    mtab_ram_scratch->attrs     = HLM_MEM_PERSIST;
+    mtab_ram_scratch->base      = HLM_NULL;
+
+    return HLM_STS_OK;
+}
+
+/***************************************************************************************************
+* åŠŸ  èƒ½ï¼šåˆ›å»ºç¼–ç ç®—æ³•æ¨¡å‹å®ä¾‹,å†…å­˜åˆå§‹åŒ–
+* å‚  æ•°ï¼š*
+*         ability          -I    èƒ½åŠ›é›†å‚æ•°æŒ‡é’ˆ
+*         mem_tab          -O    å­˜å‚¨ç©ºé—´å‚æ•°ç»“æ„ä½“
+*         handle           -O    ç¼–ç å®ä¾‹å¥æŸ„æŒ‡é’ˆ
+*         coding_ctrl      -I    ç¼–ç æ§åˆ¶ç»“æ„ä½“
+* è¿”å›å€¼ï¼šçŠ¶æ€ç 
+* å¤‡  æ³¨ï¼š
+***************************************************************************************************/
+HLM_STATUS HLMC_LIB_Create(HLMC_ABILITY     *ability,
+                           HLM_MEM_TAB       mem_tab[HLM_MEM_TAB_NUM],
+                           HLM_VOID        **handle,
+                           HLMC_CODING_CTRL *coding_ctrl)
+{
+    HLM_STATUS   sts                        = HLM_STS_ERR;
+    HLM_SPEC    *spec                       = HLM_NULL;
+    HLM_MEM_TAB  mtab_tmp[HLM_MEM_TAB_NUM] = {0};
+    HLM_MEM_TAB *mtab_ddr_persist           = HLM_NULL;
+    HLM_MEM_TAB *mtab_ddr_scratch           = HLM_NULL;
+    HLM_MEM_TAB *mtab_ram_scratch           = HLM_NULL;
+    HLM_U08     *left_ddr_persist_buf       = HLM_NULL;
+    HLM_U08     *left_ddr_scratch_buf       = HLM_NULL;
+    HLM_U08     *left_ram_scratch_buf       = HLM_NULL;
+    HLM_SZT      left_ddr_persist_size      = 0;
+    HLM_SZT      left_ddr_scratch_size      = 0;
+    HLM_SZT      left_ram_scratch_size      = 0;
+    HLM_SZT      tmp_buf_size               = 0;
+
+    // å‚æ•°æ£€æµ‹
+    HLM_CHECK_ERROR((HLM_NULL == ability) || (HLM_NULL == mem_tab) || (HLM_NULL == handle),
+        HLM_STS_ERR_NULL_PTR);
+
+    // æ£€æŸ¥ç¼“å­˜è¡¨æ˜¯å¦åˆæ³•
+    sts = HLM_MEM_CheckMemTab(mem_tab, (HLM_S32)HLM_MEM_TAB_NUM, HLM_MEM_ALIGN_16BYTE);
+    HLM_CHECK_ERROR(sts != HLM_STS_OK, sts);
+
+    // æ£€æŸ¥é…ç½®å‚æ•°æ˜¯å¦åœ¨æœ‰æ•ˆèŒƒå›´
+    sts = HLMC_INIT_CheckAbilityParam(ability);
+    HLM_CHECK_ERROR(sts != HLM_STS_OK, sts);
+
+    // åˆå§‹åŒ–
+    mtab_ddr_persist            = &mem_tab[HLM_MEM_TAB_DDR_PERSIST];
+    mtab_ddr_persist->alignment = HLM_MEM_ALIGN_16BYTE;
+    left_ddr_persist_size       = mtab_ddr_persist->size;
+    left_ddr_persist_buf        = (HLM_U08 *)mtab_ddr_persist->base;
+
+    mtab_ddr_scratch            = &mem_tab[HLM_MEM_TAB_DDR_SCRATCH];
+    mtab_ddr_scratch->alignment = HLM_MEM_ALIGN_16BYTE;
+    left_ddr_scratch_size       = mtab_ddr_scratch->size;
+    left_ddr_scratch_buf        = (HLM_U08 *)mtab_ddr_scratch->base;
+
+    mtab_ram_scratch            = &mem_tab[HLM_MEM_TAB_RAM_SCRATCH];
+    mtab_ram_scratch->alignment = HLM_MEM_ALIGN_16BYTE;
+    left_ram_scratch_size       = mtab_ram_scratch->size;
+    left_ram_scratch_buf        = (HLM_U08 *)mtab_ram_scratch->base;
+
+    // åˆ†é…specå‚æ•°å®ä¾‹
+    tmp_buf_size = sizeof(HLM_SPEC);
+    tmp_buf_size = HLM_SIZE_ALIGN_16(tmp_buf_size);
+    HLM_CHECK_ERROR(left_ddr_persist_size < tmp_buf_size, HLM_STS_ERR_MEM_LACK);
+    spec = (HLM_SPEC *)(left_ddr_persist_buf); //è¯¥ç»“æ„ä½“å¤§å°åœ¨alloc persisté‡Œé¢åˆ†é…ï¼Œä¸ç”¨æ‰£é™¤å¤§å°
+
+    // åˆå§‹åŒ–specç»“æ„ä½“å‚æ•°
+    memset(spec, 0, sizeof(HLM_SPEC));
+    memcpy(&spec->ability, ability, sizeof(HLMC_ABILITY));
+    memcpy(&spec->coding_ctrl, coding_ctrl, sizeof(HLMC_CODING_CTRL));
+
+    // åˆ†é…æ¥å£æ¨¡å—æ‰€éœ€å¤–éƒ¨DDRä¸å¯å¤ç”¨çš„ç¼“å­˜å¤§å°
+    mtab_ddr_persist            = &mtab_tmp[HLM_MEM_TAB_DDR_PERSIST];
+    mtab_ddr_persist->size      = left_ddr_persist_size;     // è™šæ‹Ÿåˆ†é…è¶³å¤Ÿå¤§ç©ºé—´
+    mtab_ddr_persist->alignment = HLM_MEM_ALIGN_16BYTE;
+    mtab_ddr_persist->base      = left_ddr_persist_buf;
+
+    sts = HLMC_INIT_AllocDdrPersistMem(spec, mtab_ddr_persist, &tmp_buf_size);
+    HLM_CHECK_ERROR(sts != HLM_STS_OK, sts);
+    left_ddr_persist_size -= tmp_buf_size;
+    left_ddr_persist_buf  += tmp_buf_size;
+
+    // åˆ†é…æ¥å£æ¨¡å—æ‰€éœ€å¤–éƒ¨DDRå¯å¤ç”¨çš„ç¼“å­˜å¤§å°
+    mtab_ddr_scratch            = &mtab_tmp[HLM_MEM_TAB_DDR_SCRATCH];
+    mtab_ddr_scratch->size      = left_ddr_scratch_size;
+    mtab_ddr_scratch->alignment = HLM_MEM_ALIGN_16BYTE;
+    mtab_ddr_scratch->base      = left_ddr_scratch_buf;
+
+    // åˆ†é…æ¥å£æ¨¡å—æ‰€éœ€å†…éƒ¨RAMç¼“å­˜
+    mtab_ram_scratch            = &mtab_tmp[HLM_MEM_TAB_RAM_SCRATCH];
+    mtab_ram_scratch->size      = left_ram_scratch_size;
+    mtab_ram_scratch->alignment = HLM_MEM_ALIGN_16BYTE;
+    mtab_ram_scratch->base      = left_ram_scratch_buf;
+
+    sts = HLMC_INIT_AllocRamScratchMem(spec, mtab_ram_scratch, &tmp_buf_size);
+    HLM_CHECK_ERROR(sts != HLM_STS_OK, sts);
+    //left_ram_scratch_size -= tmp_buf_size;
+    //left_ram_scratch_buf  += tmp_buf_size;
+
+    //åˆ†é…å­æ¨¡å—æ‰€éœ€å†…å­˜ï¼Œå¹¶åˆ›å»ºå­æ¨¡å—
+    sts = HLMC_INIT_AllocModuleBuf(spec, left_ddr_persist_buf, left_ddr_persist_size,
+        left_ddr_scratch_buf, left_ddr_scratch_size);
+    HLM_CHECK_ERROR(sts != HLM_STS_OK, sts);
+
+    //è¾“å‡ºå®ä¾‹å¥æŸ„
+    *handle = (HLM_VOID *)spec;
+
+    return HLM_STS_OK;
+}
+
+/***************************************************************************************************
+* åŠŸ  èƒ½ï¼šè®¾ç½®åºåˆ—çº§ç¼–ç æ§åˆ¶å‚æ•°
+* å‚  æ•°ï¼š*
+*         handle       -O  ç¼–ç å®ä¾‹å¥æŸ„æŒ‡é’ˆ
+*         code_params  -I   ç¼–ç æ¨¡å‹é…ç½®å‚æ•°
+* è¿”å›å€¼ï¼šçŠ¶æ€ç 
+* å¤‡  æ³¨ï¼š
+***************************************************************************************************/
+HLM_STATUS HLMC_LIB_SetCodingCtrl(HLM_VOID          *handle,
+                                  HLMC_CODING_CTRL  *code_params)
+{
+    HLM_STATUS        sts         = HLM_STS_ERR;
+    HLM_SPEC         *spec        = HLM_NULL;
+    HLMC_CODING_CTRL *coding_ctrl = HLM_NULL;
+
+    // å‚æ•°æ£€æµ‹
+    sts = HLMC_INIT_CheckCodingCtrl(handle, code_params);
+    HLM_CHECK_ERROR(sts != HLM_STS_OK, sts);
+
+    // åˆå§‹åŒ–
+    spec        = (HLM_SPEC *)handle;
+    coding_ctrl = &(spec->coding_ctrl);
+
+    memcpy(coding_ctrl, code_params, sizeof(HLMC_CODING_CTRL));
+
+    // å…¶ä»–å·¥ä½œå‚æ•°ï¼Œç”±ä¸Šè¿°é…ç½®å‚æ•°æ¨å¯¼è€Œå¾—
+    spec->cu_cols = HLM_SIZE_ALIGN_16(coding_ctrl->width) >> HLM_LOG2_WIDTH_SIZE;
+    spec->cu_rows = HLM_SIZE_ALIGN_8(coding_ctrl->height) >> HLM_LOG2_HEIGHT_SIZE;
+
+    return HLM_STS_OK;
+}
+
+/***************************************************************************************************
+* åŠŸ  èƒ½ï¼šè®¾ç½®DPBåŠå‚è€ƒç»“æ„å‚æ•°
+* å‚  æ•°ï¼š*
+*         handle        -O   ç¼–ç å®ä¾‹å¥æŸ„æŒ‡é’ˆ
+*         dpb_params    -I   DPBç»“æ„å’Œå‚è€ƒå…³ç³»æ§åˆ¶å‚æ•°
+* è¿”å›å€¼ï¼šçŠ¶æ€ç 
+* å¤‡  æ³¨ï¼š
+***************************************************************************************************/
+HLM_STATUS HLMC_LIB_SetDpbRefCtrl(HLM_VOID           *handle,
+                                  HLMC_DPB_REF_CTRL  *dpb_params)
+{
+    HLM_STATUS  sts     = HLM_STS_ERR;
+    HLM_SPEC   *spec    = (HLM_SPEC *)handle;
+    HLM_U32     dpb_num = 0;
+
+    // å‚æ•°æ£€æµ‹
+    HLM_CHECK_ERROR((HLM_NULL == handle) || (HLM_NULL == dpb_params), HLM_STS_ERR_NULL_PTR);
+    HLM_CHECK_ERROR((dpb_params->base_period < 1), HLM_STS_ERR_PARAM_VALUE);
+    HLM_CHECK_ERROR((dpb_params->reffed_enable > 1), HLM_STS_ERR_PARAM_VALUE);
+
+    memcpy(&spec->dpb_ref_ctrl, dpb_params, sizeof(HLMC_DPB_REF_CTRL));
+    sts = HLMC_DPB_SetDpbRefCtrl(spec->dpb_handle, dpb_params, &dpb_num);
+    HLM_CHECK_ERROR(sts != HLM_STS_OK, sts);
+
+    return HLM_STS_OK;
+}
+
+/***************************************************************************************************
+* åŠŸ  èƒ½ï¼šç¼–ç ä¸€å¸§å›¾åƒ
+* å‚  æ•°ï¼š*
+*         handle    -I  ç¼–ç å®ä¾‹å¥æŸ„æŒ‡é’ˆ
+*         in_buf    -I  ç¼–ç æ¨¡å‹è¾“å…¥å‚æ•°åœ°å€
+*         in_size   -I  ç¼–ç æ¨¡å‹è¾“å…¥å‚æ•°å¤§å°
+*         out_buf   -O  ç¼–ç æ¨¡å‹è¾“å‡ºå‚æ•°åœ°å€
+*         out_size  -I  ç¼–ç æ¨¡å‹è¾“å‡ºå‚æ•°å¤§å°
+* è¿”å›å€¼ï¼šçŠ¶æ€ç 
+* å¤‡  æ³¨ï¼š
+***************************************************************************************************/
+HLM_STATUS HLMC_LIB_EncodeFrame(HLM_VOID *handle,
+                                HLM_VOID *in_buf,
+                                HLM_SZT   in_size,
+                                HLM_VOID *out_buf,
+                                HLM_SZT   out_size)
+{
+    HLM_STATUS              sts             = HLM_STS_ERR;
+    HLMC_PROCESS_IN        *input           = HLM_NULL;
+    HLMC_PROCESS_OUT       *output          = HLM_NULL;
+    HLM_SPEC               *spec            = HLM_NULL;
+    HLM_PATCH_HEADER       *patch_ctx       = HLM_NULL;
+    HLMC_BITSTREAM         *bs              = HLM_NULL;
+    HLMC_BITSTREAM         *out_bs          = HLM_NULL;
+    HLM_S32                 poc_out         = 0;
+    HLMC_PATCH_REF_TYPE     patch_type      = HLMC_BASE_IDRPATCH;
+    static HLMC_REGS        regs            = { 0 };
+    VENC_RATE_CTRL_OUT_REGS rc_out_regs     = { 0 };
+    HLM_S32                 ref_dpb_idx     = 0;
+    HLM_S32                 rec_dpb_idx     = 0;
+    HLM_U32                 sps_pps_bits    = 0;  // è®°å½•SPSå’ŒPPSçš„æ¯”ç‰¹æ•°
+
+    // å‚æ•°æ£€æµ‹
+    sts = HLMC_INIT_CheckPrcIOParam(handle, in_buf, in_size, out_buf, out_size);
+    HLM_CHECK_ERROR(sts != HLM_STS_OK, sts);
+
+    // å‚æ•°åˆå§‹åŒ–
+    spec   = (HLM_SPEC *)handle;
+    input  = (HLMC_PROCESS_IN *)in_buf;
+    output = (HLMC_PROCESS_OUT *)out_buf;
+    bs     = &(spec->bs);
+    out_bs = &(spec->out_bs);
+
+    // åˆå§‹åŒ–å››ä¸ªç æµä¿¡æ¯ç»“æ„ä½“
+    HLMC_ECD_InitBitstream(input->stream_buf, input->stream_buf_size, bs);
+    HLMC_ECD_InitBitstream(input->out_stream_buf, input->stream_buf_size, out_bs);
+
+    sts = HLMC_DPB_Get(spec->dpb_handle, spec->poc, input->force_idr, &poc_out,
+        &ref_dpb_idx, &rec_dpb_idx, &patch_type);
+    HLM_CHECK_ERROR(sts != HLM_STS_OK, sts);
+
+    // è·å–å¸§çº§QP
+    sts = HLMC_RC_Process(spec->rc_handle, patch_type, &rc_out_regs, spec->coding_ctrl.bitdepth);
+    HLM_CHECK_ERROR(sts != HLM_STS_OK, sts);
+
+    // å¦‚æœæ˜¯IDRå¸§ï¼Œåˆ™éœ€è¦äº§ç”ŸSPS
+    if (HLMC_BASE_IDRPATCH == patch_type)
+    {
+        HLMC_HLS_InitSeqHeader(&(spec->coding_ctrl), &(spec->sps), &((HLMC_RC_SPEC *)spec->rc_handle)->rate_ctrl);
+        HLMC_HLS_GeneratSeqHeader(&(spec->sps), bs);
+        HLMC_ECD_WriteEmulaPreventBytes(bs, out_bs);
+        sps_pps_bits += bs->bit_cnt;
+    }
+
+    // ç¼–ç å›¾åƒå¤´
+    bs->ptr_start = bs->ptr;
+    bs->bit_cnt = 0;
+    HLMC_HLS_InitPicHeader(&(spec->coding_ctrl), patch_type, spec->poc, rc_out_regs.reg_patch_qp, &(spec->pps));
+    HLMC_HLS_GeneratPicHeader(&(spec->pps), &(spec->sps), bs);
+    HLMC_ECD_WriteEmulaPreventBytes(bs, out_bs);
+    sps_pps_bits += bs->bit_cnt;
+
+    // é…ç½®å¯„å­˜å™¨
+    bs->ptr_start = bs->ptr;
+    bs->bit_cnt = sps_pps_bits;  // åœ¨è®¡ç®—ç æµç¼“å†²åŒºçš„å‰©ä½™ç©ºé—´æ—¶ï¼Œå°†å·²ç»ç”¨æ‰çš„sps_pps_bitsæ‰£é™¤
+    sts = HLMC_HLS_WriteReg(spec, input, rec_dpb_idx, ref_dpb_idx, patch_type, &regs, &rc_out_regs);
+    HLM_CHECK_ERROR(sts != HLM_STS_OK, sts);
+
+    // ä»å¯„å­˜å™¨è·å–SDKé…ç½®ç»™ASICçš„ç¼–ç å‚æ•°
+    HLMC_HLS_InitSpec(&regs, spec);
+    patch_ctx = &(spec->patch_ctx);
+
+    // é¿å…æ¯ä¸ªpatché‡å¤å¼€è¾Ÿå†…å­˜
+    sts = HLMC_HLS_AllocRam(&(spec->ram_buf_pic), &(spec->cur_cu), &(spec->best_cu), &(spec->nbi_info), &regs);
+    HLM_CHECK_ERROR((HLM_STS_OK != sts), sts);
+
+    do
+    {
+        HLMC_PATCH_Init(spec, patch_ctx);
+        HLMC_PATCH_Padding(spec, patch_ctx);
+        HLMC_PATCH_Encode(spec, patch_ctx);
+        HLMC_PATCH_WriteRec(spec, patch_ctx);
+        patch_ctx->patch_idx++;
+    } while (patch_ctx->patch_idx < spec->sps.patch_info.patch_num);
+
+    // ä»å¯„å­˜å™¨è·å–ç¼–ç ç»“æœ
+    HLMC_HLS_ReadReg(spec, output, &regs, sps_pps_bits);
+
+    // å°†MD5å†™å…¥SEIä¸­
+    bs->ptr_start = bs->ptr;
+    bs->bit_cnt = 0;
+    HLMC_HLS_GeneratSEI(&regs, bs);
+    HLMC_ECD_WriteEmulaPreventBytes(bs, out_bs);
+    output->sei_len = bs->bit_cnt >> 3;
+
+    // æ›´æ–°çŠ¶æ€å‚æ•°
+    spec->frame_num++;
+    spec->poc++;
+    if (spec->poc == spec->dpb_ref_ctrl.intra_period)
+    {
+        spec->poc = 0;
+    }
+
+    return HLM_STS_OK;
+}
+
+/***************************************************************************************************
+* åŠŸ  èƒ½ï¼šç ç‡æ§åˆ¶æ¨¡å—åˆå§‹åŒ–
+* å‚  æ•°ï¼š*
+*         lib_handle         -IO       ç®—æ³•æ¨¡å‹å¥æŸ„
+*         pic_width          -I        å›¾åƒå®½
+*         pic_height         -I        å›¾åƒé«˜
+*         rate_ctrl          -I        ç æ§å‚æ•°
+* è¿”å›å€¼ï¼šæ— 
+* å¤‡  æ³¨ï¼š
+***************************************************************************************************/
+HLM_VOID HLMC_LIB_InitRc(HLM_VOID        *lib_handle,
+                         HLM_U32          pic_width,
+                         HLM_U32          pic_height,
+                         HLMC_RATE_CTRL  *rate_ctrl)
+{
+    HLM_SPEC *hlm_spec    = (HLM_SPEC *)lib_handle;
+    HLMC_RC_SPEC *rc_spec = (HLMC_RC_SPEC*)hlm_spec->rc_handle;
+    HLM_S32 bitdepth      = hlm_spec->coding_ctrl.bitdepth;
+    HLM_S64 bpp           = 0;
+    HLM_S64 rate          = 0;
+
+    memcpy(&rc_spec->rate_ctrl, rate_ctrl, sizeof(HLMC_RATE_CTRL));
+    rc_spec->rate_ctrl.rc_cbr_ctrl.qp_min   = 4;
+    rc_spec->rate_ctrl.rc_cbr_ctrl.qp_max   = HLM_MAX_QP(bitdepth);
+    rc_spec->rate_ctrl.rc_cbr_ctrl.qp_min_i = 4;
+    rc_spec->rate_ctrl.rc_cbr_ctrl.qp_max_i = HLM_MAX_QP(bitdepth);
+
+    // Iå¸§
+    bpp = rate_ctrl->rc_cbr_ctrl.bpp_i;
+    rate = (bpp * pic_width * pic_height + 8) >> 4;
+    rc_spec->m_targetRate_i = (HLM_S32)rate;
+
+    // På¸§
+    bpp = rate_ctrl->rc_cbr_ctrl.bpp_p;
+    rate = (bpp * pic_width * pic_height + 8) >> 4;
+    rc_spec->m_targetRate_p = (HLM_S32)rate;
+}

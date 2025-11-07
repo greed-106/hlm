@@ -1,94 +1,94 @@
-/***************************************************************************************************
-
-The copyright in this software is being made available under the License included below.
-This software may be subject to other third party and contributor rights, including patent
-rights, and no such rights are granted under this license.
-
-Copyright (C) 2025, Hangzhou Hikvision Digital Technology Co., Ltd. All rights reserved.
-
-Redistribution and use in source and binary forms, with or without modification, are permitted
-only for the purpose of developing standards within Audio and Video Coding Standard Workgroup of
-China (AVS) and for testing and promoting such standards. The following conditions are required
-to be met:
-
-* Redistributions of source code must retain the above copyright notice, this list of
-conditions and the following disclaimer.
-* Redistributions in binary form must reproduce the above copyright notice, this list of
-conditions and the following disclaimer in the documentation and/or other materials
-provided with the distribution.
-* The name of Hangzhou Hikvision Digital Technology Co., Ltd. may not be used to endorse or
-promote products derived from this software without specific prior written permission.
-
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR
-IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND
-FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR
-CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
-CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
-SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
-OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-POSSIBILITY OF SUCH DAMAGE.
-
-***************************************************************************************************/
-#ifndef _HLMC_CASE_CMD_H_
-#define _HLMC_CASE_CMD_H_
-
-#include "hlmc_case_lib.h"
-
-#ifdef __cplusplus
-extern "C" {
-#endif
-
-/***************************************************************************************************
-* ¹¦  ÄÜ£ºÃüÁîĞĞ²ÎÊı´«µİ¸øÈ«¾Ö±äÁ¿
-* ²Î  Êı£º*
-*        cmd                      -I       ÃüÁîĞĞÊı¾İ
-*        parm                     -O       ÎÄ¼ş²ÎÊı
-*        coding_ctrl              -O       ±àÂë¿ØÖÆ²ÎÊı
-*        rate_ctrl                -O       Âë¿Ø²ÎÊı
-*        dpb_ref_ctrl             -O       dpb²ÎÊı
-* ·µ»ØÖµ£ºÎŞ
-* ±¸  ×¢£º
-***************************************************************************************************/
-HLM_VOID HLMC_CMD_SetParameter(HLMC_DEMO_CMD        *cmd,
-                               HLMC_CASE_CFG_PARAM  *parm,
-                               HLMC_CODING_CTRL     *coding_ctrl,
-                               HLMC_RATE_CTRL       *rate_ctrl,
-                               HLMC_DPB_REF_CTRL    *dpb_ref_ctrl);
-
-/***************************************************************************************************
-* ¹¦  ÄÜ£ºÉèÖÃÃüÁîĞĞÄ¬ÈÏ²ÎÊı
-* ²Î  Êı£º*
-*        cmd                      -I       ÃüÁîĞĞÊı¾İ
-* ·µ»ØÖµ£ºÎŞ
-* ±¸  ×¢£º
-***************************************************************************************************/
-HLM_VOID HLMC_CMD_SetDefaultCommand(HLMC_DEMO_CMD *cmd);
-
-/***************************************************************************************************
-* ¹¦  ÄÜ£º½âÎöÃüÁîĞĞ
-* ²Î  Êı£º*
-*        agc                      -I       ÃüÁîĞĞ²ÎÊı¸öÊı
-*        argv                     -I       ÃüÁîĞĞ²ÎÊıµØÖ·
-*        cmd                      -O       ÃüÁîĞĞÊı¾İ
-* ·µ»ØÖµ£º0£º³É¹¦£»-1£ºÊ§°Ü
-* ±¸  ×¢£º
-***************************************************************************************************/
-HLM_S32 HLMC_CMD_ParseCommand(int              argc,
-                              char           **argv,
-                              HLMC_DEMO_CMD   *cmd);
-
-/***************************************************************************************************
-* ¹¦  ÄÜ£ºĞ£ÑéÃüÁîĞĞ²ÎÊı
-* ²Î  Êı£º*
-*        cmd                      -I       ÃüÁîĞĞÊı¾İ
-* ·µ»ØÖµ£º0£º³É¹¦£»-1£ºÊ§°Ü
-* ±¸  ×¢£º
-***************************************************************************************************/
-HLM_S32 HLMC_CMD_CheckCommand(HLMC_DEMO_CMD *cmd);
-
-#ifdef __cplusplus
-}
-#endif
-
-#endif // _HLMC_CASE_CMD_H_
+/***************************************************************************************************
+
+The copyright in this software is being made available under the License included below.
+This software may be subject to other third party and contributor rights, including patent
+rights, and no such rights are granted under this license.
+
+Copyright (C) 2025, Hangzhou Hikvision Digital Technology Co., Ltd. All rights reserved.
+
+Redistribution and use in source and binary forms, with or without modification, are permitted
+only for the purpose of developing standards within Audio and Video Coding Standard Workgroup of
+China (AVS) and for testing and promoting such standards. The following conditions are required
+to be met:
+
+* Redistributions of source code must retain the above copyright notice, this list of
+conditions and the following disclaimer.
+* Redistributions in binary form must reproduce the above copyright notice, this list of
+conditions and the following disclaimer in the documentation and/or other materials
+provided with the distribution.
+* The name of Hangzhou Hikvision Digital Technology Co., Ltd. may not be used to endorse or
+promote products derived from this software without specific prior written permission.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR
+IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND
+FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR
+CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+POSSIBILITY OF SUCH DAMAGE.
+
+***************************************************************************************************/
+#ifndef _HLMC_CASE_CMD_H_
+#define _HLMC_CASE_CMD_H_
+
+#include "hlmc_case_lib.h"
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+/***************************************************************************************************
+* åŠŸ  èƒ½ï¼šå‘½ä»¤è¡Œå‚æ•°ä¼ é€’ç»™å…¨å±€å˜é‡
+* å‚  æ•°ï¼š*
+*        cmd                      -I       å‘½ä»¤è¡Œæ•°æ®
+*        parm                     -O       æ–‡ä»¶å‚æ•°
+*        coding_ctrl              -O       ç¼–ç æ§åˆ¶å‚æ•°
+*        rate_ctrl                -O       ç æ§å‚æ•°
+*        dpb_ref_ctrl             -O       dpbå‚æ•°
+* è¿”å›å€¼ï¼šæ— 
+* å¤‡  æ³¨ï¼š
+***************************************************************************************************/
+HLM_VOID HLMC_CMD_SetParameter(HLMC_DEMO_CMD        *cmd,
+                               HLMC_CASE_CFG_PARAM  *parm,
+                               HLMC_CODING_CTRL     *coding_ctrl,
+                               HLMC_RATE_CTRL       *rate_ctrl,
+                               HLMC_DPB_REF_CTRL    *dpb_ref_ctrl);
+
+/***************************************************************************************************
+* åŠŸ  èƒ½ï¼šè®¾ç½®å‘½ä»¤è¡Œé»˜è®¤å‚æ•°
+* å‚  æ•°ï¼š*
+*        cmd                      -I       å‘½ä»¤è¡Œæ•°æ®
+* è¿”å›å€¼ï¼šæ— 
+* å¤‡  æ³¨ï¼š
+***************************************************************************************************/
+HLM_VOID HLMC_CMD_SetDefaultCommand(HLMC_DEMO_CMD *cmd);
+
+/***************************************************************************************************
+* åŠŸ  èƒ½ï¼šè§£æå‘½ä»¤è¡Œ
+* å‚  æ•°ï¼š*
+*        agc                      -I       å‘½ä»¤è¡Œå‚æ•°ä¸ªæ•°
+*        argv                     -I       å‘½ä»¤è¡Œå‚æ•°åœ°å€
+*        cmd                      -O       å‘½ä»¤è¡Œæ•°æ®
+* è¿”å›å€¼ï¼š0ï¼šæˆåŠŸï¼›-1ï¼šå¤±è´¥
+* å¤‡  æ³¨ï¼š
+***************************************************************************************************/
+HLM_S32 HLMC_CMD_ParseCommand(int              argc,
+                              char           **argv,
+                              HLMC_DEMO_CMD   *cmd);
+
+/***************************************************************************************************
+* åŠŸ  èƒ½ï¼šæ ¡éªŒå‘½ä»¤è¡Œå‚æ•°
+* å‚  æ•°ï¼š*
+*        cmd                      -I       å‘½ä»¤è¡Œæ•°æ®
+* è¿”å›å€¼ï¼š0ï¼šæˆåŠŸï¼›-1ï¼šå¤±è´¥
+* å¤‡  æ³¨ï¼š
+***************************************************************************************************/
+HLM_S32 HLMC_CMD_CheckCommand(HLMC_DEMO_CMD *cmd);
+
+#ifdef __cplusplus
+}
+#endif
+
+#endif // _HLMC_CASE_CMD_H_

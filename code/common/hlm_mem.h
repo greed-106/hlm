@@ -1,123 +1,123 @@
-/***************************************************************************************************
-
-The copyright in this software is being made available under the License included below.
-This software may be subject to other third party and contributor rights, including patent
-rights, and no such rights are granted under this license.
-
-Copyright (C) 2025, Hangzhou Hikvision Digital Technology Co., Ltd. All rights reserved.
-
-Redistribution and use in source and binary forms, with or without modification, are permitted
-only for the purpose of developing standards within Audio and Video Coding Standard Workgroup of
-China (AVS) and for testing and promoting such standards. The following conditions are required
-to be met:
-
-* Redistributions of source code must retain the above copyright notice, this list of
-conditions and the following disclaimer.
-* Redistributions in binary form must reproduce the above copyright notice, this list of
-conditions and the following disclaimer in the documentation and/or other materials
-provided with the distribution.
-* The name of Hangzhou Hikvision Digital Technology Co., Ltd. may not be used to endorse or
-promote products derived from this software without specific prior written permission.
-
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR
-IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND
-FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR
-CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
-CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
-SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
-OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-POSSIBILITY OF SUCH DAMAGE.
-
-***************************************************************************************************/
-#ifndef _HLM_MEM_H_
-#define _HLM_MEM_H_
-
-#include "hlm_defs.h"
-
-#ifdef __cplusplus
-extern "C" {
-#endif
-
-// RAM»º´æ¹ÜÀí½á¹¹Ìå
-typedef struct _HLM_RAM_BUF
-{
-    HLM_VOID *start;              // »º´æÆğÊ¼Î»ÖÃ
-    HLM_VOID *end;                // »º´æ½áÊøÎ»ÖÃ
-    HLM_VOID *cur_pos;            // »º´æ¿ÕÓàÆğÊ¼Î»ÖÃ
-} HLM_RAM_BUF;
-
-/***************************************************************************************************
-* ¹¦  ÄÜ£ºÔÚRAM»º´æÖĞ·ÖÅäÒ»¿é´óĞ¡ÎªsizeµÄÄÚ´æ¿é£¬µØÖ·align×Ö½Ú¶ÔÆë
-* ²Î  Êı£º*
-*         ram_buf          -I      RAM»º´æ¹ÜÀí½á¹¹Ìå
-*         size             -I      ·ÖÅäRAM»º´æµÄ´óĞ¡
-*         align            -I      ·ÖÅäRAM»º´æËùĞè¶ÔÆëµÄ×Ö½ÚÊı
-* ·µ»ØÖµ£º(HLM_VOID *)·ÖÅäµÃµ½RAM»º´æÎ»ÖÃÖ¸Õë
-* ±¸  ×¢£º
-***************************************************************************************************/
-HLM_VOID* HLM_MEM_Calloc(HLM_RAM_BUF *ram_buf,
-                         HLM_S32      size,
-                         HLM_S32      align);
-
-/***************************************************************************************************
-* ¹¦  ÄÜ£º°´ÕÕ¶ÔÆë·ÖÅäÄÚ´æ
-* ²Î  Êı£º*
-*         size        -I    ËùĞè·ÖÅäµÄÄÚ´æ´óĞ¡
-*         align       -I    ¶ÔÆëµÄ×Ö½ÚÊı£¬ĞèÒªÎª2µÄÃİ´Î·½
-* ·µ»ØÖµ£ºËù·ÖÅäÄÚ´æÖ¸Õë
-* ±¸  ×¢£ºHLM_MallocÓëHLM_FreeÅäÌ×Ê¹ÓÃ
-***************************************************************************************************/
-HLM_VOID* HLM_MEM_Malloc(HLM_SZT size,
-                         HLM_S32 align);
-
-/***************************************************************************************************
-* ¹¦  ÄÜ£ºÊÍ·Å¶ÔÆëÉêÇëµÄÄÚ´æ
-* ²Î  Êı£º*
-*         buf        -I    ÄÚ´æÖ¸Õë
-* ·µ»ØÖµ£ºÎŞ
-* ±¸  ×¢£ºHLM_MallocÓëHLM_FreeÅäÌ×Ê¹ÓÃ
-*         ÊÍ·ÅºóÃ»ÓĞ½«Ö¸Õë¸³ÖµÎªHLM_NULL
-***************************************************************************************************/
-HLM_VOID HLM_MEM_Free(HLM_VOID *buf);
-
-/***************************************************************************************************
-* ¹¦  ÄÜ£ºÉêÇëHLM_MEM_TABÄÚ´æ
-* ²Î  Êı£º*
-*         mem_tab        -I/O    ÄÚ´æ¿éÁĞ±í
-*         tab_num        -I      ÄÚ´æ¿éÊıÁ¿
-* ·µ»ØÖµ£º×´Ì¬Âë
-* ±¸  ×¢£º
-***************************************************************************************************/
-HLM_STATUS HLM_MEM_AllocMemTab(HLM_MEM_TAB       *mem_tab,
-                               HLM_S32            tab_num);
-
-/***************************************************************************************************
-* ¹¦  ÄÜ£ºÊÍ·ÅHLM_MEM_TABÄÚ´æ
-* ²Î  Êı£º*
-*         mem_tab        -I/O    ÄÚ´æ¿éÁĞ±í
-*         tab_num        -I      ÄÚ´æ¿éÊıÁ¿
-* ·µ»ØÖµ£º×´Ì¬Âë
-* ±¸  ×¢£º
-***************************************************************************************************/
-HLM_STATUS HLM_MEM_FreeMemTab(HLM_MEM_TAB *mem_tab,
-                              HLM_S32      tab_num);
-
-/***************************************************************************************************
-* ¹¦  ÄÜ£º¼ì²âHLM_MEM_TAB²ÎÊıÊÇ·ñÕıÈ·
-* ²Î  Êı£º*
-*         mem_tab     -I    ´ı¼ì²âµÄÄÚ´æ¿éÁĞ±í
-*         tab_num     -I    ÄÚ´æ¿éÁĞ±íÊıÁ¿
-*         align       -I    ÄÚ´æ¿é¶ÔÆëÒªÇó
-* ·µ»ØÖµ£º×´Ì¬Âë
-* ±¸  ×¢£º
-***************************************************************************************************/
-HLM_STATUS HLM_MEM_CheckMemTab(HLM_MEM_TAB       *mem_tab,
-                               HLM_S32            tab_num,
-                               HLM_MEM_ALIGNMENT  align);
-
-#ifdef __cplusplus
-}
-#endif 
-
-#endif //_HLM_MEM_H_
+/***************************************************************************************************
+
+The copyright in this software is being made available under the License included below.
+This software may be subject to other third party and contributor rights, including patent
+rights, and no such rights are granted under this license.
+
+Copyright (C) 2025, Hangzhou Hikvision Digital Technology Co., Ltd. All rights reserved.
+
+Redistribution and use in source and binary forms, with or without modification, are permitted
+only for the purpose of developing standards within Audio and Video Coding Standard Workgroup of
+China (AVS) and for testing and promoting such standards. The following conditions are required
+to be met:
+
+* Redistributions of source code must retain the above copyright notice, this list of
+conditions and the following disclaimer.
+* Redistributions in binary form must reproduce the above copyright notice, this list of
+conditions and the following disclaimer in the documentation and/or other materials
+provided with the distribution.
+* The name of Hangzhou Hikvision Digital Technology Co., Ltd. may not be used to endorse or
+promote products derived from this software without specific prior written permission.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR
+IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND
+FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR
+CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+POSSIBILITY OF SUCH DAMAGE.
+
+***************************************************************************************************/
+#ifndef _HLM_MEM_H_
+#define _HLM_MEM_H_
+
+#include "hlm_defs.h"
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+// RAMç¼“å­˜ç®¡ç†ç»“æ„ä½“
+typedef struct _HLM_RAM_BUF
+{
+    HLM_VOID *start;              // ç¼“å­˜èµ·å§‹ä½ç½®
+    HLM_VOID *end;                // ç¼“å­˜ç»“æŸä½ç½®
+    HLM_VOID *cur_pos;            // ç¼“å­˜ç©ºä½™èµ·å§‹ä½ç½®
+} HLM_RAM_BUF;
+
+/***************************************************************************************************
+* åŠŸ  èƒ½ï¼šåœ¨RAMç¼“å­˜ä¸­åˆ†é…ä¸€å—å¤§å°ä¸ºsizeçš„å†…å­˜å—ï¼Œåœ°å€alignå­—èŠ‚å¯¹é½
+* å‚  æ•°ï¼š*
+*         ram_buf          -I      RAMç¼“å­˜ç®¡ç†ç»“æ„ä½“
+*         size             -I      åˆ†é…RAMç¼“å­˜çš„å¤§å°
+*         align            -I      åˆ†é…RAMç¼“å­˜æ‰€éœ€å¯¹é½çš„å­—èŠ‚æ•°
+* è¿”å›å€¼ï¼š(HLM_VOID *)åˆ†é…å¾—åˆ°RAMç¼“å­˜ä½ç½®æŒ‡é’ˆ
+* å¤‡  æ³¨ï¼š
+***************************************************************************************************/
+HLM_VOID* HLM_MEM_Calloc(HLM_RAM_BUF *ram_buf,
+                         HLM_S32      size,
+                         HLM_S32      align);
+
+/***************************************************************************************************
+* åŠŸ  èƒ½ï¼šæŒ‰ç…§å¯¹é½åˆ†é…å†…å­˜
+* å‚  æ•°ï¼š*
+*         size        -I    æ‰€éœ€åˆ†é…çš„å†…å­˜å¤§å°
+*         align       -I    å¯¹é½çš„å­—èŠ‚æ•°ï¼Œéœ€è¦ä¸º2çš„å¹‚æ¬¡æ–¹
+* è¿”å›å€¼ï¼šæ‰€åˆ†é…å†…å­˜æŒ‡é’ˆ
+* å¤‡  æ³¨ï¼šHLM_Mallocä¸HLM_Freeé…å¥—ä½¿ç”¨
+***************************************************************************************************/
+HLM_VOID* HLM_MEM_Malloc(HLM_SZT size,
+                         HLM_S32 align);
+
+/***************************************************************************************************
+* åŠŸ  èƒ½ï¼šé‡Šæ”¾å¯¹é½ç”³è¯·çš„å†…å­˜
+* å‚  æ•°ï¼š*
+*         buf        -I    å†…å­˜æŒ‡é’ˆ
+* è¿”å›å€¼ï¼šæ— 
+* å¤‡  æ³¨ï¼šHLM_Mallocä¸HLM_Freeé…å¥—ä½¿ç”¨
+*         é‡Šæ”¾åæ²¡æœ‰å°†æŒ‡é’ˆèµ‹å€¼ä¸ºHLM_NULL
+***************************************************************************************************/
+HLM_VOID HLM_MEM_Free(HLM_VOID *buf);
+
+/***************************************************************************************************
+* åŠŸ  èƒ½ï¼šç”³è¯·HLM_MEM_TABå†…å­˜
+* å‚  æ•°ï¼š*
+*         mem_tab        -I/O    å†…å­˜å—åˆ—è¡¨
+*         tab_num        -I      å†…å­˜å—æ•°é‡
+* è¿”å›å€¼ï¼šçŠ¶æ€ç 
+* å¤‡  æ³¨ï¼š
+***************************************************************************************************/
+HLM_STATUS HLM_MEM_AllocMemTab(HLM_MEM_TAB       *mem_tab,
+                               HLM_S32            tab_num);
+
+/***************************************************************************************************
+* åŠŸ  èƒ½ï¼šé‡Šæ”¾HLM_MEM_TABå†…å­˜
+* å‚  æ•°ï¼š*
+*         mem_tab        -I/O    å†…å­˜å—åˆ—è¡¨
+*         tab_num        -I      å†…å­˜å—æ•°é‡
+* è¿”å›å€¼ï¼šçŠ¶æ€ç 
+* å¤‡  æ³¨ï¼š
+***************************************************************************************************/
+HLM_STATUS HLM_MEM_FreeMemTab(HLM_MEM_TAB *mem_tab,
+                              HLM_S32      tab_num);
+
+/***************************************************************************************************
+* åŠŸ  èƒ½ï¼šæ£€æµ‹HLM_MEM_TABå‚æ•°æ˜¯å¦æ­£ç¡®
+* å‚  æ•°ï¼š*
+*         mem_tab     -I    å¾…æ£€æµ‹çš„å†…å­˜å—åˆ—è¡¨
+*         tab_num     -I    å†…å­˜å—åˆ—è¡¨æ•°é‡
+*         align       -I    å†…å­˜å—å¯¹é½è¦æ±‚
+* è¿”å›å€¼ï¼šçŠ¶æ€ç 
+* å¤‡  æ³¨ï¼š
+***************************************************************************************************/
+HLM_STATUS HLM_MEM_CheckMemTab(HLM_MEM_TAB       *mem_tab,
+                               HLM_S32            tab_num,
+                               HLM_MEM_ALIGNMENT  align);
+
+#ifdef __cplusplus
+}
+#endif 
+
+#endif //_HLM_MEM_H_

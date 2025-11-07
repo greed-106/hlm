@@ -1,153 +1,153 @@
-/***************************************************************************************************
-
-The copyright in this software is being made available under the License included below.
-This software may be subject to other third party and contributor rights, including patent
-rights, and no such rights are granted under this license.
-
-Copyright (C) 2025, Hangzhou Hikvision Digital Technology Co., Ltd. All rights reserved.
-
-Redistribution and use in source and binary forms, with or without modification, are permitted
-only for the purpose of developing standards within Audio and Video Coding Standard Workgroup of
-China (AVS) and for testing and promoting such standards. The following conditions are required
-to be met:
-
-* Redistributions of source code must retain the above copyright notice, this list of
-conditions and the following disclaimer.
-* Redistributions in binary form must reproduce the above copyright notice, this list of
-conditions and the following disclaimer in the documentation and/or other materials
-provided with the distribution.
-* The name of Hangzhou Hikvision Digital Technology Co., Ltd. may not be used to endorse or
-promote products derived from this software without specific prior written permission.
-
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR
-IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND
-FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR
-CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
-CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
-SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
-OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-POSSIBILITY OF SUCH DAMAGE.
-
-***************************************************************************************************/
-#ifndef _HIM_COM_IQT_H_
-#define _HIM_COM_IQT_H_
-
-#include "hlm_defs.h"
-
-#ifdef __cplusplus
-extern "C" {
-#endif
-
-#define HLM_QUANT_SHIFT                (9)       // Á¿»¯ÒÆÎ»£¬qp=0~51£¬qp/6 <= 8
-
-// ÏñËØÓòÁ¿»¯±í£¬Qstep = 2^( (QP-4)/6 )
-static const HLM_U16 tbl_pixel_quant_scale[6]   = { 813, 724, 645, 575, 512, 456 };
-static const HLM_U16 tbl_pixel_dequant_scale[6] = { 323, 362, 406, 456, 512, 575 };
-
-// ÆµÓòÁ¿»¯±í
-static const HLM_S32 HLM_DEQUANT_V[6][3] =
-{
-    { 10, 13, 16 },
-    { 11, 14, 18 },
-    { 13, 16, 20 },
-    { 14, 18, 23 },
-    { 16, 20, 25 },
-    { 18, 23, 29 }
-};
-
-/***************************************************************************************
-* ¹¦  ÄÜ£º¶Ô·ÇÁã²Ð²îÏµÊý½øÐÐ·´Á¿»¯
-* ²Î  Êý£º*
-*         src           -I      ÊäÈëÊý¾ÝÖ¸Õë
-*         dst           -O      ·´Á¿»¯Êý¾ÝÖ¸Õë
-*         blk_w         -I      ¿é¿í¶È
-*         blk_h         -I      ¿é¸ß¶È
-*         src_stride    -I      Ô´µØÖ·stride
-*         dst_stride    -I      Ä¿±êµØÖ·stride
-*         qp            -I      Á¿»¯²ÎÊý
-* ·µ»ØÖµ£ºÎÞ
-* ±¸  ×¢£º
-****************************************************************************************/
-HLM_VOID HLM_COM_PixelDequant(HLM_COEFF  *src,
-                              HLM_COEFF  *dst,
-                              HLM_U32     blk_w,
-                              HLM_U32     blk_h,
-                              HLM_U32     src_stride,
-                              HLM_U32     dst_stride,
-                              HLM_U08     qp);
-
-/***************************************************************************************
-* ¹¦  ÄÜ£º¶ÔÁ¿»¯ºó/·´±ä»»ºóÏµÊý½øÐÐ·´Á¿»¯
-* ²Î  Êý£º*
-*         src           -I      ÊäÈëÊý¾ÝÖ¸Õë
-*         qp            -I      Á¿»¯²ÎÊý
-*         blk_w         -I      ¿é¿í¶È
-*         blk_h         -I      ¿é¸ß¶È
-*         src_stride    -I      Ô´µØÖ·stride
-*         dst_stride    -I      Ä¿±êµØÖ·stride
-*         v             -I      ·´Á¿»¯¹ý³ÌµÄ²ÎÊý
-*         dst           -O      ·´Á¿»¯Êý¾ÝÖ¸Õë
-* ·µ»ØÖµ£ºÎÞ
-* ±¸  ×¢£º
-****************************************************************************************/
-HLM_VOID HLM_COM_Dequant4x4(HLM_COEFF   *src,
-                            HLM_U08      qp,
-                            HLM_U32      blk_w,
-                            HLM_U32      blk_h,
-                            HLM_U32      src_stride,
-                            HLM_U32      dst_stride,
-                            HLM_S32     *v,
-                            HLM_COEFF   *dst);
-
-/***************************************************************************************
-* ¹¦  ÄÜ£º¶Ô·´Á¿»¯ºóÊý¾Ý½øÐÐÄæDCT
-* ²Î  Êý£º*
-*         src           -I      ÊäÈëÊý¾ÝÖ¸Õë
-*         dst           -O      ·´Á¿»¯Êý¾ÝÖ¸Õë
-*         blk_w         -I      ¿é¿í¶È
-*         blk_h         -I      ¿é¸ß¶È
-*         src_stride    -I      Ô´µØÖ·stride
-*         dst_stride    -I      Ä¿±êµØÖ·stride
-*         bitdepth      -I      ±ÈÌØÎ»¿í
-* ·µ»ØÖµ£ºÎÞ
-* ±¸  ×¢£º
-****************************************************************************************/
-HLM_VOID HLM_COM_Idct4x4(HLM_COEFF      *src,
-                         HLM_COEFF      *dst,
-                         HLM_U32         blk_w,
-                         HLM_U32         blk_h,
-                         HLM_U32         src_stride,
-                         HLM_U32         dst_stride,
-                         HLM_S16         bitdepth);
-
-/***************************************************************************************************
-* ¹¦  ÄÜ£ºÒ»¸öblock¼ÓÉÏ²Ð²î
-* ²Î  Êý£º*
-*         block0          -O    µÚÒ»¿éblockµÄÆðÊ¼µØÖ·
-*         block1          -I    µÚ¶þ¿éblockµÄÆðÊ¼µØÖ·
-*         res             -I    ²Ð²îµÄµØÖ·
-*         bitdepth        -I    ±ÈÌØÎ»¿í
-*         block_width     -I    ¿é¿í¶È
-*         block_height    -I    ¿é¸ß¶È
-*         block0_stride   -I    µÚÒ»¿éblockµÄ¿ç¶È
-*         block1_stride   -I    µÚ¶þ¿éblockµÄ¿ç¶È
-*         res_stride      -I    ²Ð²îµÄ¿ç¶È
-* ·µ»ØÖµ£º
-* ±¸  ×¢£ºblock0 = block1 + res
-***************************************************************************************************/
-HLM_VOID HLM_COM_AddRes(HLM_U16        *block0,
-                        HLM_U16        *block1,
-                        HLM_COEFF      *res,
-                        HLM_U08         bitdepth,
-                        HLM_U32         block_width,
-                        HLM_U32         block_height,
-                        HLM_U32         block0_stride,
-                        HLM_U32         block1_stride,
-                        HLM_U32         res_stride);
-
-#ifdef __cplusplus
-}
-#endif
-
-#endif //_HIM_COM_IQT_H_
+/***************************************************************************************************
+
+The copyright in this software is being made available under the License included below.
+This software may be subject to other third party and contributor rights, including patent
+rights, and no such rights are granted under this license.
+
+Copyright (C) 2025, Hangzhou Hikvision Digital Technology Co., Ltd. All rights reserved.
+
+Redistribution and use in source and binary forms, with or without modification, are permitted
+only for the purpose of developing standards within Audio and Video Coding Standard Workgroup of
+China (AVS) and for testing and promoting such standards. The following conditions are required
+to be met:
+
+* Redistributions of source code must retain the above copyright notice, this list of
+conditions and the following disclaimer.
+* Redistributions in binary form must reproduce the above copyright notice, this list of
+conditions and the following disclaimer in the documentation and/or other materials
+provided with the distribution.
+* The name of Hangzhou Hikvision Digital Technology Co., Ltd. may not be used to endorse or
+promote products derived from this software without specific prior written permission.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR
+IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND
+FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR
+CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+POSSIBILITY OF SUCH DAMAGE.
+
+***************************************************************************************************/
+#ifndef _HIM_COM_IQT_H_
+#define _HIM_COM_IQT_H_
+
+#include "hlm_defs.h"
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+#define HLM_QUANT_SHIFT                (9)       // é‡åŒ–ç§»ä½ï¼Œqp=0~51ï¼Œqp/6 <= 8
+
+// åƒç´ åŸŸé‡åŒ–è¡¨ï¼ŒQstep = 2^( (QP-4)/6 )
+static const HLM_U16 tbl_pixel_quant_scale[6]   = { 813, 724, 645, 575, 512, 456 };
+static const HLM_U16 tbl_pixel_dequant_scale[6] = { 323, 362, 406, 456, 512, 575 };
+
+// é¢‘åŸŸé‡åŒ–è¡¨
+static const HLM_S32 HLM_DEQUANT_V[6][3] =
+{
+    { 10, 13, 16 },
+    { 11, 14, 18 },
+    { 13, 16, 20 },
+    { 14, 18, 23 },
+    { 16, 20, 25 },
+    { 18, 23, 29 }
+};
+
+/***************************************************************************************
+* åŠŸ  èƒ½ï¼šå¯¹éžé›¶æ®‹å·®ç³»æ•°è¿›è¡Œåé‡åŒ–
+* å‚  æ•°ï¼š*
+*         src           -I      è¾“å…¥æ•°æ®æŒ‡é’ˆ
+*         dst           -O      åé‡åŒ–æ•°æ®æŒ‡é’ˆ
+*         blk_w         -I      å—å®½åº¦
+*         blk_h         -I      å—é«˜åº¦
+*         src_stride    -I      æºåœ°å€stride
+*         dst_stride    -I      ç›®æ ‡åœ°å€stride
+*         qp            -I      é‡åŒ–å‚æ•°
+* è¿”å›žå€¼ï¼šæ— 
+* å¤‡  æ³¨ï¼š
+****************************************************************************************/
+HLM_VOID HLM_COM_PixelDequant(HLM_COEFF  *src,
+                              HLM_COEFF  *dst,
+                              HLM_U32     blk_w,
+                              HLM_U32     blk_h,
+                              HLM_U32     src_stride,
+                              HLM_U32     dst_stride,
+                              HLM_U08     qp);
+
+/***************************************************************************************
+* åŠŸ  èƒ½ï¼šå¯¹é‡åŒ–åŽ/åå˜æ¢åŽç³»æ•°è¿›è¡Œåé‡åŒ–
+* å‚  æ•°ï¼š*
+*         src           -I      è¾“å…¥æ•°æ®æŒ‡é’ˆ
+*         qp            -I      é‡åŒ–å‚æ•°
+*         blk_w         -I      å—å®½åº¦
+*         blk_h         -I      å—é«˜åº¦
+*         src_stride    -I      æºåœ°å€stride
+*         dst_stride    -I      ç›®æ ‡åœ°å€stride
+*         v             -I      åé‡åŒ–è¿‡ç¨‹çš„å‚æ•°
+*         dst           -O      åé‡åŒ–æ•°æ®æŒ‡é’ˆ
+* è¿”å›žå€¼ï¼šæ— 
+* å¤‡  æ³¨ï¼š
+****************************************************************************************/
+HLM_VOID HLM_COM_Dequant4x4(HLM_COEFF   *src,
+                            HLM_U08      qp,
+                            HLM_U32      blk_w,
+                            HLM_U32      blk_h,
+                            HLM_U32      src_stride,
+                            HLM_U32      dst_stride,
+                            HLM_S32     *v,
+                            HLM_COEFF   *dst);
+
+/***************************************************************************************
+* åŠŸ  èƒ½ï¼šå¯¹åé‡åŒ–åŽæ•°æ®è¿›è¡Œé€†DCT
+* å‚  æ•°ï¼š*
+*         src           -I      è¾“å…¥æ•°æ®æŒ‡é’ˆ
+*         dst           -O      åé‡åŒ–æ•°æ®æŒ‡é’ˆ
+*         blk_w         -I      å—å®½åº¦
+*         blk_h         -I      å—é«˜åº¦
+*         src_stride    -I      æºåœ°å€stride
+*         dst_stride    -I      ç›®æ ‡åœ°å€stride
+*         bitdepth      -I      æ¯”ç‰¹ä½å®½
+* è¿”å›žå€¼ï¼šæ— 
+* å¤‡  æ³¨ï¼š
+****************************************************************************************/
+HLM_VOID HLM_COM_Idct4x4(HLM_COEFF      *src,
+                         HLM_COEFF      *dst,
+                         HLM_U32         blk_w,
+                         HLM_U32         blk_h,
+                         HLM_U32         src_stride,
+                         HLM_U32         dst_stride,
+                         HLM_S16         bitdepth);
+
+/***************************************************************************************************
+* åŠŸ  èƒ½ï¼šä¸€ä¸ªblockåŠ ä¸Šæ®‹å·®
+* å‚  æ•°ï¼š*
+*         block0          -O    ç¬¬ä¸€å—blockçš„èµ·å§‹åœ°å€
+*         block1          -I    ç¬¬äºŒå—blockçš„èµ·å§‹åœ°å€
+*         res             -I    æ®‹å·®çš„åœ°å€
+*         bitdepth        -I    æ¯”ç‰¹ä½å®½
+*         block_width     -I    å—å®½åº¦
+*         block_height    -I    å—é«˜åº¦
+*         block0_stride   -I    ç¬¬ä¸€å—blockçš„è·¨åº¦
+*         block1_stride   -I    ç¬¬äºŒå—blockçš„è·¨åº¦
+*         res_stride      -I    æ®‹å·®çš„è·¨åº¦
+* è¿”å›žå€¼ï¼š
+* å¤‡  æ³¨ï¼šblock0 = block1 + res
+***************************************************************************************************/
+HLM_VOID HLM_COM_AddRes(HLM_U16        *block0,
+                        HLM_U16        *block1,
+                        HLM_COEFF      *res,
+                        HLM_U08         bitdepth,
+                        HLM_U32         block_width,
+                        HLM_U32         block_height,
+                        HLM_U32         block0_stride,
+                        HLM_U32         block1_stride,
+                        HLM_U32         res_stride);
+
+#ifdef __cplusplus
+}
+#endif
+
+#endif //_HIM_COM_IQT_H_

@@ -1,206 +1,206 @@
-/***************************************************************************************************
-
-The copyright in this software is being made available under the License included below.
-This software may be subject to other third party and contributor rights, including patent
-rights, and no such rights are granted under this license.
-
-Copyright (C) 2025, Hangzhou Hikvision Digital Technology Co., Ltd. All rights reserved.
-
-Redistribution and use in source and binary forms, with or without modification, are permitted
-only for the purpose of developing standards within Audio and Video Coding Standard Workgroup of
-China (AVS) and for testing and promoting such standards. The following conditions are required
-to be met:
-
-* Redistributions of source code must retain the above copyright notice, this list of
-conditions and the following disclaimer.
-* Redistributions in binary form must reproduce the above copyright notice, this list of
-conditions and the following disclaimer in the documentation and/or other materials
-provided with the distribution.
-* The name of Hangzhou Hikvision Digital Technology Co., Ltd. may not be used to endorse or
-promote products derived from this software without specific prior written permission.
-
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR
-IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND
-FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR
-CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
-CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
-SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
-OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-POSSIBILITY OF SUCH DAMAGE.
-
-***************************************************************************************************/
-#ifndef _HLMC_RC_H_
-#define _HLMC_RC_H_
-
-#include "hlmc_defs.h"
-
-#ifdef __cplusplus
-extern "C" {
-#endif
-
-// ¸´ÔÓ¶ÈãĞÖµ
-#if SAD_SATD_TH_SCALE
-#define RC_COMP_TH_VF                  (1.2  * 4) 
-#define RC_COMP_TH_F                   (3.2  * 4) 
-#define RC_COMP_TH_C                   (6  * 4) 
-#define RC_COMP_TH_VC                  (12 * 4) 
-#else
-#define RC_COMP_TH_VF                  (0.3)
-#define RC_COMP_TH_F                   (0.8)
-#define RC_COMP_TH_C                   (1.3)
-#define RC_COMP_TH_VC                  (3.8)
-#endif
-// ²»Í¬Ë®Î»ÏÂµÄÄ¿±ê±ÈÌØÊıËõ·ÅÒò×Ó
-static const HLM_U08 scale_target_bits[5][5] =
-{
-    { 95, 130, 175, 200, 255 },        // Ë®Î»ÌØ±ğ¿íÔ££¨·Å´ó128±¶£©
-    { 95, 120, 134, 166, 230 },        // Ë®Î»½Ï¿íÔ£
-    { 95, 110, 128, 153, 221 },        // Ë®Î»ÖĞµÈ
-    { 80, 110, 121, 140, 153 },        // Ë®Î»½ôÕÅ
-    { 80, 110, 110, 115, 128 }         // Ë®Î»·Ç³£½ôÕÅ
-};
-
-static const HLM_U16 log2_rc_buffer_size[5] =
-{
-    15, 15, 16, 16, 16
-};
-
-static const HLM_U16 B_avg_init[5] =
-{
-    1842, 2034, 3840, 4352, 4864       // 8bitºÍ10±ÈÌØÔİ±£³Ö²»±ä
-};
-
-static const HLM_U16 B_lossless_init[5][5] =
-{
-    { 921,  1227, 1842, 2304, 2763 },  // 8±ÈÌØ£¬²»Í¬¸´ÔÓ¶ÈÏÂ³õÊ¼µÄÎŞËğ±ÈÌØÊı
-    { 1152, 1536, 2304, 2880, 3456 },  // 10±ÈÌØ£¬²»Í¬¸´ÔÓ¶ÈÏÂ³õÊ¼µÄÎŞËğ±ÈÌØÊı
-    { 2720, 3640, 4692, 5204, 5716 },  // 12±ÈÌØ£¬²»Í¬¸´ÔÓ¶ÈÏÂ³õÊ¼µÄÎŞËğ±ÈÌØÊı
-    { 3080, 3904, 5068, 5580, 6092 },  // 14±ÈÌØ£¬²»Í¬¸´ÔÓ¶ÈÏÂ³õÊ¼µÄÎŞËğ±ÈÌØÊı
-    { 3400, 4152, 5264, 5776, 6288 }   // 16±ÈÌØ£¬²»Í¬¸´ÔÓ¶ÈÏÂ³õÊ¼µÄÎŞËğ±ÈÌØÊı
-};
-
-static const HLM_S16 bias_tab[5][5] =
-{
-    { 1,  1,  1,  1,  2 },
-    { 1,  1,  1,  1,  1 },
-    { 0,  1,  1,  1,  1 },
-    { -1,  0,  1,  1,  1 },
-    { -2, -1,  0,  1,  1 },
-};
-
-typedef struct _HLMC_RC_SPEC
-{
-    HLMC_RATE_CTRL       rate_ctrl;
-    HLMC_PATCH_REF_TYPE  patchtype;
-    HLM_S32              m_targetRate_i;   // IÖ¡Ä¿±ê±ÈÌØÊı
-    HLM_S32              m_targetRate_p;   // PÖ¡Ä¿±ê±ÈÌØÊı
-} HLMC_RC_SPEC;
-
-/***************************************************************************************************
-* ¹¦  ÄÜ£ºÄ£¿éËùĞèÄÚ´æ¼ÆËã
-* ²Î  Êı£º*
-*         status_size        -O         ×´Ì¬ÄÚ´æ´óĞ¡
-*         work_size          -O         ¹¤×÷ÄÚ´æ´óĞ¡
-* ·µ»ØÖµ£º×´Ì¬Âë
-* ±¸  ×¢£º
-***************************************************************************************************/
-HLM_STATUS HLMC_RC_GetMemSize(HLM_SZT *status_size,
-                              HLM_SZT *work_size);
-
-/***************************************************************************************************
-* ¹¦  ÄÜ£ºÄ£¿é´´½¨£¨×´Ì¬ÄÚ´æ³õÊ¼»¯£¬¹¤×÷ÄÚ´æ·ÖÅä£©
-* ²Î  Êı£º*
-*         status_buf         -I        ×´Ì¬ÄÚ´æ
-*         work_buf           -I        ¹¤×÷ÄÚ´æ
-*         handle             -O        Ä£¿éÊµÀı¾ä±ú
-* ·µ»ØÖµ£º×´Ì¬Âë
-* ±¸  ×¢£º
-***************************************************************************************************/
-HLM_STATUS HLMC_RC_Create(HLM_U08     *status_buf,
-                          HLM_U08     *work_buf,
-                          HLM_VOID   **handle);
-
-/***************************************************************************************************
-* ¹¦  ÄÜ£ºÄ£¿é»ñÈ¡Ö¡¼¶QP
-* ²Î  Êı£º*
-*         handle                -IO        Ä£¿éÊµÀı¾ä±ú
-*         patch_type            -I         µ±Ç°´ı±àÂëpatchÀàĞÍ£¬µÈÍ¬ÓÚÖ¡ÀàĞÍ
-*         rc_regs               -O         Âë¿ØĞÅÏ¢
-*         bitdepth              -I         ±ÈÌØÎ»¿í
-* ·µ»ØÖµ£º×´Ì¬Âë
-* ±¸  ×¢£º
-***************************************************************************************************/
-HLM_STATUS HLMC_RC_Process(HLM_VOID                 *handle,
-                           HLMC_PATCH_REF_TYPE       patch_type,
-                           VENC_RATE_CTRL_OUT_REGS  *rc_regs,
-                           HLM_U32                   bitdepth);
-
-/***************************************************************************************************
-* ¹¦  ÄÜ£º³õÊ¼»¯QPG
-* ²Î  Êı£º*
-*        rc_qpg                  -IO   QPGÂë¿Ø½á¹¹Ìå
-*        regs                    -I    ¼Ä´æÆ÷²ÎÊı½á¹¹Ìå
-*        cu_cols                 -I    µ±Ç°Ö¡cuÁĞÊı
-*        cu_rows                 -I    µ±Ç°Ö¡cuĞĞÊı
-* ·µ»ØÖµ£ºvoid
-* ±¸  ×¢£º
-***************************************************************************************************/
-HLM_VOID HLMC_RC_InitQpg(HLMC_QPG      *rc_qpg,
-                         HLMC_REGS     *regs,
-                         HLM_S32        cu_cols,
-                         HLM_S32        cu_rows);
-
-/***************************************************************************************************
-* ¹¦  ÄÜ£º¸üĞÂÂë¿Ø²ÎÊıQPG
-* ²Î  Êı£º*
-*        rc_qpg                  -IO   QPGÂë¿Ø½á¹¹Ìå
-*        mix_flag                -I    »ìºÏ¸´ÔÓ¶È±ê¼Ç
-*        actual_bits             -I    Êµ¼ÊµÄ±ÈÌØ
-*        luma_qp                 -I    ÁÁ¶Èqp
-*        chroma_qp               -I    É«¶Èqp
-* ·µ»ØÖµ£ºÎŞ
-* ±¸  ×¢£º
-***************************************************************************************************/
-HLM_VOID HLMC_RC_UpdateQpg(HLMC_QPG      *rc_qpg,
-                           HLM_U08        mix_flag,
-                           HLM_S32        actual_bits,
-                           HLM_S32        luma_qp,
-                           HLM_S32        chroma_qp);
-
-/***************************************************************************************************
-* ¹¦  ÄÜ£º¼ÆËã¸´ÔÓ¶ÈµÈ¼¶
-* ²Î  Êı£º*
-*        rc_qpg                  -IO   QPGÂë¿Ø½á¹¹Ìå
-*        cur_best_satd           -I    ×îÓÅµÄÈı·ÖÁ¿satd
-*        satd_comp_cur           -I    µ±Ç°¿é¸÷·ÖÁ¿satd
-*        bitdepth                -I    ±ÈÌØÉî¶È
-*        yuv_comp                -I    ·ÖÁ¿¸öÊı
-* ·µ»ØÖµ£ºvoid
-* ±¸  ×¢£º
-***************************************************************************************************/
-HLM_VOID HLMC_RC_CalComplexLevel(HLMC_QPG *rc_qpg,
-                                 HLM_U32   cur_best_satd,
-                                 HLM_U32   satd_comp_cur[3],
-                                 HLM_U08   bitdepth,
-#if  IBC_SCALE
-                                 HLM_CU_TYPE   cu_type,
-#endif
-                                 HLM_U32   yuv_comp);
-
-/***************************************************************************************************
-* ¹¦  ÄÜ£º¼ÆËã»ìºÏ¸´ÔÓ¶È¿éµÄ»ìºÏµÈ¼¶
-* ²Î  Êı£º*
-*        satd                 -I         ÁÁ¶ÈµÄ8¸ö4x4×Ó¿éµÄsatd
-*        bitdepth             -I         ±ÈÌØÉî¶È
-* ·µ»ØÖµ£º»ìºÏµÈ¼¶£¬0(·Ç»ìºÏ)¡¢1(¼òµ¥ºÍ¸´ÔÓµÄ»ìºÏ)¡¢2(·Ç³£¼òµ¥ºÍ·Ç³£¸´ÔÓµÄ»ìºÏ)
-* ±¸  ×¢£º
-***************************************************************************************************/
-HLM_U08 HLMC_RC_CalMixFlag(HLM_U32  satd[8],
-                           HLM_U08  bitdepth);
-
-#ifdef __cplusplus
-}
-#endif
-
-#endif // _HLMC_RC_H_
+/***************************************************************************************************
+
+The copyright in this software is being made available under the License included below.
+This software may be subject to other third party and contributor rights, including patent
+rights, and no such rights are granted under this license.
+
+Copyright (C) 2025, Hangzhou Hikvision Digital Technology Co., Ltd. All rights reserved.
+
+Redistribution and use in source and binary forms, with or without modification, are permitted
+only for the purpose of developing standards within Audio and Video Coding Standard Workgroup of
+China (AVS) and for testing and promoting such standards. The following conditions are required
+to be met:
+
+* Redistributions of source code must retain the above copyright notice, this list of
+conditions and the following disclaimer.
+* Redistributions in binary form must reproduce the above copyright notice, this list of
+conditions and the following disclaimer in the documentation and/or other materials
+provided with the distribution.
+* The name of Hangzhou Hikvision Digital Technology Co., Ltd. may not be used to endorse or
+promote products derived from this software without specific prior written permission.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR
+IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND
+FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR
+CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+POSSIBILITY OF SUCH DAMAGE.
+
+***************************************************************************************************/
+#ifndef _HLMC_RC_H_
+#define _HLMC_RC_H_
+
+#include "hlmc_defs.h"
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+// å¤æ‚åº¦é˜ˆå€¼
+#if SAD_SATD_TH_SCALE
+#define RC_COMP_TH_VF                  (1.2  * 4) 
+#define RC_COMP_TH_F                   (3.2  * 4) 
+#define RC_COMP_TH_C                   (6  * 4) 
+#define RC_COMP_TH_VC                  (12 * 4) 
+#else
+#define RC_COMP_TH_VF                  (0.3)
+#define RC_COMP_TH_F                   (0.8)
+#define RC_COMP_TH_C                   (1.3)
+#define RC_COMP_TH_VC                  (3.8)
+#endif
+// ä¸åŒæ°´ä½ä¸‹çš„ç›®æ ‡æ¯”ç‰¹æ•°ç¼©æ”¾å› å­
+static const HLM_U08 scale_target_bits[5][5] =
+{
+    { 95, 130, 175, 200, 255 },        // æ°´ä½ç‰¹åˆ«å®½è£•ï¼ˆæ”¾å¤§128å€ï¼‰
+    { 95, 120, 134, 166, 230 },        // æ°´ä½è¾ƒå®½è£•
+    { 95, 110, 128, 153, 221 },        // æ°´ä½ä¸­ç­‰
+    { 80, 110, 121, 140, 153 },        // æ°´ä½ç´§å¼ 
+    { 80, 110, 110, 115, 128 }         // æ°´ä½éå¸¸ç´§å¼ 
+};
+
+static const HLM_U16 log2_rc_buffer_size[5] =
+{
+    15, 15, 16, 16, 16
+};
+
+static const HLM_U16 B_avg_init[5] =
+{
+    1842, 2034, 3840, 4352, 4864       // 8bitå’Œ10æ¯”ç‰¹æš‚ä¿æŒä¸å˜
+};
+
+static const HLM_U16 B_lossless_init[5][5] =
+{
+    { 921,  1227, 1842, 2304, 2763 },  // 8æ¯”ç‰¹ï¼Œä¸åŒå¤æ‚åº¦ä¸‹åˆå§‹çš„æ— æŸæ¯”ç‰¹æ•°
+    { 1152, 1536, 2304, 2880, 3456 },  // 10æ¯”ç‰¹ï¼Œä¸åŒå¤æ‚åº¦ä¸‹åˆå§‹çš„æ— æŸæ¯”ç‰¹æ•°
+    { 2720, 3640, 4692, 5204, 5716 },  // 12æ¯”ç‰¹ï¼Œä¸åŒå¤æ‚åº¦ä¸‹åˆå§‹çš„æ— æŸæ¯”ç‰¹æ•°
+    { 3080, 3904, 5068, 5580, 6092 },  // 14æ¯”ç‰¹ï¼Œä¸åŒå¤æ‚åº¦ä¸‹åˆå§‹çš„æ— æŸæ¯”ç‰¹æ•°
+    { 3400, 4152, 5264, 5776, 6288 }   // 16æ¯”ç‰¹ï¼Œä¸åŒå¤æ‚åº¦ä¸‹åˆå§‹çš„æ— æŸæ¯”ç‰¹æ•°
+};
+
+static const HLM_S16 bias_tab[5][5] =
+{
+    { 1,  1,  1,  1,  2 },
+    { 1,  1,  1,  1,  1 },
+    { 0,  1,  1,  1,  1 },
+    { -1,  0,  1,  1,  1 },
+    { -2, -1,  0,  1,  1 },
+};
+
+typedef struct _HLMC_RC_SPEC
+{
+    HLMC_RATE_CTRL       rate_ctrl;
+    HLMC_PATCH_REF_TYPE  patchtype;
+    HLM_S32              m_targetRate_i;   // Iå¸§ç›®æ ‡æ¯”ç‰¹æ•°
+    HLM_S32              m_targetRate_p;   // På¸§ç›®æ ‡æ¯”ç‰¹æ•°
+} HLMC_RC_SPEC;
+
+/***************************************************************************************************
+* åŠŸ  èƒ½ï¼šæ¨¡å—æ‰€éœ€å†…å­˜è®¡ç®—
+* å‚  æ•°ï¼š*
+*         status_size        -O         çŠ¶æ€å†…å­˜å¤§å°
+*         work_size          -O         å·¥ä½œå†…å­˜å¤§å°
+* è¿”å›å€¼ï¼šçŠ¶æ€ç 
+* å¤‡  æ³¨ï¼š
+***************************************************************************************************/
+HLM_STATUS HLMC_RC_GetMemSize(HLM_SZT *status_size,
+                              HLM_SZT *work_size);
+
+/***************************************************************************************************
+* åŠŸ  èƒ½ï¼šæ¨¡å—åˆ›å»ºï¼ˆçŠ¶æ€å†…å­˜åˆå§‹åŒ–ï¼Œå·¥ä½œå†…å­˜åˆ†é…ï¼‰
+* å‚  æ•°ï¼š*
+*         status_buf         -I        çŠ¶æ€å†…å­˜
+*         work_buf           -I        å·¥ä½œå†…å­˜
+*         handle             -O        æ¨¡å—å®ä¾‹å¥æŸ„
+* è¿”å›å€¼ï¼šçŠ¶æ€ç 
+* å¤‡  æ³¨ï¼š
+***************************************************************************************************/
+HLM_STATUS HLMC_RC_Create(HLM_U08     *status_buf,
+                          HLM_U08     *work_buf,
+                          HLM_VOID   **handle);
+
+/***************************************************************************************************
+* åŠŸ  èƒ½ï¼šæ¨¡å—è·å–å¸§çº§QP
+* å‚  æ•°ï¼š*
+*         handle                -IO        æ¨¡å—å®ä¾‹å¥æŸ„
+*         patch_type            -I         å½“å‰å¾…ç¼–ç patchç±»å‹ï¼Œç­‰åŒäºå¸§ç±»å‹
+*         rc_regs               -O         ç æ§ä¿¡æ¯
+*         bitdepth              -I         æ¯”ç‰¹ä½å®½
+* è¿”å›å€¼ï¼šçŠ¶æ€ç 
+* å¤‡  æ³¨ï¼š
+***************************************************************************************************/
+HLM_STATUS HLMC_RC_Process(HLM_VOID                 *handle,
+                           HLMC_PATCH_REF_TYPE       patch_type,
+                           VENC_RATE_CTRL_OUT_REGS  *rc_regs,
+                           HLM_U32                   bitdepth);
+
+/***************************************************************************************************
+* åŠŸ  èƒ½ï¼šåˆå§‹åŒ–QPG
+* å‚  æ•°ï¼š*
+*        rc_qpg                  -IO   QPGç æ§ç»“æ„ä½“
+*        regs                    -I    å¯„å­˜å™¨å‚æ•°ç»“æ„ä½“
+*        cu_cols                 -I    å½“å‰å¸§cuåˆ—æ•°
+*        cu_rows                 -I    å½“å‰å¸§cuè¡Œæ•°
+* è¿”å›å€¼ï¼švoid
+* å¤‡  æ³¨ï¼š
+***************************************************************************************************/
+HLM_VOID HLMC_RC_InitQpg(HLMC_QPG      *rc_qpg,
+                         HLMC_REGS     *regs,
+                         HLM_S32        cu_cols,
+                         HLM_S32        cu_rows);
+
+/***************************************************************************************************
+* åŠŸ  èƒ½ï¼šæ›´æ–°ç æ§å‚æ•°QPG
+* å‚  æ•°ï¼š*
+*        rc_qpg                  -IO   QPGç æ§ç»“æ„ä½“
+*        mix_flag                -I    æ··åˆå¤æ‚åº¦æ ‡è®°
+*        actual_bits             -I    å®é™…çš„æ¯”ç‰¹
+*        luma_qp                 -I    äº®åº¦qp
+*        chroma_qp               -I    è‰²åº¦qp
+* è¿”å›å€¼ï¼šæ— 
+* å¤‡  æ³¨ï¼š
+***************************************************************************************************/
+HLM_VOID HLMC_RC_UpdateQpg(HLMC_QPG      *rc_qpg,
+                           HLM_U08        mix_flag,
+                           HLM_S32        actual_bits,
+                           HLM_S32        luma_qp,
+                           HLM_S32        chroma_qp);
+
+/***************************************************************************************************
+* åŠŸ  èƒ½ï¼šè®¡ç®—å¤æ‚åº¦ç­‰çº§
+* å‚  æ•°ï¼š*
+*        rc_qpg                  -IO   QPGç æ§ç»“æ„ä½“
+*        cur_best_satd           -I    æœ€ä¼˜çš„ä¸‰åˆ†é‡satd
+*        satd_comp_cur           -I    å½“å‰å—å„åˆ†é‡satd
+*        bitdepth                -I    æ¯”ç‰¹æ·±åº¦
+*        yuv_comp                -I    åˆ†é‡ä¸ªæ•°
+* è¿”å›å€¼ï¼švoid
+* å¤‡  æ³¨ï¼š
+***************************************************************************************************/
+HLM_VOID HLMC_RC_CalComplexLevel(HLMC_QPG *rc_qpg,
+                                 HLM_U32   cur_best_satd,
+                                 HLM_U32   satd_comp_cur[3],
+                                 HLM_U08   bitdepth,
+#if  IBC_SCALE
+                                 HLM_CU_TYPE   cu_type,
+#endif
+                                 HLM_U32   yuv_comp);
+
+/***************************************************************************************************
+* åŠŸ  èƒ½ï¼šè®¡ç®—æ··åˆå¤æ‚åº¦å—çš„æ··åˆç­‰çº§
+* å‚  æ•°ï¼š*
+*        satd                 -I         äº®åº¦çš„8ä¸ª4x4å­å—çš„satd
+*        bitdepth             -I         æ¯”ç‰¹æ·±åº¦
+* è¿”å›å€¼ï¼šæ··åˆç­‰çº§ï¼Œ0(éæ··åˆ)ã€1(ç®€å•å’Œå¤æ‚çš„æ··åˆ)ã€2(éå¸¸ç®€å•å’Œéå¸¸å¤æ‚çš„æ··åˆ)
+* å¤‡  æ³¨ï¼š
+***************************************************************************************************/
+HLM_U08 HLMC_RC_CalMixFlag(HLM_U32  satd[8],
+                           HLM_U08  bitdepth);
+
+#ifdef __cplusplus
+}
+#endif
+
+#endif // _HLMC_RC_H_

@@ -35,7 +35,7 @@ POSSIBILITY OF SUCH DAMAGE.
 #include <string.h>
 #include "hlmc_case_cmd.h"
 
-// ´Ó×Ö·û´®ÖĞÌáÈ¡Êı×Ö
+// ä»å­—ç¬¦ä¸²ä¸­æå–æ•°å­—
 HLM_S32 HLMC_CMD_extract_numbers(HLM_S08  *str,
                                  HLM_S32  *numbers)
 {
@@ -47,9 +47,9 @@ HLM_S32 HLMC_CMD_extract_numbers(HLM_S08  *str,
     HLM_S08 *ptr        = HLM_NULL;
     HLM_S32  count      = 0;
 #ifdef _LINUX64
-    input_copy = strdup(str);  // ´´½¨¿ÉĞŞ¸ÄµÄ¸±±¾
+    input_copy = strdup(str);  // åˆ›å»ºå¯ä¿®æ”¹çš„å‰¯æœ¬
 #else
-    input_copy = _strdup(str);  // ´´½¨¿ÉĞŞ¸ÄµÄ¸±±¾
+    input_copy = _strdup(str);  // åˆ›å»ºå¯ä¿®æ”¹çš„å‰¯æœ¬
 #endif
 
     if (!input_copy)
@@ -57,7 +57,7 @@ HLM_S32 HLMC_CMD_extract_numbers(HLM_S08  *str,
         return count;
     }
 
-    // È¥³ıÊ×Î²µÄÖĞÀ¨ºÅ
+    // å»é™¤é¦–å°¾çš„ä¸­æ‹¬å·
     start = strchr(input_copy, '[');
     end = strchr(input_copy, ']');
     if (!start || !end)
@@ -65,23 +65,23 @@ HLM_S32 HLMC_CMD_extract_numbers(HLM_S08  *str,
         free(input_copy);
         return count;
     }
-    *start = '\0';  // ÁÙÊ±½Ø¶Ï×Ö·û´®£¨±£Áô×óÀ¨ºÅÇ°µÄÄÚÈİ£©
+    *start = '\0';  // ä¸´æ—¶æˆªæ–­å­—ç¬¦ä¸²ï¼ˆä¿ç•™å·¦æ‹¬å·å‰çš„å†…å®¹ï¼‰
     content = start + 1;
-    *end = '\0';    // ½Ø¶ÏÓÒÀ¨ºÅºóµÄÄÚÈİ
+    *end = '\0';    // æˆªæ–­å³æ‹¬å·åçš„å†…å®¹
 
-                    // °´¶ººÅ²ğ·Ö
+                    // æŒ‰é€—å·æ‹†åˆ†
     token = strtok(content, ",");
     while (token && count < HLM_MAX_PATCH_NUM)
     {
         ptr = token;
         while (*ptr)
         {
-            while (*ptr && isspace(*ptr)) ptr++;  // Ìø¹ı¿Õ¸ñ
+            while (*ptr && isspace(*ptr)) ptr++;  // è·³è¿‡ç©ºæ ¼
             if (isdigit(*ptr))
             {
                 numbers[count] = atoi(ptr);
                 count++;
-                break;  // Ã¿¸ötokenÖ»È¡Ò»¸öÊı×Ö
+                break;  // æ¯ä¸ªtokenåªå–ä¸€ä¸ªæ•°å­—
             }
             ptr++;
         }
@@ -93,15 +93,15 @@ HLM_S32 HLMC_CMD_extract_numbers(HLM_S08  *str,
 }
 
 /***************************************************************************************************
-* ¹¦  ÄÜ£ºÃüÁîĞĞ²ÎÊı´«µİ¸øÈ«¾Ö±äÁ¿
-* ²Î  Êı£º*
-*        cmd                      -I       ÃüÁîĞĞÊı¾İ
-*        parm                     -O       ÎÄ¼ş²ÎÊı
-*        coding_ctrl              -O       ±àÂë¿ØÖÆ²ÎÊı
-*        rate_ctrl                -O       Âë¿Ø²ÎÊı
-*        dpb_ref_ctrl             -O       dpb²ÎÊı
-* ·µ»ØÖµ£ºÎŞ
-* ±¸  ×¢£º
+* åŠŸ  èƒ½ï¼šå‘½ä»¤è¡Œå‚æ•°ä¼ é€’ç»™å…¨å±€å˜é‡
+* å‚  æ•°ï¼š*
+*        cmd                      -I       å‘½ä»¤è¡Œæ•°æ®
+*        parm                     -O       æ–‡ä»¶å‚æ•°
+*        coding_ctrl              -O       ç¼–ç æ§åˆ¶å‚æ•°
+*        rate_ctrl                -O       ç æ§å‚æ•°
+*        dpb_ref_ctrl             -O       dpbå‚æ•°
+* è¿”å›å€¼ï¼šæ— 
+* å¤‡  æ³¨ï¼š
 ***************************************************************************************************/
 HLM_VOID HLMC_CMD_SetParameter(HLMC_DEMO_CMD        *cmd,
                                 HLMC_CASE_CFG_PARAM  *parm,
@@ -157,19 +157,19 @@ HLM_VOID HLMC_CMD_SetParameter(HLMC_DEMO_CMD        *cmd,
         strcpy(parm->patch_height, cmd->patch_height);
     }
 
-    // ²ğ·Ö×Ö·û´®
+    // æ‹†åˆ†å­—ç¬¦ä¸²
     ele_num[0] = HLMC_CMD_extract_numbers(parm->patch_x, patch_x);
     ele_num[1] = HLMC_CMD_extract_numbers(parm->patch_y, patch_y);
     ele_num[2] = HLMC_CMD_extract_numbers(parm->patch_width, patch_width);
     ele_num[3] = HLMC_CMD_extract_numbers(parm->patch_height, patch_height);
-    if (coding_ctrl->uniform_patch_split)  // ¾ùÔÈ»®·Ö
+    if (coding_ctrl->uniform_patch_split)  // å‡åŒ€åˆ’åˆ†
     {
-        assert(ele_num[2] > 0 && ele_num[3] > 0);  // ½öÊ¹ÓÃpatch_width[0]ºÍpatch_height[0]
+        assert(ele_num[2] > 0 && ele_num[3] > 0);  // ä»…ä½¿ç”¨patch_width[0]å’Œpatch_height[0]
         coding_ctrl->patch_info.patch_num = 1;
         coding_ctrl->patch_info.patch_param[0].patch_width[0] = patch_width[0];
         coding_ctrl->patch_info.patch_param[0].patch_height[0] = patch_height[0];
     }
-    else  // ·Ç¾ùÔÈ»®·Ö
+    else  // éå‡åŒ€åˆ’åˆ†
     {
         if (ele_num[0] == ele_num[1] && ele_num[1] == ele_num[2] && ele_num[2] == ele_num[3])
         {
@@ -186,13 +186,13 @@ HLM_VOID HLMC_CMD_SetParameter(HLMC_DEMO_CMD        *cmd,
             }
             if (0 == HLM_COM_CheckPatchSplit(coding_ctrl->width, coding_ctrl->height, &coding_ctrl->patch_info))
             {
-                printf("Patch»®·ÖĞÅÏ¢ÎŞ·¨Æ´³ÉÍêÕûÍ¼Ïñ!\n");
+                printf("Patchåˆ’åˆ†ä¿¡æ¯æ— æ³•æ‹¼æˆå®Œæ•´å›¾åƒ!\n");
                 assert(0);
             }
         }
         else
         {
-            printf("ÊäÈëµÄPatch_X/Y/W/H¸öÊı²»Ò»ÖÂ£¬·Ö±ğÊÇ%d,%d,%d,%d!\n", ele_num[0], ele_num[1], ele_num[2], ele_num[3]);
+            printf("è¾“å…¥çš„Patch_X/Y/W/Hä¸ªæ•°ä¸ä¸€è‡´ï¼Œåˆ†åˆ«æ˜¯%d,%d,%d,%d!\n", ele_num[0], ele_num[1], ele_num[2], ele_num[3]);
             assert(0);
         }
     }
@@ -310,7 +310,7 @@ HLM_VOID HLMC_CMD_SetParameter(HLMC_DEMO_CMD        *cmd,
     return;
 }
 
-// ´òÓ¡helpĞÅÏ¢
+// æ‰“å°helpä¿¡æ¯
 HLM_VOID HLMC_CMD_help()
 {
     fprintf(stdout, "Usage: TestHLME -c [cfg_file] -l [log_file] -x -x ...\n");
@@ -335,7 +335,7 @@ HLM_VOID HLMC_CMD_help()
     fprintf(stdout, "-pmaxqp                       qpmax of P frame\n");
     fprintf(stdout, "-iqp                          qp of I frmae when fix_qp\n");
     fprintf(stdout, "-pqp                          qp of P frmae when fix_qp\n");
-    fprintf(stdout, "-b                            target bit rate£¬bit/s\n");
+    fprintf(stdout, "-b                            target bit rateï¼Œbit/s\n");
     fprintf(stdout, "-initqp                       init qp\n");
     fprintf(stdout, "-s                            statetime of rc\n");
     fprintf(stdout, "-help                         This help.\n");
@@ -344,11 +344,11 @@ HLM_VOID HLMC_CMD_help()
 }
 
 /***************************************************************************************************
-* ¹¦  ÄÜ£ºÉèÖÃÃüÁîĞĞÄ¬ÈÏ²ÎÊı
-* ²Î  Êı£º*
-*        cmd                      -I       ÃüÁîĞĞÊı¾İ
-* ·µ»ØÖµ£ºÎŞ
-* ±¸  ×¢£º
+* åŠŸ  èƒ½ï¼šè®¾ç½®å‘½ä»¤è¡Œé»˜è®¤å‚æ•°
+* å‚  æ•°ï¼š*
+*        cmd                      -I       å‘½ä»¤è¡Œæ•°æ®
+* è¿”å›å€¼ï¼šæ— 
+* å¤‡  æ³¨ï¼š
 ***************************************************************************************************/
 HLM_VOID HLMC_CMD_SetDefaultCommand(HLMC_DEMO_CMD *cmd)
 {
@@ -395,13 +395,13 @@ HLM_VOID HLMC_CMD_SetDefaultCommand(HLMC_DEMO_CMD *cmd)
 }
 
 /***************************************************************************************************
-* ¹¦  ÄÜ£º½âÎöÃüÁîĞĞ
-* ²Î  Êı£º* 
-*        agc                      -I       ÃüÁîĞĞ²ÎÊı¸öÊı
-*        argv                     -I       ÃüÁîĞĞ²ÎÊıµØÖ·
-*        cmd                      -O       ÃüÁîĞĞÊı¾İ
-* ·µ»ØÖµ£º0£º³É¹¦£»-1£ºÊ§°Ü
-* ±¸  ×¢£º
+* åŠŸ  èƒ½ï¼šè§£æå‘½ä»¤è¡Œ
+* å‚  æ•°ï¼š* 
+*        agc                      -I       å‘½ä»¤è¡Œå‚æ•°ä¸ªæ•°
+*        argv                     -I       å‘½ä»¤è¡Œå‚æ•°åœ°å€
+*        cmd                      -O       å‘½ä»¤è¡Œæ•°æ®
+* è¿”å›å€¼ï¼š0ï¼šæˆåŠŸï¼›-1ï¼šå¤±è´¥
+* å¤‡  æ³¨ï¼š
 ***************************************************************************************************/
 HLM_S32 HLMC_CMD_ParseCommand(int              argc,
                               char           **argv,
@@ -409,7 +409,7 @@ HLM_S32 HLMC_CMD_ParseCommand(int              argc,
 {
     HLM_S32 i = 0;
 
-    // ±éÀúcommand line
+    // éå†command line
     for (i = 1; i < argc; i++)
     {
         if (!strcmp(argv[i], "-c"))
@@ -576,11 +576,11 @@ HLM_S32 HLMC_CMD_ParseCommand(int              argc,
 }
 
 /***************************************************************************************************
-* ¹¦  ÄÜ£ºĞ£ÑéÃüÁîĞĞ²ÎÊı
-* ²Î  Êı£º*
-*        cmd                      -I       ÃüÁîĞĞÊı¾İ
-* ·µ»ØÖµ£º0£º³É¹¦£»-1£ºÊ§°Ü
-* ±¸  ×¢£º
+* åŠŸ  èƒ½ï¼šæ ¡éªŒå‘½ä»¤è¡Œå‚æ•°
+* å‚  æ•°ï¼š*
+*        cmd                      -I       å‘½ä»¤è¡Œæ•°æ®
+* è¿”å›å€¼ï¼š0ï¼šæˆåŠŸï¼›-1ï¼šå¤±è´¥
+* å¤‡  æ³¨ï¼š
 ***************************************************************************************************/
 HLM_S32 HLMC_CMD_CheckCommand(HLMC_DEMO_CMD *cmd)
 {

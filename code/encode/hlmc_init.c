@@ -1,348 +1,348 @@
-/***************************************************************************************************
-
-The copyright in this software is being made available under the License included below.
-This software may be subject to other third party and contributor rights, including patent
-rights, and no such rights are granted under this license.
-
-Copyright (C) 2025, Hangzhou Hikvision Digital Technology Co., Ltd. All rights reserved.
-
-Redistribution and use in source and binary forms, with or without modification, are permitted
-only for the purpose of developing standards within Audio and Video Coding Standard Workgroup of
-China (AVS) and for testing and promoting such standards. The following conditions are required
-to be met:
-
-* Redistributions of source code must retain the above copyright notice, this list of
-conditions and the following disclaimer.
-* Redistributions in binary form must reproduce the above copyright notice, this list of
-conditions and the following disclaimer in the documentation and/or other materials
-provided with the distribution.
-* The name of Hangzhou Hikvision Digital Technology Co., Ltd. may not be used to endorse or
-promote products derived from this software without specific prior written permission.
-
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR
-IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND
-FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR
-CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
-CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
-SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
-OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-POSSIBILITY OF SUCH DAMAGE.
-
-***************************************************************************************************/
-#include "hlmc_init.h"
-#include "hlmc_dpb.h"
-#include "hlmc_rc.h"
-
-/***************************************************************************************************
-* ¹¦  ÄÜ£º¼ì²âÄÜÁ¦¼¯²ÎÊı
-* ²Î  Êı£º*
-*         ability       -I       ÄÜÁ¦¼¯²ÎÊı
-* ·µ»ØÖµ£º×´Ì¬Âë
-* ±¸  ×¢£º
-***************************************************************************************************/
-HLM_STATUS HLMC_INIT_CheckAbilityParam(HLMC_ABILITY *ability)
-{
-    // ±£Ö¤¿í¶ÈºÍ¸ß¶È¾ù²»Ğ¡ÓÚ64
-    HLM_CHECK_ERROR((ability->max_width  < HLM_IMG_WIDTH_MIN) 
-                 || (ability->max_height < HLM_IMG_HEIGHT_MIN), HLM_STS_ERR_ABILITY_ARG);
-
-    // ±£Ö¤¿í¶ÈºÍ¸ß¶È¾ùÎªÅ¼Êı
-    HLM_CHECK_ERROR((ability->max_width  & 0x1) 
-                 || (ability->max_height & 0x1), HLM_STS_ERR_ABILITY_ARG);
-
-    return HLM_STS_OK;
-}
-
-/***************************************************************************************************
-* ¹¦  ÄÜ£ºĞ£ÑéĞòÁĞ¼¶±àÂë¿ØÖÆ²ÎÊı
-* ²Î  Êı£º*
-*         handle       -I  ±àÂëÊµÀı¾ä±úÖ¸Õë
-*         code_params  -I  ±àÂëÄ£ĞÍÅäÖÃ²ÎÊı
-* ·µ»ØÖµ£º×´Ì¬Âë
-* ±¸  ×¢£º
-**************************************************************************************************/
-HLM_STATUS HLMC_INIT_CheckCodingCtrl(HLM_VOID             *handle,
-                                     HLMC_CODING_CTRL     *code_params)
-{
-    HLM_SPEC *spec = HLM_NULL;
-
-    HLM_CHECK_ERROR((HLM_NULL == handle) || (HLM_NULL == code_params), HLM_STS_ERR_NULL_PTR);
-
-    // ³õÊ¼»¯
-    spec = (HLM_SPEC *)handle;
-
-    // ·Ö±æÂÊ²»Ğ¡ÓÚ64x64£¬µ«Ò²²»ÄÜ³¬¹ıÄÜÁ¦¼¯
-    HLM_CHECK_ERROR((code_params->width < HLM_IMG_WIDTH_MIN)
-        || (code_params->width > spec->ability.max_width), HLM_STS_ERR_PARAM_VALUE);
-    HLM_CHECK_ERROR((code_params->height < HLM_IMG_HEIGHT_MIN)
-        || (code_params->height > spec->ability.max_height), HLM_STS_ERR_PARAM_VALUE);
-    HLM_CHECK_ERROR((code_params->bitdepth < 8) || (code_params->bitdepth > 16), HLM_STS_ERR_PARAM_VALUE);
-
-    // ±£Ö¤¿í¶ÈºÍ¸ß¶ÈºÏ·¨
-    if (code_params->img_format == HLM_IMG_YUV_422)
-    {
-        HLM_CHECK_ERROR((code_params->height % 2), HLM_STS_ERR_PARAM_VALUE);
-    }
-    else if (code_params->img_format == HLM_IMG_YUV_420)
-    {
-        HLM_CHECK_ERROR((code_params->width % 2)
-            || (code_params->height % 2), HLM_STS_ERR_PARAM_VALUE);
-    }
-
-    HLM_CHECK_ERROR(!(code_params->frame_rate_num
-        && code_params->frame_rate_denom), HLM_STS_ERR_PARAM_VALUE);
-
-    return HLM_STS_OK;
-}
-
-/***************************************************************************************************
-* ¹¦  ÄÜ£º¼ì²éËã·¨¿âÖ÷´¦Àíº¯ÊıÊäÈëÊä³ö²ÎÊıÊÇ·ñÓĞĞ§
-* ²Î  Êı£º
-*         handle         -I          ¿âÊµÀı¾ä±ú
-*         in_buf         -I          ´¦ÀíÊäÈë²ÎÊıµØÖ·
-*         in_size        -I          ´¦ÀíÊäÈë²ÎÊı´óĞ¡
-*         out_size       -I          ´¦ÀíÊä³ö²ÎÊı´óĞ¡
-*         out_buf        -O          ´¦ÀíÊä³ö²ÎÊıµØÖ·
-* ·µ»ØÖµ£º×´Ì¬Âë
-* ±¸  ×¢£º
-***************************************************************************************************/
-HLM_STATUS HLMC_INIT_CheckPrcIOParam(HLM_VOID *handle,
-                                     HLM_VOID *in_buf,
-                                     HLM_SZT   in_size,
-                                     HLM_VOID *out_buf,
-                                     HLM_SZT   out_size)
-{
-    HLM_SPEC         *spec         = HLM_NULL;
-    HLMC_PROCESS_IN  *input        = HLM_NULL;
-    HLMC_PROCESS_OUT *output       = HLM_NULL;
-    HLM_IMAGE        *src_img      = HLM_NULL;
-    HLM_U32           i            = 0;
-    HLM_S32           total_width  = 0;
-    HLM_S32           total_height = 0;
-
-    HLM_CHECK_ERROR((HLM_NULL == handle) || (HLM_NULL == in_buf) || (HLM_NULL == out_buf), HLM_STS_ERR_NULL_PTR);
-    HLM_CHECK_ERROR((in_size != sizeof(HLMC_PROCESS_IN)) || (out_size != sizeof(HLMC_PROCESS_OUT)), HLM_STS_ERR_PRC_SIZE);
-
-    spec = (HLM_SPEC *)handle;
-    input = (HLMC_PROCESS_IN *)in_buf;
-    output = (HLMC_PROCESS_OUT *)out_buf;
-
-    // ÊäÈëÍ¼Ïñ¼ì²â
-    src_img = &(input->image_in);
-    HLM_CHECK_ERROR((src_img->format != HLM_IMG_YUV_444) && (src_img->format != HLM_IMG_RGB) &&
-        (src_img->format != HLM_IMG_YUV_400) && (src_img->format != HLM_IMG_YUV_420) &&
-        (src_img->format != HLM_IMG_YUV_422), HLM_STS_ERR_IMG_FORMAT);
-    HLM_CHECK_ERROR(src_img->step[0] < src_img->width[0], HLM_STS_ERR_IMG_STEP);
-    HLM_CHECK_ERROR(src_img->step[1] < (src_img->width[1]), HLM_STS_ERR_IMG_STEP);
-    HLM_CHECK_ERROR(src_img->step[2] < (src_img->width[1]), HLM_STS_ERR_IMG_STEP);
-    HLM_CHECK_ERROR(src_img->bitdepth < 8 || src_img->bitdepth > 16, HLM_STS_ERR_IMG_STEP);
-    HLM_CHECK_ERROR(HLM_NULL == src_img->data[0], HLM_STS_ERR_IMG_DATA_NULL);
-    HLM_CHECK_ERROR(HLM_NULL == src_img->data[1], HLM_STS_ERR_IMG_DATA_NULL);
-    HLM_CHECK_ERROR(HLM_NULL == src_img->data[2], HLM_STS_ERR_IMG_DATA_NULL);
-
-    // ÂëÁ÷»º³åÇø¼ì²â
-    HLM_CHECK_ERROR(HLM_NULL == input->stream_buf, HLM_STS_ERR_NULL_PTR);
-    HLM_CHECK_ERROR(input->stream_buf_size < HLMC_STREAM_BUF_RSV, HLM_STS_ERR_PRC_SIZE);
-    HLM_CHECK_ERROR(input->force_idr > 1, HLM_STS_ERR_PRC_SIZE);
-    HLM_CHECK_ERROR(src_img->width[0] > HLM_IMG_WIDTH_MAX, HLM_STS_ERR_IMG_SIZE);
-    HLM_CHECK_ERROR(src_img->height[0] > HLM_IMG_HEIGHT_MAX, HLM_STS_ERR_IMG_SIZE);
-
-    if (src_img->format == HLM_IMG_YUV_400)
-    {
-        HLM_CHECK_ERROR(src_img->width[1] != 0, HLM_STS_ERR_IMG_SIZE);
-        HLM_CHECK_ERROR(src_img->height[1] != 0, HLM_STS_ERR_IMG_SIZE);
-    }
-    else if (src_img->format == HLM_IMG_YUV_420)
-    {
-        HLM_CHECK_ERROR((src_img->width[0] != 2 * src_img->width[1]) || (src_img->width[0] % 2 != 0), HLM_STS_ERR_IMG_SIZE);
-        HLM_CHECK_ERROR((src_img->height[0] != 2 * src_img->height[1]) || (src_img->height[0] % 2 != 0), HLM_STS_ERR_IMG_SIZE);
-    }
-    else if (src_img->format == HLM_IMG_YUV_422)
-    {
-        HLM_CHECK_ERROR((src_img->width[0] != 2 * src_img->width[1]), HLM_STS_ERR_IMG_SIZE);
-        HLM_CHECK_ERROR((src_img->height[0] != src_img->height[1]) || (src_img->height[0] % 2 != 0), HLM_STS_ERR_IMG_SIZE);
-    }
-    else if (src_img->format == HLM_IMG_YUV_444)
-    {
-        HLM_CHECK_ERROR(src_img->width[0] != src_img->width[1], HLM_STS_ERR_IMG_SIZE);
-        HLM_CHECK_ERROR(src_img->height[0] != src_img->height[1], HLM_STS_ERR_IMG_SIZE);
-    }
-
-    return HLM_STS_OK;
-}
-
-/***************************************************************************************************
-* ¹¦  ÄÜ£º·ÖÅäÍâ²¿DDR²»¿É¸´ÓÃµÄ»º´æ£¬²¢¼ÆËãËùĞè´óĞ¡
-* ²Î  Êı£º*
-*         spec          -I/O        Ä£¿é²ÎÊı½á¹¹ÌåÖ¸Õë
-*         mem_tab       -I          »º´æ±í½á¹¹ÌåÖ¸Õë
-*         alloc_size    -O          ËùĞèDDR»º´æ´óĞ¡
-* ·µ»ØÖµ£º×´Ì¬Âë
-* ±¸  ×¢£ºÖ÷ÒªÊÇ¹«¹²»º´æ²¿·Ö
-***************************************************************************************************/
-HLM_STATUS HLMC_INIT_AllocDdrPersistMem(HLM_SPEC    *spec,
-                                        HLM_MEM_TAB *mem_tab,
-                                        HLM_SZT     *alloc_size)
-{
-    HLM_SZT            size       = 0;
-    HLM_SZT            used_size  = 0;
-    HLM_SZT            total_size = mem_tab->size;
-    HLM_MEM_ALIGNMENT  alignment  = mem_tab->alignment;
-
-    // Ìø¹ıspec½á¹¹Ìå£¬ÔÚÍâÃæÒÑ·ÖÅä£¬Ö»¼ÆËã»º´æ´óĞ¡
-    size = sizeof(HLM_SPEC);
-    size = HLM_SIZE_ALIGN(size, alignment);
-    used_size += size;
-
-    //¼ì²âÄÚ´æ´óĞ¡ÊÇ·ñ³¬¹ı·ÖÅä´óĞ¡
-    HLM_CHECK_ERROR(used_size > total_size, HLM_STS_ERR_MEM_LACK);
-
-    *alloc_size = used_size;
-
-    return HLM_STS_OK;
-}
-
-/***************************************************************************************************
-* ¹¦  ÄÜ£º·ÖÅäÄÚ²¿RAM»º´æ£¬²¢¼ÆËãËùĞèRAM»º´æ´óĞ¡
-* ²Î  Êı£º*
-*         spec          -I/O        Ä£¿é²ÎÊı½á¹¹ÌåÖ¸Õë
-*         mem_tab       -I          »º´æ±í½á¹¹ÌåÖ¸Õë
-*         alloc_size    -O          ËùĞèRAM»º´æ´óĞ¡
-* ·µ»ØÖµ£º×´Ì¬Âë
-* ±¸  ×¢£ºRAM»º´æÊµ¼ÊÎªÓ²¼şÄ£¿éÊ¹ÓÃ£¬µ«ÊÇÒòÎªÓ²¼şÄ£¿éÃ»ÓĞGetMemSizeºÍCreate½Ó¿Ú£¬Òò´ËÔÚÉÏ²ã½øĞĞ·ÖÅä
-***************************************************************************************************/
-HLM_STATUS HLMC_INIT_AllocRamScratchMem(HLM_SPEC    *spec,
-                                        HLM_MEM_TAB *mem_tab,
-                                        HLM_SZT     *alloc_size)
-{
-    HLM_SZT            size       = 0;
-    HLM_SZT            used_size  = 0;
-    HLM_SZT            total_size = mem_tab->size;
-    HLM_MEM_ALIGNMENT  alignment  = mem_tab->alignment;
-    HLM_U08           *acc_addr   = (HLM_U08 *)(mem_tab->base);
-
-    // CU¼¶ĞÅÏ¢£ºÏµÊı(128 x 4B x 3·ÖÁ¿) x 2(µ±Ç°ºÍ×îÓÅ) x 10(ÄÚ²¿ĞÅÏ¢ÊıÁ¿)
-    size += HLM_CU_SIZE * 4 * 3 * 2 * 10;
-    // ĞĞbuffer: Ò»ĞĞÊÇ²Î¿¼ÏñËØ(15360 x 2B x 3·ÖÁ¿)£¬Ò»ĞĞÊÇÒÔ4x4¿é´æ´¢µÄÄ£Ê½ĞÅÏ¢
-    size += HLM_IMG_WIDTH_MAX * 2 * 3 * 2;
-    // 16K 16bit YUV444ÄÚ´æÎª: 15360 x 8640 x 2B x 3·ÖÁ¿ x 2(Ô­Ê¼ºÍÖØ½¨)
-    size += HLM_IMG_WIDTH_MAX * HLM_IMG_HEIGHT_MAX * 2 * 3 * 2;
-
-    size = HLM_SIZE_ALIGN(size, alignment);
-    spec->ram_buf = acc_addr;
-    spec->ram_size = size;
-    used_size += size;
-
-    //¼ì²âÄÚ´æ´óĞ¡ÊÇ·ñ³¬¹ı·ÖÅä´óĞ¡
-    HLM_CHECK_ERROR(used_size > total_size, HLM_STS_ERR_MEM_LACK);
-
-    *alloc_size = used_size;
-
-    return HLM_STS_OK;
-}
-
-/***************************************************************************************************
-* ¹¦  ÄÜ£º¼ÆËã¸÷×ÓÄ£¿éËùĞè×´Ì¬ÄÚ´æ´óĞ¡
-* ²Î  Êı£º*
-*         spec          -I/O  Ä£¿é²ÎÊı½á¹¹ÌåÖ¸Õë
-*         status_size   -O    ËùĞè×´Ì¬ÄÚ´æ´óĞ¡
-*         work_size     -O    ËùĞè¹¤×÷ÄÚ´æ´óĞ¡
-* ·µ»ØÖµ£º×´Ì¬Âë
-* ±¸  ×¢£º
-***************************************************************************************************/
-HLM_STATUS HLMC_INIT_GetModuleBuf(HLM_SPEC   *spec,
-                                  HLM_SZT    *status_size,
-                                  HLM_SZT    *work_size)
-{
-    HLM_STATUS        sts               = HLM_STS_ERR;
-    HLMC_ABILITY     *ability           = &(spec->ability);
-    HLM_U32           max_width         = HLM_SIZE_ALIGN_8(ability->max_width);
-    HLM_U32           max_height        = HLM_SIZE_ALIGN_8(ability->max_height);
-    HLM_SZT           modu_status_size  = 0; //µ¥¸öÄ£¿éËùĞè×´Ì¬ÄÚ´æ´óĞ¡
-    HLM_SZT           modu_work_size    = 0; //µ¥¸öÄ£¿éËùĞè×´Ì¬¹¤×÷´óĞ¡
-    HLM_SZT           total_status_size = 0; //Ä£¿éÊ¹ÓÃÀÛ¼Æ×´Ì¬ÄÚ´æ´óĞ¡
-    HLM_SZT           total_work_size   = 0; //Ä£¿éÊ¹ÓÃÀÛ¼Æ¹¤×÷ÄÚ´æ´óĞ¡£¬ÔİÊ±ÏÈ²»¿¼ÂÇÄ£¿éÖ®¼ä¸´ÓÃ
-
-    // ÉêÇëDPBÄ£¿é»º´æ
-    sts = HLMC_DPB_GetMemSize(max_width, max_height, &modu_status_size, &modu_work_size,
-        spec->coding_ctrl.mv_search_width, spec->coding_ctrl.mv_search_height);
-    HLM_CHECK_ERROR((HLM_STS_OK != sts), sts);
-    total_status_size += modu_status_size;
-    total_work_size   += modu_work_size;
-
-    // ÉêÇëRCÄ£¿é»º´æ
-    sts = HLMC_RC_GetMemSize(&modu_status_size, &modu_work_size);
-    HLM_CHECK_ERROR((HLM_STS_OK != sts), sts);
-    total_status_size += modu_status_size;
-    total_work_size   += modu_work_size;
-
-    *status_size = total_status_size;
-    *work_size   = total_work_size;
-
-    return HLM_STS_OK;
-}
-
-/***************************************************************************************************
-* ¹¦  ÄÜ£º·ÖÅä¸÷×ÓÄ£¿éËùĞè×´Ì¬ÄÚ´æ´óĞ¡£¬´´½¨×ÓÄ£¿é
-* ²Î  Êı£º*
-*         spec          -I/O  Ä£¿é²ÎÊı½á¹¹ÌåÖ¸Õë
-*         status_buf    -I    ×´Ì¬ÄÚ´æµØÖ·
-*         status_size   -I    Ëù·ÖÅä×´Ì¬ÄÚ´æ´óĞ¡
-*         work_buf      -I    ¹¤×÷ÄÚ´æµØÖ·
-*         work_size     -I    Ëù·ÖÅä¹¤×÷ÄÚ´æ´óĞ¡
-* ·µ»ØÖµ£º×´Ì¬Âë
-* ±¸  ×¢£º
-***************************************************************************************************/
-HLM_STATUS HLMC_INIT_AllocModuleBuf(HLM_SPEC   *spec,
-                                    HLM_U08    *status_buf,
-                                    HLM_SZT     status_size,
-                                    HLM_U08    *work_buf,
-                                    HLM_SZT     work_size)
-{
-    HLM_STATUS        sts               = HLM_STS_ERR;
-    HLMC_ABILITY     *ability           = &spec->ability;
-    HLM_U32           max_width         = HLM_SIZE_ALIGN_8(ability->max_width);
-    HLM_U32           max_height        = HLM_SIZE_ALIGN_8(ability->max_height);
-    HLM_U08          *left_status_buf   = status_buf;
-    HLM_U08          *left_work_buf     = work_buf;
-    HLM_SZT           modu_status_size  = 0;           //µ¥¸öÄ£¿éËùĞè×´Ì¬ÄÚ´æ´óĞ¡
-    HLM_SZT           modu_work_size    = 0;           //µ¥¸öÄ£¿éËùĞè×´Ì¬¹¤×÷´óĞ¡
-    HLM_SZT           left_status_size  = status_size; //Ê£Óà×´Ì¬ÄÚ´æ´óĞ¡
-    HLM_SZT           left_work_size    = work_size;   //Ê£Óà¹¤×÷ÄÚ´æ´óĞ¡
-
-    // DPBÄ£¿éÏÈÅĞ¶ÏÄÚ´æÊÇ·ñ×ã¹»£¬ÔÙ´´½¨
-    sts = HLMC_DPB_GetMemSize(max_width, max_height, &modu_status_size, &modu_work_size,
-        spec->coding_ctrl.mv_search_width, spec->coding_ctrl.mv_search_height);
-    HLM_CHECK_ERROR((HLM_STS_OK != sts), sts);
-
-    //ÅĞ¶Ï×´ÌåÄÚ´æ¡¢¹¤×÷ÄÚ´æÊÇ·ñ×ã¹»
-    HLM_CHECK_ERROR((left_status_size < modu_status_size), HLM_STS_ERR_MEM_LACK);
-    HLM_CHECK_ERROR((left_work_size   < modu_work_size  ), HLM_STS_ERR_MEM_LACK);
-
-    //ÄÚ´æ×ã¹»£¬¿ÉÒÔ´´½¨Ä£¿é
-    sts = HLMC_DPB_Create(max_width, max_height, left_status_buf, left_work_buf, &(spec->dpb_handle),
-        spec->coding_ctrl.mv_search_width, spec->coding_ctrl.mv_search_height);
-    HLM_CHECK_ERROR((HLM_STS_OK != sts), sts);
-
-    // ×´Ì¬ÄÚ´æ²»¿É¸´ÓÃ£¬ĞèÒª¿Û³ı
-    left_status_size -= modu_status_size;
-    left_work_size   -= modu_work_size;
-    left_status_buf  += modu_status_size;
-    left_work_buf    += modu_work_size;
-
-    // RCÄ£¿éÏÈÅĞ¶ÏÄÚ´æÊÇ·ñ×ã¹»£¬ÔÙ´´½¨
-    sts = HLMC_RC_GetMemSize(&modu_status_size, &modu_work_size);
-    HLM_CHECK_ERROR((HLM_STS_OK != sts), sts);
-
-    //ÅĞ¶Ï×´ÌåÄÚ´æ¡¢¹¤×÷ÄÚ´æÊÇ·ñ×ã¹»
-    HLM_CHECK_ERROR((left_status_size < modu_status_size), HLM_STS_ERR_MEM_LACK);
-    HLM_CHECK_ERROR((left_work_size   < modu_work_size  ), HLM_STS_ERR_MEM_LACK);
-
-    //ÄÚ´æ×ã¹»£¬¿ÉÒÔ´´½¨Ä£¿é
-    sts = HLMC_RC_Create(left_status_buf, left_work_buf, &(spec->rc_handle));
-    HLM_CHECK_ERROR((HLM_STS_OK != sts), sts);
-
-    return HLM_STS_OK;
-}
-
+/***************************************************************************************************
+
+The copyright in this software is being made available under the License included below.
+This software may be subject to other third party and contributor rights, including patent
+rights, and no such rights are granted under this license.
+
+Copyright (C) 2025, Hangzhou Hikvision Digital Technology Co., Ltd. All rights reserved.
+
+Redistribution and use in source and binary forms, with or without modification, are permitted
+only for the purpose of developing standards within Audio and Video Coding Standard Workgroup of
+China (AVS) and for testing and promoting such standards. The following conditions are required
+to be met:
+
+* Redistributions of source code must retain the above copyright notice, this list of
+conditions and the following disclaimer.
+* Redistributions in binary form must reproduce the above copyright notice, this list of
+conditions and the following disclaimer in the documentation and/or other materials
+provided with the distribution.
+* The name of Hangzhou Hikvision Digital Technology Co., Ltd. may not be used to endorse or
+promote products derived from this software without specific prior written permission.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR
+IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND
+FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR
+CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+POSSIBILITY OF SUCH DAMAGE.
+
+***************************************************************************************************/
+#include "hlmc_init.h"
+#include "hlmc_dpb.h"
+#include "hlmc_rc.h"
+
+/***************************************************************************************************
+* åŠŸ  èƒ½ï¼šæ£€æµ‹èƒ½åŠ›é›†å‚æ•°
+* å‚  æ•°ï¼š*
+*         ability       -I       èƒ½åŠ›é›†å‚æ•°
+* è¿”å›å€¼ï¼šçŠ¶æ€ç 
+* å¤‡  æ³¨ï¼š
+***************************************************************************************************/
+HLM_STATUS HLMC_INIT_CheckAbilityParam(HLMC_ABILITY *ability)
+{
+    // ä¿è¯å®½åº¦å’Œé«˜åº¦å‡ä¸å°äº64
+    HLM_CHECK_ERROR((ability->max_width  < HLM_IMG_WIDTH_MIN) 
+                 || (ability->max_height < HLM_IMG_HEIGHT_MIN), HLM_STS_ERR_ABILITY_ARG);
+
+    // ä¿è¯å®½åº¦å’Œé«˜åº¦å‡ä¸ºå¶æ•°
+    HLM_CHECK_ERROR((ability->max_width  & 0x1) 
+                 || (ability->max_height & 0x1), HLM_STS_ERR_ABILITY_ARG);
+
+    return HLM_STS_OK;
+}
+
+/***************************************************************************************************
+* åŠŸ  èƒ½ï¼šæ ¡éªŒåºåˆ—çº§ç¼–ç æ§åˆ¶å‚æ•°
+* å‚  æ•°ï¼š*
+*         handle       -I  ç¼–ç å®ä¾‹å¥æŸ„æŒ‡é’ˆ
+*         code_params  -I  ç¼–ç æ¨¡å‹é…ç½®å‚æ•°
+* è¿”å›å€¼ï¼šçŠ¶æ€ç 
+* å¤‡  æ³¨ï¼š
+**************************************************************************************************/
+HLM_STATUS HLMC_INIT_CheckCodingCtrl(HLM_VOID             *handle,
+                                     HLMC_CODING_CTRL     *code_params)
+{
+    HLM_SPEC *spec = HLM_NULL;
+
+    HLM_CHECK_ERROR((HLM_NULL == handle) || (HLM_NULL == code_params), HLM_STS_ERR_NULL_PTR);
+
+    // åˆå§‹åŒ–
+    spec = (HLM_SPEC *)handle;
+
+    // åˆ†è¾¨ç‡ä¸å°äº64x64ï¼Œä½†ä¹Ÿä¸èƒ½è¶…è¿‡èƒ½åŠ›é›†
+    HLM_CHECK_ERROR((code_params->width < HLM_IMG_WIDTH_MIN)
+        || (code_params->width > spec->ability.max_width), HLM_STS_ERR_PARAM_VALUE);
+    HLM_CHECK_ERROR((code_params->height < HLM_IMG_HEIGHT_MIN)
+        || (code_params->height > spec->ability.max_height), HLM_STS_ERR_PARAM_VALUE);
+    HLM_CHECK_ERROR((code_params->bitdepth < 8) || (code_params->bitdepth > 16), HLM_STS_ERR_PARAM_VALUE);
+
+    // ä¿è¯å®½åº¦å’Œé«˜åº¦åˆæ³•
+    if (code_params->img_format == HLM_IMG_YUV_422)
+    {
+        HLM_CHECK_ERROR((code_params->height % 2), HLM_STS_ERR_PARAM_VALUE);
+    }
+    else if (code_params->img_format == HLM_IMG_YUV_420)
+    {
+        HLM_CHECK_ERROR((code_params->width % 2)
+            || (code_params->height % 2), HLM_STS_ERR_PARAM_VALUE);
+    }
+
+    HLM_CHECK_ERROR(!(code_params->frame_rate_num
+        && code_params->frame_rate_denom), HLM_STS_ERR_PARAM_VALUE);
+
+    return HLM_STS_OK;
+}
+
+/***************************************************************************************************
+* åŠŸ  èƒ½ï¼šæ£€æŸ¥ç®—æ³•åº“ä¸»å¤„ç†å‡½æ•°è¾“å…¥è¾“å‡ºå‚æ•°æ˜¯å¦æœ‰æ•ˆ
+* å‚  æ•°ï¼š
+*         handle         -I          åº“å®ä¾‹å¥æŸ„
+*         in_buf         -I          å¤„ç†è¾“å…¥å‚æ•°åœ°å€
+*         in_size        -I          å¤„ç†è¾“å…¥å‚æ•°å¤§å°
+*         out_size       -I          å¤„ç†è¾“å‡ºå‚æ•°å¤§å°
+*         out_buf        -O          å¤„ç†è¾“å‡ºå‚æ•°åœ°å€
+* è¿”å›å€¼ï¼šçŠ¶æ€ç 
+* å¤‡  æ³¨ï¼š
+***************************************************************************************************/
+HLM_STATUS HLMC_INIT_CheckPrcIOParam(HLM_VOID *handle,
+                                     HLM_VOID *in_buf,
+                                     HLM_SZT   in_size,
+                                     HLM_VOID *out_buf,
+                                     HLM_SZT   out_size)
+{
+    HLM_SPEC         *spec         = HLM_NULL;
+    HLMC_PROCESS_IN  *input        = HLM_NULL;
+    HLMC_PROCESS_OUT *output       = HLM_NULL;
+    HLM_IMAGE        *src_img      = HLM_NULL;
+    HLM_U32           i            = 0;
+    HLM_S32           total_width  = 0;
+    HLM_S32           total_height = 0;
+
+    HLM_CHECK_ERROR((HLM_NULL == handle) || (HLM_NULL == in_buf) || (HLM_NULL == out_buf), HLM_STS_ERR_NULL_PTR);
+    HLM_CHECK_ERROR((in_size != sizeof(HLMC_PROCESS_IN)) || (out_size != sizeof(HLMC_PROCESS_OUT)), HLM_STS_ERR_PRC_SIZE);
+
+    spec = (HLM_SPEC *)handle;
+    input = (HLMC_PROCESS_IN *)in_buf;
+    output = (HLMC_PROCESS_OUT *)out_buf;
+
+    // è¾“å…¥å›¾åƒæ£€æµ‹
+    src_img = &(input->image_in);
+    HLM_CHECK_ERROR((src_img->format != HLM_IMG_YUV_444) && (src_img->format != HLM_IMG_RGB) &&
+        (src_img->format != HLM_IMG_YUV_400) && (src_img->format != HLM_IMG_YUV_420) &&
+        (src_img->format != HLM_IMG_YUV_422), HLM_STS_ERR_IMG_FORMAT);
+    HLM_CHECK_ERROR(src_img->step[0] < src_img->width[0], HLM_STS_ERR_IMG_STEP);
+    HLM_CHECK_ERROR(src_img->step[1] < (src_img->width[1]), HLM_STS_ERR_IMG_STEP);
+    HLM_CHECK_ERROR(src_img->step[2] < (src_img->width[1]), HLM_STS_ERR_IMG_STEP);
+    HLM_CHECK_ERROR(src_img->bitdepth < 8 || src_img->bitdepth > 16, HLM_STS_ERR_IMG_STEP);
+    HLM_CHECK_ERROR(HLM_NULL == src_img->data[0], HLM_STS_ERR_IMG_DATA_NULL);
+    HLM_CHECK_ERROR(HLM_NULL == src_img->data[1], HLM_STS_ERR_IMG_DATA_NULL);
+    HLM_CHECK_ERROR(HLM_NULL == src_img->data[2], HLM_STS_ERR_IMG_DATA_NULL);
+
+    // ç æµç¼“å†²åŒºæ£€æµ‹
+    HLM_CHECK_ERROR(HLM_NULL == input->stream_buf, HLM_STS_ERR_NULL_PTR);
+    HLM_CHECK_ERROR(input->stream_buf_size < HLMC_STREAM_BUF_RSV, HLM_STS_ERR_PRC_SIZE);
+    HLM_CHECK_ERROR(input->force_idr > 1, HLM_STS_ERR_PRC_SIZE);
+    HLM_CHECK_ERROR(src_img->width[0] > HLM_IMG_WIDTH_MAX, HLM_STS_ERR_IMG_SIZE);
+    HLM_CHECK_ERROR(src_img->height[0] > HLM_IMG_HEIGHT_MAX, HLM_STS_ERR_IMG_SIZE);
+
+    if (src_img->format == HLM_IMG_YUV_400)
+    {
+        HLM_CHECK_ERROR(src_img->width[1] != 0, HLM_STS_ERR_IMG_SIZE);
+        HLM_CHECK_ERROR(src_img->height[1] != 0, HLM_STS_ERR_IMG_SIZE);
+    }
+    else if (src_img->format == HLM_IMG_YUV_420)
+    {
+        HLM_CHECK_ERROR((src_img->width[0] != 2 * src_img->width[1]) || (src_img->width[0] % 2 != 0), HLM_STS_ERR_IMG_SIZE);
+        HLM_CHECK_ERROR((src_img->height[0] != 2 * src_img->height[1]) || (src_img->height[0] % 2 != 0), HLM_STS_ERR_IMG_SIZE);
+    }
+    else if (src_img->format == HLM_IMG_YUV_422)
+    {
+        HLM_CHECK_ERROR((src_img->width[0] != 2 * src_img->width[1]), HLM_STS_ERR_IMG_SIZE);
+        HLM_CHECK_ERROR((src_img->height[0] != src_img->height[1]) || (src_img->height[0] % 2 != 0), HLM_STS_ERR_IMG_SIZE);
+    }
+    else if (src_img->format == HLM_IMG_YUV_444)
+    {
+        HLM_CHECK_ERROR(src_img->width[0] != src_img->width[1], HLM_STS_ERR_IMG_SIZE);
+        HLM_CHECK_ERROR(src_img->height[0] != src_img->height[1], HLM_STS_ERR_IMG_SIZE);
+    }
+
+    return HLM_STS_OK;
+}
+
+/***************************************************************************************************
+* åŠŸ  èƒ½ï¼šåˆ†é…å¤–éƒ¨DDRä¸å¯å¤ç”¨çš„ç¼“å­˜ï¼Œå¹¶è®¡ç®—æ‰€éœ€å¤§å°
+* å‚  æ•°ï¼š*
+*         spec          -I/O        æ¨¡å—å‚æ•°ç»“æ„ä½“æŒ‡é’ˆ
+*         mem_tab       -I          ç¼“å­˜è¡¨ç»“æ„ä½“æŒ‡é’ˆ
+*         alloc_size    -O          æ‰€éœ€DDRç¼“å­˜å¤§å°
+* è¿”å›å€¼ï¼šçŠ¶æ€ç 
+* å¤‡  æ³¨ï¼šä¸»è¦æ˜¯å…¬å…±ç¼“å­˜éƒ¨åˆ†
+***************************************************************************************************/
+HLM_STATUS HLMC_INIT_AllocDdrPersistMem(HLM_SPEC    *spec,
+                                        HLM_MEM_TAB *mem_tab,
+                                        HLM_SZT     *alloc_size)
+{
+    HLM_SZT            size       = 0;
+    HLM_SZT            used_size  = 0;
+    HLM_SZT            total_size = mem_tab->size;
+    HLM_MEM_ALIGNMENT  alignment  = mem_tab->alignment;
+
+    // è·³è¿‡specç»“æ„ä½“ï¼Œåœ¨å¤–é¢å·²åˆ†é…ï¼Œåªè®¡ç®—ç¼“å­˜å¤§å°
+    size = sizeof(HLM_SPEC);
+    size = HLM_SIZE_ALIGN(size, alignment);
+    used_size += size;
+
+    //æ£€æµ‹å†…å­˜å¤§å°æ˜¯å¦è¶…è¿‡åˆ†é…å¤§å°
+    HLM_CHECK_ERROR(used_size > total_size, HLM_STS_ERR_MEM_LACK);
+
+    *alloc_size = used_size;
+
+    return HLM_STS_OK;
+}
+
+/***************************************************************************************************
+* åŠŸ  èƒ½ï¼šåˆ†é…å†…éƒ¨RAMç¼“å­˜ï¼Œå¹¶è®¡ç®—æ‰€éœ€RAMç¼“å­˜å¤§å°
+* å‚  æ•°ï¼š*
+*         spec          -I/O        æ¨¡å—å‚æ•°ç»“æ„ä½“æŒ‡é’ˆ
+*         mem_tab       -I          ç¼“å­˜è¡¨ç»“æ„ä½“æŒ‡é’ˆ
+*         alloc_size    -O          æ‰€éœ€RAMç¼“å­˜å¤§å°
+* è¿”å›å€¼ï¼šçŠ¶æ€ç 
+* å¤‡  æ³¨ï¼šRAMç¼“å­˜å®é™…ä¸ºç¡¬ä»¶æ¨¡å—ä½¿ç”¨ï¼Œä½†æ˜¯å› ä¸ºç¡¬ä»¶æ¨¡å—æ²¡æœ‰GetMemSizeå’ŒCreateæ¥å£ï¼Œå› æ­¤åœ¨ä¸Šå±‚è¿›è¡Œåˆ†é…
+***************************************************************************************************/
+HLM_STATUS HLMC_INIT_AllocRamScratchMem(HLM_SPEC    *spec,
+                                        HLM_MEM_TAB *mem_tab,
+                                        HLM_SZT     *alloc_size)
+{
+    HLM_SZT            size       = 0;
+    HLM_SZT            used_size  = 0;
+    HLM_SZT            total_size = mem_tab->size;
+    HLM_MEM_ALIGNMENT  alignment  = mem_tab->alignment;
+    HLM_U08           *acc_addr   = (HLM_U08 *)(mem_tab->base);
+
+    // CUçº§ä¿¡æ¯ï¼šç³»æ•°(128 x 4B x 3åˆ†é‡) x 2(å½“å‰å’Œæœ€ä¼˜) x 10(å†…éƒ¨ä¿¡æ¯æ•°é‡)
+    size += HLM_CU_SIZE * 4 * 3 * 2 * 10;
+    // è¡Œbuffer: ä¸€è¡Œæ˜¯å‚è€ƒåƒç´ (15360 x 2B x 3åˆ†é‡)ï¼Œä¸€è¡Œæ˜¯ä»¥4x4å—å­˜å‚¨çš„æ¨¡å¼ä¿¡æ¯
+    size += HLM_IMG_WIDTH_MAX * 2 * 3 * 2;
+    // 16K 16bit YUV444å†…å­˜ä¸º: 15360 x 8640 x 2B x 3åˆ†é‡ x 2(åŸå§‹å’Œé‡å»º)
+    size += HLM_IMG_WIDTH_MAX * HLM_IMG_HEIGHT_MAX * 2 * 3 * 2;
+
+    size = HLM_SIZE_ALIGN(size, alignment);
+    spec->ram_buf = acc_addr;
+    spec->ram_size = size;
+    used_size += size;
+
+    //æ£€æµ‹å†…å­˜å¤§å°æ˜¯å¦è¶…è¿‡åˆ†é…å¤§å°
+    HLM_CHECK_ERROR(used_size > total_size, HLM_STS_ERR_MEM_LACK);
+
+    *alloc_size = used_size;
+
+    return HLM_STS_OK;
+}
+
+/***************************************************************************************************
+* åŠŸ  èƒ½ï¼šè®¡ç®—å„å­æ¨¡å—æ‰€éœ€çŠ¶æ€å†…å­˜å¤§å°
+* å‚  æ•°ï¼š*
+*         spec          -I/O  æ¨¡å—å‚æ•°ç»“æ„ä½“æŒ‡é’ˆ
+*         status_size   -O    æ‰€éœ€çŠ¶æ€å†…å­˜å¤§å°
+*         work_size     -O    æ‰€éœ€å·¥ä½œå†…å­˜å¤§å°
+* è¿”å›å€¼ï¼šçŠ¶æ€ç 
+* å¤‡  æ³¨ï¼š
+***************************************************************************************************/
+HLM_STATUS HLMC_INIT_GetModuleBuf(HLM_SPEC   *spec,
+                                  HLM_SZT    *status_size,
+                                  HLM_SZT    *work_size)
+{
+    HLM_STATUS        sts               = HLM_STS_ERR;
+    HLMC_ABILITY     *ability           = &(spec->ability);
+    HLM_U32           max_width         = HLM_SIZE_ALIGN_8(ability->max_width);
+    HLM_U32           max_height        = HLM_SIZE_ALIGN_8(ability->max_height);
+    HLM_SZT           modu_status_size  = 0; //å•ä¸ªæ¨¡å—æ‰€éœ€çŠ¶æ€å†…å­˜å¤§å°
+    HLM_SZT           modu_work_size    = 0; //å•ä¸ªæ¨¡å—æ‰€éœ€çŠ¶æ€å·¥ä½œå¤§å°
+    HLM_SZT           total_status_size = 0; //æ¨¡å—ä½¿ç”¨ç´¯è®¡çŠ¶æ€å†…å­˜å¤§å°
+    HLM_SZT           total_work_size   = 0; //æ¨¡å—ä½¿ç”¨ç´¯è®¡å·¥ä½œå†…å­˜å¤§å°ï¼Œæš‚æ—¶å…ˆä¸è€ƒè™‘æ¨¡å—ä¹‹é—´å¤ç”¨
+
+    // ç”³è¯·DPBæ¨¡å—ç¼“å­˜
+    sts = HLMC_DPB_GetMemSize(max_width, max_height, &modu_status_size, &modu_work_size,
+        spec->coding_ctrl.mv_search_width, spec->coding_ctrl.mv_search_height);
+    HLM_CHECK_ERROR((HLM_STS_OK != sts), sts);
+    total_status_size += modu_status_size;
+    total_work_size   += modu_work_size;
+
+    // ç”³è¯·RCæ¨¡å—ç¼“å­˜
+    sts = HLMC_RC_GetMemSize(&modu_status_size, &modu_work_size);
+    HLM_CHECK_ERROR((HLM_STS_OK != sts), sts);
+    total_status_size += modu_status_size;
+    total_work_size   += modu_work_size;
+
+    *status_size = total_status_size;
+    *work_size   = total_work_size;
+
+    return HLM_STS_OK;
+}
+
+/***************************************************************************************************
+* åŠŸ  èƒ½ï¼šåˆ†é…å„å­æ¨¡å—æ‰€éœ€çŠ¶æ€å†…å­˜å¤§å°ï¼Œåˆ›å»ºå­æ¨¡å—
+* å‚  æ•°ï¼š*
+*         spec          -I/O  æ¨¡å—å‚æ•°ç»“æ„ä½“æŒ‡é’ˆ
+*         status_buf    -I    çŠ¶æ€å†…å­˜åœ°å€
+*         status_size   -I    æ‰€åˆ†é…çŠ¶æ€å†…å­˜å¤§å°
+*         work_buf      -I    å·¥ä½œå†…å­˜åœ°å€
+*         work_size     -I    æ‰€åˆ†é…å·¥ä½œå†…å­˜å¤§å°
+* è¿”å›å€¼ï¼šçŠ¶æ€ç 
+* å¤‡  æ³¨ï¼š
+***************************************************************************************************/
+HLM_STATUS HLMC_INIT_AllocModuleBuf(HLM_SPEC   *spec,
+                                    HLM_U08    *status_buf,
+                                    HLM_SZT     status_size,
+                                    HLM_U08    *work_buf,
+                                    HLM_SZT     work_size)
+{
+    HLM_STATUS        sts               = HLM_STS_ERR;
+    HLMC_ABILITY     *ability           = &spec->ability;
+    HLM_U32           max_width         = HLM_SIZE_ALIGN_8(ability->max_width);
+    HLM_U32           max_height        = HLM_SIZE_ALIGN_8(ability->max_height);
+    HLM_U08          *left_status_buf   = status_buf;
+    HLM_U08          *left_work_buf     = work_buf;
+    HLM_SZT           modu_status_size  = 0;           //å•ä¸ªæ¨¡å—æ‰€éœ€çŠ¶æ€å†…å­˜å¤§å°
+    HLM_SZT           modu_work_size    = 0;           //å•ä¸ªæ¨¡å—æ‰€éœ€çŠ¶æ€å·¥ä½œå¤§å°
+    HLM_SZT           left_status_size  = status_size; //å‰©ä½™çŠ¶æ€å†…å­˜å¤§å°
+    HLM_SZT           left_work_size    = work_size;   //å‰©ä½™å·¥ä½œå†…å­˜å¤§å°
+
+    // DPBæ¨¡å—å…ˆåˆ¤æ–­å†…å­˜æ˜¯å¦è¶³å¤Ÿï¼Œå†åˆ›å»º
+    sts = HLMC_DPB_GetMemSize(max_width, max_height, &modu_status_size, &modu_work_size,
+        spec->coding_ctrl.mv_search_width, spec->coding_ctrl.mv_search_height);
+    HLM_CHECK_ERROR((HLM_STS_OK != sts), sts);
+
+    //åˆ¤æ–­çŠ¶ä½“å†…å­˜ã€å·¥ä½œå†…å­˜æ˜¯å¦è¶³å¤Ÿ
+    HLM_CHECK_ERROR((left_status_size < modu_status_size), HLM_STS_ERR_MEM_LACK);
+    HLM_CHECK_ERROR((left_work_size   < modu_work_size  ), HLM_STS_ERR_MEM_LACK);
+
+    //å†…å­˜è¶³å¤Ÿï¼Œå¯ä»¥åˆ›å»ºæ¨¡å—
+    sts = HLMC_DPB_Create(max_width, max_height, left_status_buf, left_work_buf, &(spec->dpb_handle),
+        spec->coding_ctrl.mv_search_width, spec->coding_ctrl.mv_search_height);
+    HLM_CHECK_ERROR((HLM_STS_OK != sts), sts);
+
+    // çŠ¶æ€å†…å­˜ä¸å¯å¤ç”¨ï¼Œéœ€è¦æ‰£é™¤
+    left_status_size -= modu_status_size;
+    left_work_size   -= modu_work_size;
+    left_status_buf  += modu_status_size;
+    left_work_buf    += modu_work_size;
+
+    // RCæ¨¡å—å…ˆåˆ¤æ–­å†…å­˜æ˜¯å¦è¶³å¤Ÿï¼Œå†åˆ›å»º
+    sts = HLMC_RC_GetMemSize(&modu_status_size, &modu_work_size);
+    HLM_CHECK_ERROR((HLM_STS_OK != sts), sts);
+
+    //åˆ¤æ–­çŠ¶ä½“å†…å­˜ã€å·¥ä½œå†…å­˜æ˜¯å¦è¶³å¤Ÿ
+    HLM_CHECK_ERROR((left_status_size < modu_status_size), HLM_STS_ERR_MEM_LACK);
+    HLM_CHECK_ERROR((left_work_size   < modu_work_size  ), HLM_STS_ERR_MEM_LACK);
+
+    //å†…å­˜è¶³å¤Ÿï¼Œå¯ä»¥åˆ›å»ºæ¨¡å—
+    sts = HLMC_RC_Create(left_status_buf, left_work_buf, &(spec->rc_handle));
+    HLM_CHECK_ERROR((HLM_STS_OK != sts), sts);
+
+    return HLM_STS_OK;
+}
+

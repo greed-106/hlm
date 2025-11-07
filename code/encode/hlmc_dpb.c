@@ -1,430 +1,430 @@
-/***************************************************************************************************
-
-The copyright in this software is being made available under the License included below.
-This software may be subject to other third party and contributor rights, including patent
-rights, and no such rights are granted under this license.
-
-Copyright (C) 2025, Hangzhou Hikvision Digital Technology Co., Ltd. All rights reserved.
-
-Redistribution and use in source and binary forms, with or without modification, are permitted
-only for the purpose of developing standards within Audio and Video Coding Standard Workgroup of
-China (AVS) and for testing and promoting such standards. The following conditions are required
-to be met:
-
-* Redistributions of source code must retain the above copyright notice, this list of
-conditions and the following disclaimer.
-* Redistributions in binary form must reproduce the above copyright notice, this list of
-conditions and the following disclaimer in the documentation and/or other materials
-provided with the distribution.
-* The name of Hangzhou Hikvision Digital Technology Co., Ltd. may not be used to endorse or
-promote products derived from this software without specific prior written permission.
-
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR
-IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND
-FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR
-CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
-CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
-SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
-OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-POSSIBILITY OF SUCH DAMAGE.
-
-***************************************************************************************************/
-#include "hlmc_dpb.h"
-
-// Ä£¿éËùĞè×´Ì¬ÄÚ´æ¼ÆËãºÍ·ÖÅä
-HLM_STATUS HLMC_DPB_alloc_status_buffer(HLM_S32         width,
-                                        HLM_S32         height,
-                                        HLM_S32         max_ref_num,
-                                        HLMC_DPB_SPEC  *spec,
-                                        HLM_U08        *status_buf,
-                                        HLM_SZT        *status_size,
-                                        HLM_S32         mv_search_width,
-                                        HLM_S32         mv_search_height)
-{
-    HLM_S32 i                 = 0;
-    HLM_SZT size              = 0;
-    HLM_SZT used_size         = 0;
-    HLM_U08 *acc_buf          = HLM_NULL;
-    HLM_S32 inter_pad_w_left  = mv_search_width >> 1;
-    HLM_S32 inter_pad_w_right = mv_search_width - 1 - inter_pad_w_left;
-    HLM_S32 inter_pad_h_up    = mv_search_height >> 1;
-    HLM_S32 inter_pad_h_down  = mv_search_height - 1 - inter_pad_h_up;
-
-    // ÕæÕıĞèÒªÉêÇëstatus_bufÊ±²ÅĞèÒªÏÂÃæÕâ¾äĞ£Ñé
-    HLM_CHECK_ERROR((HLM_NULL == status_buf), HLM_STS_ERR_NULL_PTR);
-
-    acc_buf = status_buf;
-
-    //Ìø¹ıspec½á¹¹Ìå£¬ÔÚÍâÃæÒÑ·ÖÅä£¬Ö»¼ÆËãÄÚ´æ´óĞ¡
-    size = sizeof(HLMC_DPB_SPEC);
-    size = HLM_SIZE_ALIGN_16(size);
-    used_size += size;
-    acc_buf += size;
-
-    for (i = 0; i < (max_ref_num + 1); i++)
-    {
-        spec->dpb[i].data[0] = (HLM_U16 *)acc_buf;
-        spec->dpb[i].step[0] = HLM_SIZE_ALIGN_16(width);
-        size = (HLM_S32)(spec->dpb[i].step[0] * HLM_SIZE_ALIGN_8(height) * sizeof(HLM_U16));
-        size = HLM_SIZE_ALIGN_64(size);
-        used_size += size;
-        acc_buf += size;
-
-        // yuv 444
-        spec->dpb[i].data[1] = (HLM_U16 *)acc_buf;
-        spec->dpb[i].step[1] = HLM_SIZE_ALIGN_16(width);
-        used_size += size;
-        acc_buf += size;
-
-        spec->dpb[i].data[2] = (HLM_U16 *)acc_buf;
-        spec->dpb[i].step[2] = spec->dpb[i].step[1];
-        used_size += size;    // sizeÓëu·ÖÁ¿ÏàÍ¬
-        acc_buf += size;
-
-        // paddingºóµÄ²Î¿¼Í¼Ïñ»º³åÇø£¬Ä¿Ç°É«¶ÈºÍÁÁ¶ÈpaddingµÄÏñËØÊıÁ¿ÏàÍ¬
-        spec->dpb[i].luma_ref_padding_y = (HLM_U16 *)acc_buf;
-        size = (width + (inter_pad_w_left + inter_pad_w_right)) *
-            (height + (inter_pad_h_up + inter_pad_h_down)) * sizeof(HLM_U16);
-        size = HLM_SIZE_ALIGN_64(size);
-        used_size += size;
-        acc_buf += size;
-
-        spec->dpb[i].luma_ref_padding_cb = (HLM_U16 *)acc_buf;
-        used_size += size;
-        acc_buf += size;
-
-        spec->dpb[i].luma_ref_padding_cr = (HLM_U16 *)acc_buf;
-        used_size += size;
-        acc_buf += size;
-    }
-
-    *status_size = used_size;
-
-    return HLM_STS_OK;
-}
-
-/***************************************************************************************************
-* ¹¦  ÄÜ£º»ñÈ¡DPBÄ£¿éĞèÒªµÄbuffer size
-* ²Î  Êı£º*
-*        width                   -I    ½âÂëÍ¼Ïñ¿í¶È
-*        height                  -I    ½âÂëÍ¼Ïñ¸ß¶È
-*        status_size             -O    ËùĞè×´Ì¬ÄÚ´æ´óĞ¡
-*        work_size               -O    ËùĞè¹¤×÷ÄÚ´æ´óĞ¡
-*        mv_search_width         -I    MVËÑË÷ÇøÓòµÄ¿í¶È
-*        mv_search_height        -I    MVËÑË÷ÇøÓòµÄ¸ß¶È
-* ·µ»ØÖµ£ºÎŞ
-* ±¸  ×¢£º
-***************************************************************************************************/
-HLM_STATUS HLMC_DPB_GetMemSize(HLM_S32    width,
-                               HLM_S32    height,
-                               HLM_SZT   *status_size,
-                               HLM_SZT   *work_size,
-                               HLM_S32    mv_search_width,
-                               HLM_S32    mv_search_height)
-{
-    HLM_STATUS      sts         = HLM_STS_ERR;
-    HLMC_DPB_SPEC   spec        = { 0 };
-    HLM_SZT         status_sz   = 0;
-    HLM_SZT         work_sz     = 0;
-    HLM_U08        *buf         = (HLM_U08 *)&spec;
-    HLM_U08         max_ref_num = 1;
-
-    HLM_CHECK_ERROR((width < HLM_IMG_WIDTH_MIN) || (height < HLM_IMG_HEIGHT_MIN), HLM_STS_ERR_DATA_SIZE);
-    HLM_CHECK_ERROR((width & 0x1) || (height & 0x1), HLM_STS_ERR_DATA_SIZE);
-    HLM_CHECK_ERROR((HLM_NULL == status_size), HLM_STS_ERR_NULL_PTR);
-    HLM_CHECK_ERROR((HLM_NULL == work_size), HLM_STS_ERR_NULL_PTR);
-
-    memset(&spec, 0, sizeof(HLMC_DPB_SPEC));
-    spec.max_width = width;
-    spec.max_height = height;
-    spec.max_ref_num = max_ref_num;
-
-    sts = HLMC_DPB_alloc_status_buffer(width, height, max_ref_num, &spec, buf, &status_sz, mv_search_width, mv_search_height);
-    HLM_CHECK_ERROR((HLM_STS_OK != sts), sts);
-
-    if ((status_sz + work_sz) > HLM_MAX_MEM_SIZE)
-    {
-        return HLM_STS_ERR_OVER_MAX_MEM;
-    }
-
-    *status_size = status_sz;
-    *work_size = work_sz;
-
-    return HLM_STS_OK;
-}
-
-/***************************************************************************************************
-* ¹¦  ÄÜ£ºDPBÄ£¿é³õÊ¼»¯£¬ÔÚ½âÂë¿â´´½¨µÄÊ±ºòµ÷ÓÃ´Ëº¯Êı³õÊ¼»¯
-* ²Î  Êı£º*
-*        width                   -I    ½âÂëÍ¼Ïñ¿í¶È
-*        height                  -I    ½âÂëÍ¼Ïñ¸ß¶È
-*        status_buf              -I    ×´Ì¬ÄÚ´æµØÖ·
-*        work_buf                -I    ¹¤×÷ÄÚ´æµØÖ·
-*        handle                  -IO   DPBÄ£¿é¾ä±ú
-*        mv_search_width         -I    MVËÑË÷ÇøÓòµÄ¿í¶È
-*        mv_search_height        -I    MVËÑË÷ÇøÓòµÄ¸ß¶È
-* ·µ»ØÖµ£º×´Ì¬Âë
-* ±¸  ×¢£º
-***************************************************************************************************/
-HLM_STATUS HLMC_DPB_Create(HLM_S32    width,
-                           HLM_S32    height,
-                           HLM_U08   *status_buf,
-                           HLM_U08   *work_buf,
-                           HLM_VOID **handle,
-                           HLM_S32    mv_search_width,
-                           HLM_S32    mv_search_height)
-{
-    HLM_STATUS      sts         = HLM_STS_ERR;
-    HLMC_DPB_SPEC  *spec        = HLM_NULL;
-    HLM_SZT         status_size = 0;
-    HLM_SZT         work_size   = 0;
-    HLM_S32         max_ref_num = 1;
-
-    HLM_CHECK_ERROR((width < HLM_IMG_WIDTH_MIN) || (height < HLM_IMG_HEIGHT_MIN), HLM_STS_ERR_DATA_SIZE);
-    HLM_CHECK_ERROR((width & 0x1) || (height & 0x1), HLM_STS_ERR_DATA_SIZE);
-    HLM_CHECK_ERROR((HLM_NULL == handle), HLM_STS_ERR_NULL_PTR);
-
-    // ³õÊ¼»¯
-    spec = (HLMC_DPB_SPEC *)status_buf;
-    memset(spec, 0, sizeof(HLMC_DPB_SPEC));
-    spec->max_width = width;
-    spec->max_height = height;
-    spec->max_ref_num = max_ref_num;
-    spec->max_dpb_num = max_ref_num + 1;
-
-    // ·ÖÅäÄÚ´æ
-    sts = HLMC_DPB_alloc_status_buffer(width, height, max_ref_num, spec, status_buf, &status_size, mv_search_width, mv_search_height);
-    HLM_CHECK_ERROR((HLM_STS_OK != sts), sts);
-
-    *handle = (HLM_VOID *)spec;
-
-    return HLM_STS_OK;
-}
-
-// »ñÈ¡µ±Ç°Ö¡ÖØ¹¹Í¼ÏñµÄ»º³åÇøµØÖ·
-HLM_STATUS HLMC_DPB_get_curr_frame(HLM_VOID          *handle,
-                                   HLM_U32            poc,
-                                   HLM_U32            dpb_id,
-                                   HLM_S32           *dpb_idx)
-{
-    HLMC_DPB_SPEC *dpb_spec = (HLMC_DPB_SPEC *)handle;
-    HLM_S32 i               = 0;
-    HLMC_FRAME *frame       = HLM_NULL;
-
-    //·ÖÅäÒ»Ö¡¿ÕÏĞÖ¡
-    for (i = 0; i < dpb_spec->max_dpb_num; i++)
-    {
-        frame = &dpb_spec->dpb[i];
-        if (!frame->refed_flag)
-        {
-            *dpb_idx = i;
-            break;
-        }
-    }
-
-    HLM_CHECK_ERROR(i >= dpb_spec->max_dpb_num, HLM_STS_ERR);
-
-    frame->poc = poc;
-    frame->dpb_id = dpb_id;
-    frame->refed_flag = 1;
-
-    return HLM_STS_OK;
-}
-
-// ¸ù¾İ²Î¿¼Ö¡µÄpocÖµÕÒµ½¶ÔÓ¦ÔÚDPBÖĞµÄÎ»ÖÃ
-HLM_STATUS HLMC_DPB_find_ref_pic(HLMC_DPB_SPEC  *dpb_spec,
-                                 HLM_S32        *dpb_idx,
-                                 HLM_U32         poc,
-                                 HLM_U32         dpb_id)
-{
-    HLMC_FRAME *frame  = HLM_NULL;
-    HLM_S32 i          = 0;
-    HLM_U08 refed_flag = 0;
-
-    *dpb_idx = -1;
-    for (i = 0; i < dpb_spec->max_dpb_num; i++)
-    {
-        frame = &dpb_spec->dpb[i];
-        refed_flag = frame->refed_flag;
-        if ((frame->dpb_id == dpb_id) && (frame->poc == poc) && refed_flag)
-        {
-            *dpb_idx = i;
-            break;
-        }
-    }
-
-    // Can't find the ref picture.
-    HLM_CHECK_ERROR(-1 == *dpb_idx, HLM_STS_ERR);
-
-    return HLM_STS_OK;
-}
-
-// »ñµÃ´ı±àÂëµÄpatchÀàĞÍ
-HLM_STATUS HLMC_DPB_get_patch_type(HLM_VOID                    *handle,
-                                   HLM_S32                      poc,
-                                   HLM_S32                      intra_period,
-                                   HLM_S32                      force_idr,
-                                   HLMC_PATCH_REF_TYPE         *patch_type)
-{
-    HLMC_PATCH_REF_TYPE   type     = HLMC_BASE_IDRPATCH;
-    HLMC_DPB_SPEC        *dpb_spec = (HLMC_DPB_SPEC *)handle;
-    HLMC_DPB_REF_CTRL    *dpb_ctrl = &(dpb_spec->dpb_ctrl);
-    HLM_S32               base     = dpb_ctrl->base_period;
-    HLM_S32               ref      = dpb_ctrl->reffed_enable;
-
-    if (!(poc % intra_period) || force_idr)
-    {
-        type = HLMC_BASE_IDRPATCH;
-    }
-    else
-    {
-        if (ref)  // ¿ÉÒÔ±»²Î¿¼
-        {
-            type = HLMC_BASE_PPATCH_REFBYBASE;
-            if (poc == base)  // ÊÇµÚÒ»¸öbaseÖÜÆÚ½áÊøÖ¡
-            {
-                type = HLMC_BASE_PPATCH_REFTOIDR;
-            }
-        }
-    }
-    *patch_type = type;
-
-    return HLM_STS_OK;
-}
-
-// ³õÊ¼»¯RPSÖĞµÄ²Î¿¼¶ÓÁĞ
-HLM_STATUS HLMC_DPB_get_ref_list(HLM_VOID             *handle,
-                                 HLM_S32               poc_curr,
-                                 HLM_U32               dpb_id,
-                                 HLM_S32              *dpb_index,
-                                 HLMC_PATCH_REF_TYPE   patch_type)
-{
-    HLM_STATUS sts              = HLM_STS_ERR;
-    HLMC_DPB_SPEC *dpb_spec     = (HLMC_DPB_SPEC *)handle;
-    HLMC_DPB_REF_CTRL *dpb_ctrl = &(dpb_spec->dpb_ctrl);
-    HLM_S32 base                = dpb_ctrl->base_period;     // N
-    HLM_U32 ref_flag            = dpb_ctrl->reffed_enable;
-    HLM_U32 frame_num_reg       = 0;
-    HLM_U32 idr_pic_id_reg      = 0;
-    HLM_S32 num_ref_idx_active  = 0;
-    HLM_S32 nb_list             = 1;  // Ö»Ö§³ÖPÖ¡
-    HLM_S32 poc_ref             = 0;
-
-    if (patch_type != HLMC_BASE_IDRPATCH)
-    {
-        poc_ref = poc_curr - 1;
-        sts = HLMC_DPB_find_ref_pic(dpb_spec, dpb_index, poc_ref, dpb_id);
-        HLM_CHECK_ERROR(sts != HLM_STS_OK, sts);
-    }
-
-    return HLM_STS_OK;
-}
-
-/****************************************************************************************
-* ¹¦  ÄÜ£ºÉèÖÃDPB²ÎÊı
-* ²Î  Êı£º
-*         handle            -IO         DPBÄ£¿é¾ä±ú
-*         dpb_params        -I          DPB½á¹¹ºÍ²Î¿¼¹ØÏµ¿ØÖÆ²ÎÊı
-*         dpb_num           -O          µ±Ç°DPBÏÂĞèÒªDPBÖĞÖ¡Êı
-* ·µ»ØÖµ£º×´Ì¬Âë£¬³É¹¦·µ»ØHLM_STS_OK£¬´´½¨Ê§°Ü·µ»ØHLM_STS_ERR
-* ±¸  ×¢£º
-***************************************************************************************/
-HLM_STATUS HLMC_DPB_SetDpbRefCtrl(HLM_VOID             *handle,
-                                  HLMC_DPB_REF_CTRL    *dpb_params,
-                                  HLM_U32              *dpb_num)
-{
-    HLMC_DPB_SPEC *spec = (HLMC_DPB_SPEC *)handle;
-
-    HLM_CHECK_ERROR((HLM_NULL == handle) || (HLM_NULL == dpb_params), HLM_STS_ERR_NULL_PTR);
-    HLM_CHECK_ERROR((dpb_params->base_period < 1), HLM_STS_ERR_PARAM_VALUE);
-    HLM_CHECK_ERROR((dpb_params->reffed_enable > 1), HLM_STS_ERR_PARAM_VALUE);
-
-    memcpy(&(spec->dpb_ctrl), dpb_params, sizeof(HLMC_DPB_REF_CTRL));
-    *dpb_num = 2;
-    spec->max_dpb_num = *dpb_num;
-
-    return HLM_STS_OK;
-}
-
-/****************************************************************************************
-* ¹¦  ÄÜ£º»ñÈ¡²Î¿¼Ö¡ÓĞ¹ØĞÅÏ¢
-* ²Î  Êı£º
-*           handle              -IO     DPBÄ£¿é¾ä±ú
-*           poc_in              -I      ÊäÈëpoc
-*           force_idr           -I      Ç¿ÖÆIDRÖ¡±êÖ¾
-*           poc_out             -O      Êä³öpoc
-*           ref_idx             -O      µ±Ç°Ö¡²Î¿¼Ö¡ÔÚDPBµÄĞòºÅ
-*           rec_idx             -O      ÖØ¹¹Ö¡ÔÚDPBµÄĞòºÅ
-*           patch_type          -O      Ö¡ÀàĞÍ
-* ·µ»ØÖµ£º×´Ì¬Âë£¬³É¹¦·µ»ØHLM_STS_OK£¬´´½¨Ê§°Ü·µ»ØHLM_STS_ERR
-* ±¸  ×¢£º
-***************************************************************************************/
-HLM_STATUS HLMC_DPB_Get(HLM_VOID               *handle,
-                        HLM_S32                 poc_in,
-                        HLM_S32                 force_idr,
-                        HLM_S32                *poc_out,
-                        HLM_S32                *ref_idx,
-                        HLM_S32                *rec_idx,
-                        HLMC_PATCH_REF_TYPE    *patch_type)
-{
-    HLMC_DPB_SPEC *dpb_spec       = (HLMC_DPB_SPEC *)handle;
-    HLM_STATUS sts                = HLM_STS_ERR;
-    HLM_S32 i                     = 0;
-    HLMC_FRAME *frame             = HLM_NULL;
-
-    // »ñÈ¡Ö¡ÀàĞÍ
-    sts = HLMC_DPB_get_patch_type(handle, poc_in, dpb_spec->dpb_ctrl.intra_period, force_idr, patch_type);
-    HLM_CHECK_ERROR(sts != HLM_STS_OK, sts);
-    HLM_CHECK_ERROR(*patch_type > HLMC_BASE_PPATCH_REFBYBASE, sts);
-
-    // IÖ¡Ê±Çå¿ÕDPB
-    if (HLMC_BASE_IDRPATCH == *patch_type)
-    {
-        for (i = 0; i < dpb_spec->max_dpb_num; i++)
-        {
-            frame = &dpb_spec->dpb[i];
-            frame->refed_flag = 0;
-            frame->poc = 0;
-        }
-    }
-
-    // ¹¹½¨²Î¿¼ÁĞ±í
-    sts = HLMC_DPB_get_ref_list(handle, poc_in, 0, ref_idx, *patch_type);
-    HLM_CHECK_ERROR(sts != HLM_STS_OK, sts);
-
-    //ÊÍ·ÅµôÎŞÓÃ²Î¿¼Ö¡
-    frame = &dpb_spec->dpb[poc_in % 2];
-    frame->refed_flag = 0;
-
-    //´ÓDPBÖĞ»ñÈ¡Ò»Ö¡¿Õ¼ä´æ·Åµ±Ç°Ö¡µÄÖØ¹¹Ö¡
-    sts = HLMC_DPB_get_curr_frame(handle, poc_in, 0, rec_idx);
-    HLM_CHECK_ERROR(sts != HLM_STS_OK, sts);
-
-    *poc_out = poc_in + 1;
-    if (*poc_out == dpb_spec->dpb_ctrl.intra_period)  //IÖ¡POCÖÃÁã
-    {
-        *poc_out = 0;
-    }
-
-    return HLM_STS_OK;
-}
-
-/***************************************************************************************************
-* ¹¦  ÄÜ£º»ñÈ¡DPB²Î¿¼¹ØÏµ¿ØÖÆ²ÎÊı
-* ²Î  Êı£º*
-*         handle        -I     DPBÄ£¿é¾ä±úÖ¸Õë
-*         dpb_params    -O     DPB½á¹¹ºÍ²Î¿¼¹ØÏµ¿ØÖÆ²ÎÊı
-* ·µ»ØÖµ£º×´Ì¬Âë
-* ±¸  ×¢£º
-***************************************************************************************************/
-HLM_STATUS HLMC_DPB_GetDpbRefCtrl(HLM_VOID              *handle,
-                                  HLMC_DPB_REF_CTRL     *dpb_params)
-{
-    HLMC_DPB_SPEC *spec = (HLMC_DPB_SPEC *)handle;
-
-    HLM_CHECK_ERROR((HLM_NULL == handle), HLM_STS_ERR_NULL_PTR);
-    memcpy(dpb_params, &(spec->dpb_ctrl), sizeof(HLMC_DPB_REF_CTRL));
-
-    return HLM_STS_OK;
-}
+/***************************************************************************************************
+
+The copyright in this software is being made available under the License included below.
+This software may be subject to other third party and contributor rights, including patent
+rights, and no such rights are granted under this license.
+
+Copyright (C) 2025, Hangzhou Hikvision Digital Technology Co., Ltd. All rights reserved.
+
+Redistribution and use in source and binary forms, with or without modification, are permitted
+only for the purpose of developing standards within Audio and Video Coding Standard Workgroup of
+China (AVS) and for testing and promoting such standards. The following conditions are required
+to be met:
+
+* Redistributions of source code must retain the above copyright notice, this list of
+conditions and the following disclaimer.
+* Redistributions in binary form must reproduce the above copyright notice, this list of
+conditions and the following disclaimer in the documentation and/or other materials
+provided with the distribution.
+* The name of Hangzhou Hikvision Digital Technology Co., Ltd. may not be used to endorse or
+promote products derived from this software without specific prior written permission.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR
+IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND
+FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR
+CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+POSSIBILITY OF SUCH DAMAGE.
+
+***************************************************************************************************/
+#include "hlmc_dpb.h"
+
+// æ¨¡å—æ‰€éœ€çŠ¶æ€å†…å­˜è®¡ç®—å’Œåˆ†é…
+HLM_STATUS HLMC_DPB_alloc_status_buffer(HLM_S32         width,
+                                        HLM_S32         height,
+                                        HLM_S32         max_ref_num,
+                                        HLMC_DPB_SPEC  *spec,
+                                        HLM_U08        *status_buf,
+                                        HLM_SZT        *status_size,
+                                        HLM_S32         mv_search_width,
+                                        HLM_S32         mv_search_height)
+{
+    HLM_S32 i                 = 0;
+    HLM_SZT size              = 0;
+    HLM_SZT used_size         = 0;
+    HLM_U08 *acc_buf          = HLM_NULL;
+    HLM_S32 inter_pad_w_left  = mv_search_width >> 1;
+    HLM_S32 inter_pad_w_right = mv_search_width - 1 - inter_pad_w_left;
+    HLM_S32 inter_pad_h_up    = mv_search_height >> 1;
+    HLM_S32 inter_pad_h_down  = mv_search_height - 1 - inter_pad_h_up;
+
+    // çœŸæ­£éœ€è¦ç”³è¯·status_bufæ—¶æ‰éœ€è¦ä¸‹é¢è¿™å¥æ ¡éªŒ
+    HLM_CHECK_ERROR((HLM_NULL == status_buf), HLM_STS_ERR_NULL_PTR);
+
+    acc_buf = status_buf;
+
+    //è·³è¿‡specç»“æ„ä½“ï¼Œåœ¨å¤–é¢å·²åˆ†é…ï¼Œåªè®¡ç®—å†…å­˜å¤§å°
+    size = sizeof(HLMC_DPB_SPEC);
+    size = HLM_SIZE_ALIGN_16(size);
+    used_size += size;
+    acc_buf += size;
+
+    for (i = 0; i < (max_ref_num + 1); i++)
+    {
+        spec->dpb[i].data[0] = (HLM_U16 *)acc_buf;
+        spec->dpb[i].step[0] = HLM_SIZE_ALIGN_16(width);
+        size = (HLM_S32)(spec->dpb[i].step[0] * HLM_SIZE_ALIGN_8(height) * sizeof(HLM_U16));
+        size = HLM_SIZE_ALIGN_64(size);
+        used_size += size;
+        acc_buf += size;
+
+        // yuv 444
+        spec->dpb[i].data[1] = (HLM_U16 *)acc_buf;
+        spec->dpb[i].step[1] = HLM_SIZE_ALIGN_16(width);
+        used_size += size;
+        acc_buf += size;
+
+        spec->dpb[i].data[2] = (HLM_U16 *)acc_buf;
+        spec->dpb[i].step[2] = spec->dpb[i].step[1];
+        used_size += size;    // sizeä¸uåˆ†é‡ç›¸åŒ
+        acc_buf += size;
+
+        // paddingåçš„å‚è€ƒå›¾åƒç¼“å†²åŒºï¼Œç›®å‰è‰²åº¦å’Œäº®åº¦paddingçš„åƒç´ æ•°é‡ç›¸åŒ
+        spec->dpb[i].luma_ref_padding_y = (HLM_U16 *)acc_buf;
+        size = (width + (inter_pad_w_left + inter_pad_w_right)) *
+            (height + (inter_pad_h_up + inter_pad_h_down)) * sizeof(HLM_U16);
+        size = HLM_SIZE_ALIGN_64(size);
+        used_size += size;
+        acc_buf += size;
+
+        spec->dpb[i].luma_ref_padding_cb = (HLM_U16 *)acc_buf;
+        used_size += size;
+        acc_buf += size;
+
+        spec->dpb[i].luma_ref_padding_cr = (HLM_U16 *)acc_buf;
+        used_size += size;
+        acc_buf += size;
+    }
+
+    *status_size = used_size;
+
+    return HLM_STS_OK;
+}
+
+/***************************************************************************************************
+* åŠŸ  èƒ½ï¼šè·å–DPBæ¨¡å—éœ€è¦çš„buffer size
+* å‚  æ•°ï¼š*
+*        width                   -I    è§£ç å›¾åƒå®½åº¦
+*        height                  -I    è§£ç å›¾åƒé«˜åº¦
+*        status_size             -O    æ‰€éœ€çŠ¶æ€å†…å­˜å¤§å°
+*        work_size               -O    æ‰€éœ€å·¥ä½œå†…å­˜å¤§å°
+*        mv_search_width         -I    MVæœç´¢åŒºåŸŸçš„å®½åº¦
+*        mv_search_height        -I    MVæœç´¢åŒºåŸŸçš„é«˜åº¦
+* è¿”å›å€¼ï¼šæ— 
+* å¤‡  æ³¨ï¼š
+***************************************************************************************************/
+HLM_STATUS HLMC_DPB_GetMemSize(HLM_S32    width,
+                               HLM_S32    height,
+                               HLM_SZT   *status_size,
+                               HLM_SZT   *work_size,
+                               HLM_S32    mv_search_width,
+                               HLM_S32    mv_search_height)
+{
+    HLM_STATUS      sts         = HLM_STS_ERR;
+    HLMC_DPB_SPEC   spec        = { 0 };
+    HLM_SZT         status_sz   = 0;
+    HLM_SZT         work_sz     = 0;
+    HLM_U08        *buf         = (HLM_U08 *)&spec;
+    HLM_U08         max_ref_num = 1;
+
+    HLM_CHECK_ERROR((width < HLM_IMG_WIDTH_MIN) || (height < HLM_IMG_HEIGHT_MIN), HLM_STS_ERR_DATA_SIZE);
+    HLM_CHECK_ERROR((width & 0x1) || (height & 0x1), HLM_STS_ERR_DATA_SIZE);
+    HLM_CHECK_ERROR((HLM_NULL == status_size), HLM_STS_ERR_NULL_PTR);
+    HLM_CHECK_ERROR((HLM_NULL == work_size), HLM_STS_ERR_NULL_PTR);
+
+    memset(&spec, 0, sizeof(HLMC_DPB_SPEC));
+    spec.max_width = width;
+    spec.max_height = height;
+    spec.max_ref_num = max_ref_num;
+
+    sts = HLMC_DPB_alloc_status_buffer(width, height, max_ref_num, &spec, buf, &status_sz, mv_search_width, mv_search_height);
+    HLM_CHECK_ERROR((HLM_STS_OK != sts), sts);
+
+    if ((status_sz + work_sz) > HLM_MAX_MEM_SIZE)
+    {
+        return HLM_STS_ERR_OVER_MAX_MEM;
+    }
+
+    *status_size = status_sz;
+    *work_size = work_sz;
+
+    return HLM_STS_OK;
+}
+
+/***************************************************************************************************
+* åŠŸ  èƒ½ï¼šDPBæ¨¡å—åˆå§‹åŒ–ï¼Œåœ¨è§£ç åº“åˆ›å»ºçš„æ—¶å€™è°ƒç”¨æ­¤å‡½æ•°åˆå§‹åŒ–
+* å‚  æ•°ï¼š*
+*        width                   -I    è§£ç å›¾åƒå®½åº¦
+*        height                  -I    è§£ç å›¾åƒé«˜åº¦
+*        status_buf              -I    çŠ¶æ€å†…å­˜åœ°å€
+*        work_buf                -I    å·¥ä½œå†…å­˜åœ°å€
+*        handle                  -IO   DPBæ¨¡å—å¥æŸ„
+*        mv_search_width         -I    MVæœç´¢åŒºåŸŸçš„å®½åº¦
+*        mv_search_height        -I    MVæœç´¢åŒºåŸŸçš„é«˜åº¦
+* è¿”å›å€¼ï¼šçŠ¶æ€ç 
+* å¤‡  æ³¨ï¼š
+***************************************************************************************************/
+HLM_STATUS HLMC_DPB_Create(HLM_S32    width,
+                           HLM_S32    height,
+                           HLM_U08   *status_buf,
+                           HLM_U08   *work_buf,
+                           HLM_VOID **handle,
+                           HLM_S32    mv_search_width,
+                           HLM_S32    mv_search_height)
+{
+    HLM_STATUS      sts         = HLM_STS_ERR;
+    HLMC_DPB_SPEC  *spec        = HLM_NULL;
+    HLM_SZT         status_size = 0;
+    HLM_SZT         work_size   = 0;
+    HLM_S32         max_ref_num = 1;
+
+    HLM_CHECK_ERROR((width < HLM_IMG_WIDTH_MIN) || (height < HLM_IMG_HEIGHT_MIN), HLM_STS_ERR_DATA_SIZE);
+    HLM_CHECK_ERROR((width & 0x1) || (height & 0x1), HLM_STS_ERR_DATA_SIZE);
+    HLM_CHECK_ERROR((HLM_NULL == handle), HLM_STS_ERR_NULL_PTR);
+
+    // åˆå§‹åŒ–
+    spec = (HLMC_DPB_SPEC *)status_buf;
+    memset(spec, 0, sizeof(HLMC_DPB_SPEC));
+    spec->max_width = width;
+    spec->max_height = height;
+    spec->max_ref_num = max_ref_num;
+    spec->max_dpb_num = max_ref_num + 1;
+
+    // åˆ†é…å†…å­˜
+    sts = HLMC_DPB_alloc_status_buffer(width, height, max_ref_num, spec, status_buf, &status_size, mv_search_width, mv_search_height);
+    HLM_CHECK_ERROR((HLM_STS_OK != sts), sts);
+
+    *handle = (HLM_VOID *)spec;
+
+    return HLM_STS_OK;
+}
+
+// è·å–å½“å‰å¸§é‡æ„å›¾åƒçš„ç¼“å†²åŒºåœ°å€
+HLM_STATUS HLMC_DPB_get_curr_frame(HLM_VOID          *handle,
+                                   HLM_U32            poc,
+                                   HLM_U32            dpb_id,
+                                   HLM_S32           *dpb_idx)
+{
+    HLMC_DPB_SPEC *dpb_spec = (HLMC_DPB_SPEC *)handle;
+    HLM_S32 i               = 0;
+    HLMC_FRAME *frame       = HLM_NULL;
+
+    //åˆ†é…ä¸€å¸§ç©ºé—²å¸§
+    for (i = 0; i < dpb_spec->max_dpb_num; i++)
+    {
+        frame = &dpb_spec->dpb[i];
+        if (!frame->refed_flag)
+        {
+            *dpb_idx = i;
+            break;
+        }
+    }
+
+    HLM_CHECK_ERROR(i >= dpb_spec->max_dpb_num, HLM_STS_ERR);
+
+    frame->poc = poc;
+    frame->dpb_id = dpb_id;
+    frame->refed_flag = 1;
+
+    return HLM_STS_OK;
+}
+
+// æ ¹æ®å‚è€ƒå¸§çš„pocå€¼æ‰¾åˆ°å¯¹åº”åœ¨DPBä¸­çš„ä½ç½®
+HLM_STATUS HLMC_DPB_find_ref_pic(HLMC_DPB_SPEC  *dpb_spec,
+                                 HLM_S32        *dpb_idx,
+                                 HLM_U32         poc,
+                                 HLM_U32         dpb_id)
+{
+    HLMC_FRAME *frame  = HLM_NULL;
+    HLM_S32 i          = 0;
+    HLM_U08 refed_flag = 0;
+
+    *dpb_idx = -1;
+    for (i = 0; i < dpb_spec->max_dpb_num; i++)
+    {
+        frame = &dpb_spec->dpb[i];
+        refed_flag = frame->refed_flag;
+        if ((frame->dpb_id == dpb_id) && (frame->poc == poc) && refed_flag)
+        {
+            *dpb_idx = i;
+            break;
+        }
+    }
+
+    // Can't find the ref picture.
+    HLM_CHECK_ERROR(-1 == *dpb_idx, HLM_STS_ERR);
+
+    return HLM_STS_OK;
+}
+
+// è·å¾—å¾…ç¼–ç çš„patchç±»å‹
+HLM_STATUS HLMC_DPB_get_patch_type(HLM_VOID                    *handle,
+                                   HLM_S32                      poc,
+                                   HLM_S32                      intra_period,
+                                   HLM_S32                      force_idr,
+                                   HLMC_PATCH_REF_TYPE         *patch_type)
+{
+    HLMC_PATCH_REF_TYPE   type     = HLMC_BASE_IDRPATCH;
+    HLMC_DPB_SPEC        *dpb_spec = (HLMC_DPB_SPEC *)handle;
+    HLMC_DPB_REF_CTRL    *dpb_ctrl = &(dpb_spec->dpb_ctrl);
+    HLM_S32               base     = dpb_ctrl->base_period;
+    HLM_S32               ref      = dpb_ctrl->reffed_enable;
+
+    if (!(poc % intra_period) || force_idr)
+    {
+        type = HLMC_BASE_IDRPATCH;
+    }
+    else
+    {
+        if (ref)  // å¯ä»¥è¢«å‚è€ƒ
+        {
+            type = HLMC_BASE_PPATCH_REFBYBASE;
+            if (poc == base)  // æ˜¯ç¬¬ä¸€ä¸ªbaseå‘¨æœŸç»“æŸå¸§
+            {
+                type = HLMC_BASE_PPATCH_REFTOIDR;
+            }
+        }
+    }
+    *patch_type = type;
+
+    return HLM_STS_OK;
+}
+
+// åˆå§‹åŒ–RPSä¸­çš„å‚è€ƒé˜Ÿåˆ—
+HLM_STATUS HLMC_DPB_get_ref_list(HLM_VOID             *handle,
+                                 HLM_S32               poc_curr,
+                                 HLM_U32               dpb_id,
+                                 HLM_S32              *dpb_index,
+                                 HLMC_PATCH_REF_TYPE   patch_type)
+{
+    HLM_STATUS sts              = HLM_STS_ERR;
+    HLMC_DPB_SPEC *dpb_spec     = (HLMC_DPB_SPEC *)handle;
+    HLMC_DPB_REF_CTRL *dpb_ctrl = &(dpb_spec->dpb_ctrl);
+    HLM_S32 base                = dpb_ctrl->base_period;     // N
+    HLM_U32 ref_flag            = dpb_ctrl->reffed_enable;
+    HLM_U32 frame_num_reg       = 0;
+    HLM_U32 idr_pic_id_reg      = 0;
+    HLM_S32 num_ref_idx_active  = 0;
+    HLM_S32 nb_list             = 1;  // åªæ”¯æŒPå¸§
+    HLM_S32 poc_ref             = 0;
+
+    if (patch_type != HLMC_BASE_IDRPATCH)
+    {
+        poc_ref = poc_curr - 1;
+        sts = HLMC_DPB_find_ref_pic(dpb_spec, dpb_index, poc_ref, dpb_id);
+        HLM_CHECK_ERROR(sts != HLM_STS_OK, sts);
+    }
+
+    return HLM_STS_OK;
+}
+
+/****************************************************************************************
+* åŠŸ  èƒ½ï¼šè®¾ç½®DPBå‚æ•°
+* å‚  æ•°ï¼š
+*         handle            -IO         DPBæ¨¡å—å¥æŸ„
+*         dpb_params        -I          DPBç»“æ„å’Œå‚è€ƒå…³ç³»æ§åˆ¶å‚æ•°
+*         dpb_num           -O          å½“å‰DPBä¸‹éœ€è¦DPBä¸­å¸§æ•°
+* è¿”å›å€¼ï¼šçŠ¶æ€ç ï¼ŒæˆåŠŸè¿”å›HLM_STS_OKï¼Œåˆ›å»ºå¤±è´¥è¿”å›HLM_STS_ERR
+* å¤‡  æ³¨ï¼š
+***************************************************************************************/
+HLM_STATUS HLMC_DPB_SetDpbRefCtrl(HLM_VOID             *handle,
+                                  HLMC_DPB_REF_CTRL    *dpb_params,
+                                  HLM_U32              *dpb_num)
+{
+    HLMC_DPB_SPEC *spec = (HLMC_DPB_SPEC *)handle;
+
+    HLM_CHECK_ERROR((HLM_NULL == handle) || (HLM_NULL == dpb_params), HLM_STS_ERR_NULL_PTR);
+    HLM_CHECK_ERROR((dpb_params->base_period < 1), HLM_STS_ERR_PARAM_VALUE);
+    HLM_CHECK_ERROR((dpb_params->reffed_enable > 1), HLM_STS_ERR_PARAM_VALUE);
+
+    memcpy(&(spec->dpb_ctrl), dpb_params, sizeof(HLMC_DPB_REF_CTRL));
+    *dpb_num = 2;
+    spec->max_dpb_num = *dpb_num;
+
+    return HLM_STS_OK;
+}
+
+/****************************************************************************************
+* åŠŸ  èƒ½ï¼šè·å–å‚è€ƒå¸§æœ‰å…³ä¿¡æ¯
+* å‚  æ•°ï¼š
+*           handle              -IO     DPBæ¨¡å—å¥æŸ„
+*           poc_in              -I      è¾“å…¥poc
+*           force_idr           -I      å¼ºåˆ¶IDRå¸§æ ‡å¿—
+*           poc_out             -O      è¾“å‡ºpoc
+*           ref_idx             -O      å½“å‰å¸§å‚è€ƒå¸§åœ¨DPBçš„åºå·
+*           rec_idx             -O      é‡æ„å¸§åœ¨DPBçš„åºå·
+*           patch_type          -O      å¸§ç±»å‹
+* è¿”å›å€¼ï¼šçŠ¶æ€ç ï¼ŒæˆåŠŸè¿”å›HLM_STS_OKï¼Œåˆ›å»ºå¤±è´¥è¿”å›HLM_STS_ERR
+* å¤‡  æ³¨ï¼š
+***************************************************************************************/
+HLM_STATUS HLMC_DPB_Get(HLM_VOID               *handle,
+                        HLM_S32                 poc_in,
+                        HLM_S32                 force_idr,
+                        HLM_S32                *poc_out,
+                        HLM_S32                *ref_idx,
+                        HLM_S32                *rec_idx,
+                        HLMC_PATCH_REF_TYPE    *patch_type)
+{
+    HLMC_DPB_SPEC *dpb_spec       = (HLMC_DPB_SPEC *)handle;
+    HLM_STATUS sts                = HLM_STS_ERR;
+    HLM_S32 i                     = 0;
+    HLMC_FRAME *frame             = HLM_NULL;
+
+    // è·å–å¸§ç±»å‹
+    sts = HLMC_DPB_get_patch_type(handle, poc_in, dpb_spec->dpb_ctrl.intra_period, force_idr, patch_type);
+    HLM_CHECK_ERROR(sts != HLM_STS_OK, sts);
+    HLM_CHECK_ERROR(*patch_type > HLMC_BASE_PPATCH_REFBYBASE, sts);
+
+    // Iå¸§æ—¶æ¸…ç©ºDPB
+    if (HLMC_BASE_IDRPATCH == *patch_type)
+    {
+        for (i = 0; i < dpb_spec->max_dpb_num; i++)
+        {
+            frame = &dpb_spec->dpb[i];
+            frame->refed_flag = 0;
+            frame->poc = 0;
+        }
+    }
+
+    // æ„å»ºå‚è€ƒåˆ—è¡¨
+    sts = HLMC_DPB_get_ref_list(handle, poc_in, 0, ref_idx, *patch_type);
+    HLM_CHECK_ERROR(sts != HLM_STS_OK, sts);
+
+    //é‡Šæ”¾æ‰æ— ç”¨å‚è€ƒå¸§
+    frame = &dpb_spec->dpb[poc_in % 2];
+    frame->refed_flag = 0;
+
+    //ä»DPBä¸­è·å–ä¸€å¸§ç©ºé—´å­˜æ”¾å½“å‰å¸§çš„é‡æ„å¸§
+    sts = HLMC_DPB_get_curr_frame(handle, poc_in, 0, rec_idx);
+    HLM_CHECK_ERROR(sts != HLM_STS_OK, sts);
+
+    *poc_out = poc_in + 1;
+    if (*poc_out == dpb_spec->dpb_ctrl.intra_period)  //Iå¸§POCç½®é›¶
+    {
+        *poc_out = 0;
+    }
+
+    return HLM_STS_OK;
+}
+
+/***************************************************************************************************
+* åŠŸ  èƒ½ï¼šè·å–DPBå‚è€ƒå…³ç³»æ§åˆ¶å‚æ•°
+* å‚  æ•°ï¼š*
+*         handle        -I     DPBæ¨¡å—å¥æŸ„æŒ‡é’ˆ
+*         dpb_params    -O     DPBç»“æ„å’Œå‚è€ƒå…³ç³»æ§åˆ¶å‚æ•°
+* è¿”å›å€¼ï¼šçŠ¶æ€ç 
+* å¤‡  æ³¨ï¼š
+***************************************************************************************************/
+HLM_STATUS HLMC_DPB_GetDpbRefCtrl(HLM_VOID              *handle,
+                                  HLMC_DPB_REF_CTRL     *dpb_params)
+{
+    HLMC_DPB_SPEC *spec = (HLMC_DPB_SPEC *)handle;
+
+    HLM_CHECK_ERROR((HLM_NULL == handle), HLM_STS_ERR_NULL_PTR);
+    memcpy(dpb_params, &(spec->dpb_ctrl), sizeof(HLMC_DPB_REF_CTRL));
+
+    return HLM_STS_OK;
+}

@@ -1,158 +1,158 @@
-/***************************************************************************************************
-
-The copyright in this software is being made available under the License included below.
-This software may be subject to other third party and contributor rights, including patent
-rights, and no such rights are granted under this license.
-
-Copyright (C) 2025, Hangzhou Hikvision Digital Technology Co., Ltd. All rights reserved.
-
-Redistribution and use in source and binary forms, with or without modification, are permitted
-only for the purpose of developing standards within Audio and Video Coding Standard Workgroup of
-China (AVS) and for testing and promoting such standards. The following conditions are required
-to be met:
-
-* Redistributions of source code must retain the above copyright notice, this list of
-conditions and the following disclaimer.
-* Redistributions in binary form must reproduce the above copyright notice, this list of
-conditions and the following disclaimer in the documentation and/or other materials
-provided with the distribution.
-* The name of Hangzhou Hikvision Digital Technology Co., Ltd. may not be used to endorse or
-promote products derived from this software without specific prior written permission.
-
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR
-IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND
-FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR
-CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
-CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
-SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
-OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-POSSIBILITY OF SUCH DAMAGE.
-
-***************************************************************************************************/
-#ifndef _HLMD_LIB_H_
-#define _HLMD_LIB_H_
-
-#include "hlm_common.h"
-
-#ifdef __cplusplus
-extern "C" {
-#endif
-
-// ÊäÈë½âÂë¿âµÄÂëÁ÷ÐÅÏ¢½á¹¹Ìå
-typedef struct _HLMD_STREAM_IN
-{
-    HLM_U08 *stream_buf;                    // ÂëÁ÷»º³åÇøÖ¸Õë
-    HLM_S32  stream_len;                    // ÂëÁ÷×Ü³¤¶È
-} HLMD_STREAM_IN;
-
-// ½âÂë¿âÊä³öÐÅÏ¢½á¹¹Ìå
-typedef struct _HLMD_PROCESS_OUT
-{
-    HLM_IMAGE  image_out;                   // Êä³öÍ¼Ïñ
-    HLM_S32    image_poc;                   // Êä³öÍ¼ÏñÏÔÊ¾Ë³Ðò
-    HLM_U08    is_mismatch;                 // ÊÇ·ñ±à½âÂëÆ¥Åä
-    HLM_U08    finish_one_frame;            // ÊÇ·ñ½âÍêÒ»Ö¡
-} HLMD_PROCESS_OUT;
-
-// Ô¤½âÎöµÄÂëÁ÷½á¹¹Ìå
-typedef struct _HLMD_PRE_BITSTREAM
-{
-    HLM_U08 *data;                          // ÂëÁ÷Ö¸Õë
-    HLM_S32 bytes_remaining;                // Õâ¶ÎÂëÁ÷Ê£Óà×Ö½ÚÊý
-    HLM_U64 next_bits;                      // ½ÓÏÂÀ´Òª´¦ÀíµÄ8¸ö×Ö½Ú´æÈë
-    HLM_S32 next_bits_cnt;                  // 8¸ö×Ö½ÚÖÐÊ£Óà±ÈÌØÊý
-    HLM_S32 zero_succession_cnt;            // Á¬Ðø0x00³öÏÖ´ÎÊý
-} HLMD_PRE_BITSTREAM;
-
-// Ô¤½âÎöµÄÍ¼ÏñÐÅÏ¢
-typedef struct _HLMD_VIDEO_INFO
-{
-    HLM_S32 code_width[3];
-    HLM_S32 code_height[3];
-    HLM_S32 ref_frm_num;
-    HLM_U32 profile_idc;
-    HLM_U32 crop_left;                      // ×ó±ßµÄ²Ã¼ôÏñËØÖµ
-    HLM_U32 crop_right;                     // ÓÒ±ßµÄ²Ã¼ôÏñËØÖµ
-    HLM_U32 crop_top;                       // ¶¥²¿µÄ²Ã¼ôÏñËØÖµ
-    HLM_U32 crop_bottom;                    // µ×²¿µÄ²Ã¼ôÏñËØÖµ
-    HLM_U32 bit_depth_luma;                 // ÁÁ¶ÈÎ»¿í
-    HLM_U32 bit_depth_chroma;               // É«¶ÈÎ»¿í
-    HLM_U32 format;                         // Í¼Ïñ¸ñÊ½
-    HLM_S32 mv_search_width;                // mvËÑË÷ÇøÓò¿í¶È£¬Ó°ÏìÍ¼Ïñpadding
-    HLM_S32 mv_search_height;               // mvËÑË÷ÇøÓò¸ß¶È£¬Ó°ÏìÍ¼Ïñpadding
-} HLMD_VIDEO_INFO;
-
-// ÄÜÁ¦¼¯²ÎÊý
-typedef struct _HLMD_ABILITY
-{
-    HLM_S32 code_width[3];                  // ÄÜ´¦Àí×î´óÍ¼Ïñ¿í¶È£¨>= 64£©£¬ÒªÇó16±¶¶ÔÆë
-    HLM_S32 code_height[3];                 // ÄÜ´¦Àí×î´óÍ¼Ïñ¸ß¶È£¨>= 64£©£¬ÒªÇó16±¶¶ÔÆë
-    HLM_S32 ref_frm_num;                    // ÄÜ´¦Àí×î´óÍ¼Ïñ²Î¿¼Ö¡Êý£¨<=16£©
-    HLM_S32 bit_depth_luma;
-    HLM_S32 bit_depth_chroma;
-} HLMD_ABILITY;
-
-/***************************************************************************************************
-* ¹¦  ÄÜ£ºÔ¤½âÎöÐòÁÐÍ·
-* ²Î  Êý£º*
-*         in_buf       -I       SPS°üÊý¾ÝÖ¸Õë
-*         in_size      -O       SPS°üµÄ´óÐ¡
-*         video_info   -I       Í¼ÏñÐòÁÐÐÅÏ¢½á¹¹Ìå
-* ·µ»ØÖµ£º×´Ì¬Âë
-* ±¸  ×¢£ºÈç¹ûmtab[i].sizeÎª0£¬Ôò²»ÐèÒª·ÖÅä¸Ã¿éÄÚ´æ
-***************************************************************************************************/
-HLM_STATUS HLMD_LIB_PreParseSeqHeader(HLM_VOID           *in_buf,
-                                      HLM_SZT             in_size,
-                                      HLMD_VIDEO_INFO    *video_info);
-
-/***************************************************************************************************
-* ¹¦  ÄÜ£º»ñÈ¡½âÂëËã·¨Ä£ÐÍËùÐè´æ´¢ÐÅÏ¢
-* ²Î  Êý£º*
-*         ability         -I    ÄÜÁ¦¼¯²ÎÊýÖ¸Õë
-*         mem_tab         -O    ´æ´¢¿Õ¼ä²ÎÊý½á¹¹Ìå
-*         video_info      -I    ÊÓÆµÐÅÏ¢
-* ·µ»ØÖµ£º×´Ì¬Âë
-* ±¸  ×¢£ºÈç¹ûmtab[i].sizeÎª0£¬Ôò²»ÐèÒª·ÖÅä¸Ã¿éÄÚ´æ
-***************************************************************************************************/
-HLM_STATUS HLMD_LIB_GetMemSize(HLMD_ABILITY     *ability,
-                               HLM_MEM_TAB       mem_tab[HLM_MEM_TAB_NUM],
-                               HLMD_VIDEO_INFO  *video_info);
-
-/***************************************************************************************************
-* ¹¦  ÄÜ£º´´½¨½âÂëËã·¨Ä£ÐÍÊµÀý,ÄÚ´æ³õÊ¼»¯
-* ²Î  Êý£º*
-*         ability         -I    ÄÜÁ¦¼¯²ÎÊýÖ¸Õë
-*         mem_tab         -O    ´æ´¢¿Õ¼ä²ÎÊý½á¹¹Ìå
-*         handle          -O    ±àÂëÊµÀý¾ä±úÖ¸Õë
-*         video_info      -I    ÊÓÆµÐÅÏ¢
-* ·µ»ØÖµ£º×´Ì¬Âë
-* ±¸  ×¢£º
-***************************************************************************************************/
-HLM_STATUS HLMD_LIB_Create(HLMD_ABILITY     *ability,
-                           HLM_MEM_TAB       mem_tab[HLM_MEM_TAB_NUM],
-                           HLM_VOID        **handle,
-                           HLMD_VIDEO_INFO  *video_info);
-
-/***************************************************************************************************
-* ¹¦  ÄÜ£º½âÂëÒ»Ö¡ÂëÁ÷
-* ²Î  Êý£º*
-*         handle    -I  ½âÂëÊµÀý¾ä±úÖ¸Õë
-*         in_buf    -I  ½âÂëÄ£ÐÍÊäÈë²ÎÊýµØÖ·
-*         in_size   -I  ½âÂëÄ£ÐÍÊäÈë²ÎÊý´óÐ¡
-*         out_buf   -O  ½âÂëÄ£ÐÍÊä³ö²ÎÊýµØÖ·
-*         out_size  -I  ½âÂëÄ£ÐÍÊä³ö²ÎÊý´óÐ¡
-* ·µ»ØÖµ£º×´Ì¬Âë
-* ±¸  ×¢£º
-***************************************************************************************************/
-HLM_STATUS HLMD_LIB_DecodeFrame(HLM_VOID *handle,
-                                HLM_VOID *in_buf,
-                                HLM_SZT   in_size,
-                                HLM_VOID *out_buf,
-                                HLM_SZT   out_size);
-
-#ifdef __cplusplus
-}
-#endif
-
-#endif // _HLMD_LIB_H_
+/***************************************************************************************************
+
+The copyright in this software is being made available under the License included below.
+This software may be subject to other third party and contributor rights, including patent
+rights, and no such rights are granted under this license.
+
+Copyright (C) 2025, Hangzhou Hikvision Digital Technology Co., Ltd. All rights reserved.
+
+Redistribution and use in source and binary forms, with or without modification, are permitted
+only for the purpose of developing standards within Audio and Video Coding Standard Workgroup of
+China (AVS) and for testing and promoting such standards. The following conditions are required
+to be met:
+
+* Redistributions of source code must retain the above copyright notice, this list of
+conditions and the following disclaimer.
+* Redistributions in binary form must reproduce the above copyright notice, this list of
+conditions and the following disclaimer in the documentation and/or other materials
+provided with the distribution.
+* The name of Hangzhou Hikvision Digital Technology Co., Ltd. may not be used to endorse or
+promote products derived from this software without specific prior written permission.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR
+IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND
+FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR
+CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+POSSIBILITY OF SUCH DAMAGE.
+
+***************************************************************************************************/
+#ifndef _HLMD_LIB_H_
+#define _HLMD_LIB_H_
+
+#include "hlm_common.h"
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+// è¾“å…¥è§£ç åº“çš„ç æµä¿¡æ¯ç»“æž„ä½“
+typedef struct _HLMD_STREAM_IN
+{
+    HLM_U08 *stream_buf;                    // ç æµç¼“å†²åŒºæŒ‡é’ˆ
+    HLM_S32  stream_len;                    // ç æµæ€»é•¿åº¦
+} HLMD_STREAM_IN;
+
+// è§£ç åº“è¾“å‡ºä¿¡æ¯ç»“æž„ä½“
+typedef struct _HLMD_PROCESS_OUT
+{
+    HLM_IMAGE  image_out;                   // è¾“å‡ºå›¾åƒ
+    HLM_S32    image_poc;                   // è¾“å‡ºå›¾åƒæ˜¾ç¤ºé¡ºåº
+    HLM_U08    is_mismatch;                 // æ˜¯å¦ç¼–è§£ç åŒ¹é…
+    HLM_U08    finish_one_frame;            // æ˜¯å¦è§£å®Œä¸€å¸§
+} HLMD_PROCESS_OUT;
+
+// é¢„è§£æžçš„ç æµç»“æž„ä½“
+typedef struct _HLMD_PRE_BITSTREAM
+{
+    HLM_U08 *data;                          // ç æµæŒ‡é’ˆ
+    HLM_S32 bytes_remaining;                // è¿™æ®µç æµå‰©ä½™å­—èŠ‚æ•°
+    HLM_U64 next_bits;                      // æŽ¥ä¸‹æ¥è¦å¤„ç†çš„8ä¸ªå­—èŠ‚å­˜å…¥
+    HLM_S32 next_bits_cnt;                  // 8ä¸ªå­—èŠ‚ä¸­å‰©ä½™æ¯”ç‰¹æ•°
+    HLM_S32 zero_succession_cnt;            // è¿žç»­0x00å‡ºçŽ°æ¬¡æ•°
+} HLMD_PRE_BITSTREAM;
+
+// é¢„è§£æžçš„å›¾åƒä¿¡æ¯
+typedef struct _HLMD_VIDEO_INFO
+{
+    HLM_S32 code_width[3];
+    HLM_S32 code_height[3];
+    HLM_S32 ref_frm_num;
+    HLM_U32 profile_idc;
+    HLM_U32 crop_left;                      // å·¦è¾¹çš„è£å‰ªåƒç´ å€¼
+    HLM_U32 crop_right;                     // å³è¾¹çš„è£å‰ªåƒç´ å€¼
+    HLM_U32 crop_top;                       // é¡¶éƒ¨çš„è£å‰ªåƒç´ å€¼
+    HLM_U32 crop_bottom;                    // åº•éƒ¨çš„è£å‰ªåƒç´ å€¼
+    HLM_U32 bit_depth_luma;                 // äº®åº¦ä½å®½
+    HLM_U32 bit_depth_chroma;               // è‰²åº¦ä½å®½
+    HLM_U32 format;                         // å›¾åƒæ ¼å¼
+    HLM_S32 mv_search_width;                // mvæœç´¢åŒºåŸŸå®½åº¦ï¼Œå½±å“å›¾åƒpadding
+    HLM_S32 mv_search_height;               // mvæœç´¢åŒºåŸŸé«˜åº¦ï¼Œå½±å“å›¾åƒpadding
+} HLMD_VIDEO_INFO;
+
+// èƒ½åŠ›é›†å‚æ•°
+typedef struct _HLMD_ABILITY
+{
+    HLM_S32 code_width[3];                  // èƒ½å¤„ç†æœ€å¤§å›¾åƒå®½åº¦ï¼ˆ>= 64ï¼‰ï¼Œè¦æ±‚16å€å¯¹é½
+    HLM_S32 code_height[3];                 // èƒ½å¤„ç†æœ€å¤§å›¾åƒé«˜åº¦ï¼ˆ>= 64ï¼‰ï¼Œè¦æ±‚16å€å¯¹é½
+    HLM_S32 ref_frm_num;                    // èƒ½å¤„ç†æœ€å¤§å›¾åƒå‚è€ƒå¸§æ•°ï¼ˆ<=16ï¼‰
+    HLM_S32 bit_depth_luma;
+    HLM_S32 bit_depth_chroma;
+} HLMD_ABILITY;
+
+/***************************************************************************************************
+* åŠŸ  èƒ½ï¼šé¢„è§£æžåºåˆ—å¤´
+* å‚  æ•°ï¼š*
+*         in_buf       -I       SPSåŒ…æ•°æ®æŒ‡é’ˆ
+*         in_size      -O       SPSåŒ…çš„å¤§å°
+*         video_info   -I       å›¾åƒåºåˆ—ä¿¡æ¯ç»“æž„ä½“
+* è¿”å›žå€¼ï¼šçŠ¶æ€ç 
+* å¤‡  æ³¨ï¼šå¦‚æžœmtab[i].sizeä¸º0ï¼Œåˆ™ä¸éœ€è¦åˆ†é…è¯¥å—å†…å­˜
+***************************************************************************************************/
+HLM_STATUS HLMD_LIB_PreParseSeqHeader(HLM_VOID           *in_buf,
+                                      HLM_SZT             in_size,
+                                      HLMD_VIDEO_INFO    *video_info);
+
+/***************************************************************************************************
+* åŠŸ  èƒ½ï¼šèŽ·å–è§£ç ç®—æ³•æ¨¡åž‹æ‰€éœ€å­˜å‚¨ä¿¡æ¯
+* å‚  æ•°ï¼š*
+*         ability         -I    èƒ½åŠ›é›†å‚æ•°æŒ‡é’ˆ
+*         mem_tab         -O    å­˜å‚¨ç©ºé—´å‚æ•°ç»“æž„ä½“
+*         video_info      -I    è§†é¢‘ä¿¡æ¯
+* è¿”å›žå€¼ï¼šçŠ¶æ€ç 
+* å¤‡  æ³¨ï¼šå¦‚æžœmtab[i].sizeä¸º0ï¼Œåˆ™ä¸éœ€è¦åˆ†é…è¯¥å—å†…å­˜
+***************************************************************************************************/
+HLM_STATUS HLMD_LIB_GetMemSize(HLMD_ABILITY     *ability,
+                               HLM_MEM_TAB       mem_tab[HLM_MEM_TAB_NUM],
+                               HLMD_VIDEO_INFO  *video_info);
+
+/***************************************************************************************************
+* åŠŸ  èƒ½ï¼šåˆ›å»ºè§£ç ç®—æ³•æ¨¡åž‹å®žä¾‹,å†…å­˜åˆå§‹åŒ–
+* å‚  æ•°ï¼š*
+*         ability         -I    èƒ½åŠ›é›†å‚æ•°æŒ‡é’ˆ
+*         mem_tab         -O    å­˜å‚¨ç©ºé—´å‚æ•°ç»“æž„ä½“
+*         handle          -O    ç¼–ç å®žä¾‹å¥æŸ„æŒ‡é’ˆ
+*         video_info      -I    è§†é¢‘ä¿¡æ¯
+* è¿”å›žå€¼ï¼šçŠ¶æ€ç 
+* å¤‡  æ³¨ï¼š
+***************************************************************************************************/
+HLM_STATUS HLMD_LIB_Create(HLMD_ABILITY     *ability,
+                           HLM_MEM_TAB       mem_tab[HLM_MEM_TAB_NUM],
+                           HLM_VOID        **handle,
+                           HLMD_VIDEO_INFO  *video_info);
+
+/***************************************************************************************************
+* åŠŸ  èƒ½ï¼šè§£ç ä¸€å¸§ç æµ
+* å‚  æ•°ï¼š*
+*         handle    -I  è§£ç å®žä¾‹å¥æŸ„æŒ‡é’ˆ
+*         in_buf    -I  è§£ç æ¨¡åž‹è¾“å…¥å‚æ•°åœ°å€
+*         in_size   -I  è§£ç æ¨¡åž‹è¾“å…¥å‚æ•°å¤§å°
+*         out_buf   -O  è§£ç æ¨¡åž‹è¾“å‡ºå‚æ•°åœ°å€
+*         out_size  -I  è§£ç æ¨¡åž‹è¾“å‡ºå‚æ•°å¤§å°
+* è¿”å›žå€¼ï¼šçŠ¶æ€ç 
+* å¤‡  æ³¨ï¼š
+***************************************************************************************************/
+HLM_STATUS HLMD_LIB_DecodeFrame(HLM_VOID *handle,
+                                HLM_VOID *in_buf,
+                                HLM_SZT   in_size,
+                                HLM_VOID *out_buf,
+                                HLM_SZT   out_size);
+
+#ifdef __cplusplus
+}
+#endif
+
+#endif // _HLMD_LIB_H_

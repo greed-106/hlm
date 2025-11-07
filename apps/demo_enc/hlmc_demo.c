@@ -1,104 +1,104 @@
-/***************************************************************************************************
-
-The copyright in this software is being made available under the License included below.
-This software may be subject to other third party and contributor rights, including patent
-rights, and no such rights are granted under this license.
-
-Copyright (C) 2025, Hangzhou Hikvision Digital Technology Co., Ltd. All rights reserved.
-
-Redistribution and use in source and binary forms, with or without modification, are permitted
-only for the purpose of developing standards within Audio and Video Coding Standard Workgroup of
-China (AVS) and for testing and promoting such standards. The following conditions are required
-to be met:
-
-* Redistributions of source code must retain the above copyright notice, this list of
-conditions and the following disclaimer.
-* Redistributions in binary form must reproduce the above copyright notice, this list of
-conditions and the following disclaimer in the documentation and/or other materials
-provided with the distribution.
-* The name of Hangzhou Hikvision Digital Technology Co., Ltd. may not be used to endorse or
-promote products derived from this software without specific prior written permission.
-
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR
-IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND
-FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR
-CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
-CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
-SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
-OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-POSSIBILITY OF SUCH DAMAGE.
-
-***************************************************************************************************/
-#include "hlmc_case_cmd.h"
-#include "hlmc_case_lib.h"
-
-int main(int argc, char **argv)
-{
-    HLM_S32        ret      = -1;         // ∫Ø ˝∑µªÿ÷µ
-    HLM_U32        version  = 0;          // À„∑®ƒ£–Õ∞Ê±æ∫≈
-    FILE          *fp_cfg   = HLM_NULL;   // ≤‚ ‘”√¿˝Œƒº˛÷∏’Î
-    FILE          *fp_log   = HLM_NULL;   // ‘À––»’÷æŒƒº˛÷∏’Î
-    HLMC_DEMO_CMD  cmd      = {0};        // √¸¡Ó––≤Œ ˝Ω·ππÃÂ
-
-    // …Ë÷√√¸¡Ó––ƒ¨»œ≤Œ ˝
-    HLMC_CMD_SetDefaultCommand(&cmd);
-
-    // µ±argc¥Û”⁄1 ±£¨Àµ√˜–Ë“™Ω‚Œˆ”√ªß ‰»Îµƒ√¸¡Ó––£¨∑Ò‘Ú£¨√¸¡Ó––≤…”√ƒ¨»œ≤Œ ˝
-    if (argc > 1)
-    {
-        ret = HLMC_CMD_ParseCommand(argc, argv, &cmd);
-        if (ret != 0)
-        {
-            goto MAIN_EXIT;
-        }
-    }
-
-    ret = HLMC_CMD_CheckCommand(&cmd);
-    if (ret != 0)
-    {
-        if (cmd.fp_log != HLM_NULL)
-        {
-            fprintf(cmd.fp_log, "Error happened when checking command!\n");
-            fprintf(cmd.fp_log, "Input '-help' to see help\n");
-        }
-        goto MAIN_EXIT;
-    }
-
-    fp_cfg = cmd.fp_cfg;
-    fp_log = cmd.fp_log;
-
-    // ªÒ»°À„∑®ƒ£–Õµƒ∞Ê±æ∫≈
-    version = HLMC_CASE_GetVersion();
-    fprintf(stdout, "HLM VERSION: %d.%d.%d\n",
-        (version >> 26), (version >> 21) & 0x1F, (version >> 16) & 0x1F);
-
-    ret = HLMC_CASE_Process(fp_cfg, fp_log, &cmd);
-    if (ret != 0)
-    {
-        fprintf(stderr, "Process failed, in Func <%s>, Line <%d>.\n", __FUNCTION__, __LINE__);
-        fprintf(stderr, "Config File: %s", cmd.file_cfg);
-
-        fprintf(fp_log, "Process failed, in Func <%s>, Line <%d>.\n", __FUNCTION__, __LINE__);
-        fprintf(fp_log, "Config File: %s", cmd.file_cfg);
-
-        goto MAIN_EXIT;       // µ±«∞case≥ˆ¥Ì£¨ºÃ–¯¥¶¿Ìœ¬“ª∏ˆcase
-    }
-
-MAIN_EXIT:
-
-    if (fp_cfg != HLM_NULL)
-    {
-        fclose(fp_cfg);
-        fp_cfg = HLM_NULL;
-        cmd.fp_cfg = HLM_NULL;
-    }
-    if (fp_log != HLM_NULL)
-    {
-        fclose(fp_log);
-        fp_log = HLM_NULL;
-        cmd.fp_log = HLM_NULL;
-    }
-
-    return 0;
-}
+/***************************************************************************************************
+
+The copyright in this software is being made available under the License included below.
+This software may be subject to other third party and contributor rights, including patent
+rights, and no such rights are granted under this license.
+
+Copyright (C) 2025, Hangzhou Hikvision Digital Technology Co., Ltd. All rights reserved.
+
+Redistribution and use in source and binary forms, with or without modification, are permitted
+only for the purpose of developing standards within Audio and Video Coding Standard Workgroup of
+China (AVS) and for testing and promoting such standards. The following conditions are required
+to be met:
+
+* Redistributions of source code must retain the above copyright notice, this list of
+conditions and the following disclaimer.
+* Redistributions in binary form must reproduce the above copyright notice, this list of
+conditions and the following disclaimer in the documentation and/or other materials
+provided with the distribution.
+* The name of Hangzhou Hikvision Digital Technology Co., Ltd. may not be used to endorse or
+promote products derived from this software without specific prior written permission.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR
+IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND
+FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR
+CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+POSSIBILITY OF SUCH DAMAGE.
+
+***************************************************************************************************/
+#include "hlmc_case_cmd.h"
+#include "hlmc_case_lib.h"
+
+int main(int argc, char **argv)
+{
+    HLM_S32        ret      = -1;         // ÂáΩÊï∞ËøîÂõûÂÄº
+    HLM_U32        version  = 0;          // ÁÆóÊ≥ïÊ®°ÂûãÁâàÊú¨Âè∑
+    FILE          *fp_cfg   = HLM_NULL;   // ÊµãËØïÁî®‰æãÊñá‰ª∂ÊåáÈíà
+    FILE          *fp_log   = HLM_NULL;   // ËøêË°åÊó•ÂøóÊñá‰ª∂ÊåáÈíà
+    HLMC_DEMO_CMD  cmd      = {0};        // ÂëΩ‰ª§Ë°åÂèÇÊï∞ÁªìÊûÑ‰Ωì
+
+    // ËÆæÁΩÆÂëΩ‰ª§Ë°åÈªòËÆ§ÂèÇÊï∞
+    HLMC_CMD_SetDefaultCommand(&cmd);
+
+    // ÂΩìargcÂ§ß‰∫é1Êó∂ÔºåËØ¥ÊòéÈúÄË¶ÅËß£ÊûêÁî®Êà∑ËæìÂÖ•ÁöÑÂëΩ‰ª§Ë°åÔºåÂê¶ÂàôÔºåÂëΩ‰ª§Ë°åÈááÁî®ÈªòËÆ§ÂèÇÊï∞
+    if (argc > 1)
+    {
+        ret = HLMC_CMD_ParseCommand(argc, argv, &cmd);
+        if (ret != 0)
+        {
+            goto MAIN_EXIT;
+        }
+    }
+
+    ret = HLMC_CMD_CheckCommand(&cmd);
+    if (ret != 0)
+    {
+        if (cmd.fp_log != HLM_NULL)
+        {
+            fprintf(cmd.fp_log, "Error happened when checking command!\n");
+            fprintf(cmd.fp_log, "Input '-help' to see help\n");
+        }
+        goto MAIN_EXIT;
+    }
+
+    fp_cfg = cmd.fp_cfg;
+    fp_log = cmd.fp_log;
+
+    // Ëé∑ÂèñÁÆóÊ≥ïÊ®°ÂûãÁöÑÁâàÊú¨Âè∑
+    version = HLMC_CASE_GetVersion();
+    fprintf(stdout, "HLM VERSION: %d.%d.%d\n",
+        (version >> 26), (version >> 21) & 0x1F, (version >> 16) & 0x1F);
+
+    ret = HLMC_CASE_Process(fp_cfg, fp_log, &cmd);
+    if (ret != 0)
+    {
+        fprintf(stderr, "Process failed, in Func <%s>, Line <%d>.\n", __FUNCTION__, __LINE__);
+        fprintf(stderr, "Config File: %s", cmd.file_cfg);
+
+        fprintf(fp_log, "Process failed, in Func <%s>, Line <%d>.\n", __FUNCTION__, __LINE__);
+        fprintf(fp_log, "Config File: %s", cmd.file_cfg);
+
+        goto MAIN_EXIT;       // ÂΩìÂâçcaseÂá∫ÈîôÔºåÁªßÁª≠Â§ÑÁêÜ‰∏ã‰∏Ä‰∏™case
+    }
+
+MAIN_EXIT:
+
+    if (fp_cfg != HLM_NULL)
+    {
+        fclose(fp_cfg);
+        fp_cfg = HLM_NULL;
+        cmd.fp_cfg = HLM_NULL;
+    }
+    if (fp_log != HLM_NULL)
+    {
+        fclose(fp_log);
+        fp_log = HLM_NULL;
+        cmd.fp_log = HLM_NULL;
+    }
+
+    return 0;
+}

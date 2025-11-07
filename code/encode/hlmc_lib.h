@@ -1,235 +1,235 @@
-/***************************************************************************************************
-
-The copyright in this software is being made available under the License included below.
-This software may be subject to other third party and contributor rights, including patent
-rights, and no such rights are granted under this license.
-
-Copyright (C) 2025, Hangzhou Hikvision Digital Technology Co., Ltd. All rights reserved.
-
-Redistribution and use in source and binary forms, with or without modification, are permitted
-only for the purpose of developing standards within Audio and Video Coding Standard Workgroup of
-China (AVS) and for testing and promoting such standards. The following conditions are required
-to be met:
-
-* Redistributions of source code must retain the above copyright notice, this list of
-conditions and the following disclaimer.
-* Redistributions in binary form must reproduce the above copyright notice, this list of
-conditions and the following disclaimer in the documentation and/or other materials
-provided with the distribution.
-* The name of Hangzhou Hikvision Digital Technology Co., Ltd. may not be used to endorse or
-promote products derived from this software without specific prior written permission.
-
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR
-IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND
-FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR
-CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
-CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
-SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
-OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-POSSIBILITY OF SUCH DAMAGE.
-
-***************************************************************************************************/
-#ifndef _HLMC_LIB_H_
-#define _HLMC_LIB_H_
-
-#include "hlm_common.h"
-
-#ifdef __cplusplus
-extern "C" {
-#endif
-
-// ÊäÈëĞÅÏ¢½á¹¹Ìå
-typedef struct _HLMC_PROCESS_IN
-{
-    HLM_IMAGE  image_in;                    // ÊäÈëÍ¼Ïñ
-    HLM_U08   *stream_buf;                  // Íâ²¿·ÖÅäµÄÂëÁ÷»º³åÇøµØÖ·£¬²»°üº¬·À¾ºÕùÂë
-    HLM_U08   *out_stream_buf;              // Íâ²¿·ÖÅäµÄÂëÁ÷»º³åÇøµØÖ·£¬°üº¬·À¾ºÕùÂë
-    HLM_U32    stream_buf_size;             // Íâ²¿·ÖÅäµÄÂëÁ÷»º³åÇø³¤¶È£¬ÖÁÉÙ4096×Ö½Ú
-    HLM_U32    force_idr;                   // Ç¿ÖÆIDRÖ¡±êÖ¾£¬0£º±àÂëÎªIDRÖ¡£¬1£º²»±àÂëÎªIDRÖ¡
-#if WRITE_PARAMETERS
-    FILE      *fp_param;                    // log file pointer for "tool/BitstreamAnalyzer"
-#endif
-} HLMC_PROCESS_IN;
-
-// Êä³öĞÅÏ¢½á¹¹Ìå
-typedef struct _HLMC_PROCESS_OUT
-{
-    HLM_U32    stream_len;                  // ÂëÁ÷µÄ³¤¶È
-    HLM_U32    sei_len;                     // ×öÍê·ÀÎ±ÆğÊ¼ÂëºóµÄSEI³¤¶È£¬Õâ²¿·Ö±ÈÌØ²»Í³¼ÆÔÚÂëÂÊÀï
-    HLM_U16   *recon_dbk_y;                 // ÖØ½¨Êı¾İ
-    HLM_U16   *recon_dbk_u;
-    HLM_U16   *recon_dbk_v;
-    HLM_U32    rec_stride_y;
-    HLM_U32    rec_stride_c;
-} HLMC_PROCESS_OUT;
-
-// ÄÜÁ¦¼¯²ÎÊı
-typedef struct _HLMC_ABILITY
-{
-    HLM_U32    max_width;                   // ÄÜ´¦Àí×î´óÍ¼Ïñ¿í¶È£¨>= 64£©µÄÅ¼Êı
-    HLM_U32    max_height;                  // ÄÜ´¦Àí×î´óÍ¼Ïñ¸ß¶È£¨>= 64£©µÄÅ¼Êı
-} HLMC_ABILITY;
-
-// ProfileÀàĞÍ
-typedef enum _HLMC_PROFILE
-{
-    HLMC_MAIN_PROFILE = 64,                 // 0x40
-    HLMC_HIGH_PROFILE = 80                  // 0x50
-} HLMC_PROFILE;
-
-// ĞòÁĞ¼¶±àÂë¿ØÖÆ²ÎÊı
-typedef struct _HLMC_CODING_CTRL
-{
-    HLM_U32         width;                  // ±àÂë¿í¶È£¬²»³¬¹ıÄÜÁ¦¼¯max_widthµÄÅ¼Êı
-    HLM_U32         height;                 // ±àÂë¸ß¶È£¬²»³¬¹ıÄÜÁ¦¼¯max_heightµÄÅ¼Êı
-    HLM_U32         bitdepth;               // ±ÈÌØÉî¶È
-    HLM_U32         intra_8x8_enable_flag;
-    HLM_U32         img_format;             // Í¼Ïñ¸ñÊ½
-    HLM_U32         frame_rate_num;         // Ö¡ÂÊ·Ö×Ó
-    HLM_U32         frame_rate_denom;       // Ö¡ÂÊ·ÖÄ¸
-    HLMC_PROFILE    profile;                // Profile
-    HLM_S32         uniform_patch_split;    // ÊÇ·ñ¾ùÔÈ»®·Öpatch
-    HLM_PATCH_INFO  patch_info;
-    HLM_S32         i_frame_enable_ibc;
-    HLM_S32         p_frame_enable_ibc;
-    HLM_S32         mv_ref_cross_patch;
-    HLM_S32         mv_search_width;
-    HLM_S32         mv_search_height;
-    HLM_S32         chroma_qp_offset;
-    HLM_S32         segment_enable_flag;
-    HLM_S32         segment_width_in_log2;
-    HLM_S32         segment_height_in_log2;
-} HLMC_CODING_CTRL;
-
-// DPBÅäÖÃ²ÎÊı
-typedef struct _HLMC_DPB_REF_CTRL
-{
-    HLM_U32 intra_period;                   // IÖ¡¼ä¸ô
-    HLM_U32 base_period;                    // baseÖ¡µÄÖÜÆÚ£¬(1, +¡Ş)£¬Ä¬ÈÏÎª1
-    HLM_U32 reffed_enable;                  // base²ãµÄÖ¡ÊÇ·ñ±»ÆäËûbase²ãµÄÖ¡ÓÃ×÷²Î¿¼Ö¡£¬Ä¬ÈÏÎª¿É²Î¿¼
-} HLMC_DPB_REF_CTRL;
-
-// ÂëÂÊ¿ØÖÆÄ£Ê½
-typedef enum _HLMC_RATECTRL_TYPE
-{
-    HLMC_RC_CBR = 0,                        // ¶¨ÂëÂÊ
-    HLMC_RC_FIXQP = 1,                      // ¶¨QP
-} HLMC_RATECTRL_TYPE;
-
-// CBRÂëÂÊ¿ØÖÆ²ÎÊı
-typedef struct _HLMC_RC_CBR_CFG
-{
-    HLM_S32   bpp_i;                        // ÓÃ»§ÅäÖÃÄ¿±êBPP * 16
-    HLM_S32   bpp_p;                        // ÓÃ»§ÅäÖÃÄ¿±êBPP * 16
-    HLM_S32   rc_buffer_size_log2;          // ÖµÎª0±íÊ¾²ÉÓÃÄ¬ÈÏ²ÎÊı
-    HLM_S32   init_qp;                      // µÚÒ»Ö¡µÄÆğÊ¼QpÖµ
-    HLM_S32   stat_time;                    // Í³¼ÆÊ±¼ä£¨»¬¶¯´°¿Ú´óĞ¡£©,[1,60]
-    HLM_S32   qp_min;                       // PÖ¡qp×îĞ¡Öµ
-    HLM_S32   qp_max;                       // PÖ¡qp×î´óÖµ
-    HLM_S32   qp_min_i;                     // IÖ¡qp×îĞ¡Öµ
-    HLM_S32   qp_max_i;                     // IÖ¡qp×î´óÖµ
-} HLMC_RC_CBR_CFG;
-
-//FIX_QP²ÎÊı
-typedef struct _HLMC_RC_FIXQP_CFG
-{
-    HLM_U32 qp_i;                           // IÖ¡QP
-    HLM_U32 qp_p;                           // PÖ¡QP
-} HLMC_RC_FIXQP_CFG;
-
-// ÂëÂÊ¿ØÖÆ²ÎÊı
-typedef struct _HLMC_RATE_CTRL
-{
-    HLMC_RATECTRL_TYPE rate_ctrl_mode;
-    HLMC_RC_CBR_CFG    rc_cbr_ctrl;
-    HLMC_RC_FIXQP_CFG  rc_fixqp_ctrl;
-} HLMC_RATE_CTRL;
-
-/***************************************************************************************************
-* ¹¦  ÄÜ£º»ñÈ¡±àÂëËã·¨Ä£ĞÍËùĞè´æ´¢ĞÅÏ¢
-* ²Î  Êı£º*
-*         ability          -I    ÄÜÁ¦¼¯²ÎÊıÖ¸Õë
-*         mem_tab          -O    ´æ´¢¿Õ¼ä²ÎÊı½á¹¹Ìå
-*         coding_ctrl      -I    ±àÂë¿ØÖÆ½á¹¹Ìå
-* ·µ»ØÖµ£º×´Ì¬Âë
-* ±¸  ×¢£ºÈç¹ûmtab[i].sizeÎª0£¬Ôò²»ĞèÒª·ÖÅä¸Ã¿éÄÚ´æ
-***************************************************************************************************/
-HLM_STATUS HLMC_LIB_GetMemSize(HLMC_ABILITY      *ability,
-                               HLM_MEM_TAB        mem_tab[HLM_MEM_TAB_NUM],
-                               HLMC_CODING_CTRL  *coding_ctrl);
-
-/***************************************************************************************************
-* ¹¦  ÄÜ£º´´½¨±àÂëËã·¨Ä£ĞÍÊµÀı,ÄÚ´æ³õÊ¼»¯
-* ²Î  Êı£º*
-*         ability          -I    ÄÜÁ¦¼¯²ÎÊıÖ¸Õë
-*         mem_tab          -O    ´æ´¢¿Õ¼ä²ÎÊı½á¹¹Ìå
-*         handle           -O    ±àÂëÊµÀı¾ä±úÖ¸Õë
-*         coding_ctrl      -I    ±àÂë¿ØÖÆ½á¹¹Ìå
-* ·µ»ØÖµ£º×´Ì¬Âë
-* ±¸  ×¢£º
-***************************************************************************************************/
-HLM_STATUS HLMC_LIB_Create(HLMC_ABILITY     *ability,
-                           HLM_MEM_TAB       mem_tab[HLM_MEM_TAB_NUM],
-                           HLM_VOID        **handle,
-                           HLMC_CODING_CTRL *coding_ctrl);
-
-/***************************************************************************************************
-* ¹¦  ÄÜ£ºÉèÖÃĞòÁĞ¼¶±àÂë¿ØÖÆ²ÎÊı
-* ²Î  Êı£º*
-*         handle       -O  ±àÂëÊµÀı¾ä±úÖ¸Õë
-*         code_params  -I  ±àÂëÄ£ĞÍÅäÖÃ²ÎÊı
-* ·µ»ØÖµ£º×´Ì¬Âë
-* ±¸  ×¢£º
-***************************************************************************************************/
-HLM_STATUS HLMC_LIB_SetCodingCtrl(HLM_VOID          *handle,
-                                  HLMC_CODING_CTRL  *code_params);
-
-/***************************************************************************************************
-* ¹¦  ÄÜ£ºÉèÖÃDPB¼°²Î¿¼½á¹¹²ÎÊı
-* ²Î  Êı£º*
-*         handle        -O  ±àÂëÊµÀı¾ä±úÖ¸Õë
-*         dpb_params    -I  DPB½á¹¹ºÍ²Î¿¼¹ØÏµ¿ØÖÆ²ÎÊı
-* ·µ»ØÖµ£º×´Ì¬Âë
-* ±¸  ×¢£º
-***************************************************************************************************/
-HLM_STATUS HLMC_LIB_SetDpbRefCtrl(HLM_VOID           *handle,
-                                  HLMC_DPB_REF_CTRL  *dpb_params);
-
-/***************************************************************************************************
-* ¹¦  ÄÜ£º±àÂëÒ»Ö¡Í¼Ïñ
-* ²Î  Êı£º*
-*         handle    -I  ±àÂëÊµÀı¾ä±úÖ¸Õë
-*         in_buf    -I  ±àÂëÄ£ĞÍÊäÈë²ÎÊıµØÖ·
-*         in_size   -I  ±àÂëÄ£ĞÍÊäÈë²ÎÊı´óĞ¡
-*         out_buf   -O  ±àÂëÄ£ĞÍÊä³ö²ÎÊıµØÖ·
-*         out_size  -I  ±àÂëÄ£ĞÍÊä³ö²ÎÊı´óĞ¡
-* ·µ»ØÖµ£º×´Ì¬Âë
-* ±¸  ×¢£º
-***************************************************************************************************/
-HLM_STATUS HLMC_LIB_EncodeFrame(HLM_VOID *handle,
-                                HLM_VOID *in_buf,
-                                HLM_SZT   in_size,
-                                HLM_VOID *out_buf,
-                                HLM_SZT   out_size);
-
-/***************************************************************************************************
-* ¹¦  ÄÜ£ºÂëÂÊ¿ØÖÆÄ£¿é³õÊ¼»¯
-* ²Î  Êı£º*
-*         lib_handle         -IO       Ëã·¨Ä£ĞÍ¾ä±ú
-*         pic_width          -I        Í¼Ïñ¿í
-*         pic_height         -I        Í¼Ïñ¸ß
-*         rate_ctrl          -I        Âë¿Ø²ÎÊı
-* ·µ»ØÖµ£ºÎŞ
-* ±¸  ×¢£º
-***************************************************************************************************/
-HLM_VOID HLMC_LIB_InitRc(HLM_VOID        *lib_handle,
-                         HLM_U32          pic_width,
-                         HLM_U32          pic_height,
-                         HLMC_RATE_CTRL  *rate_ctrl);
-
-#ifdef __cplusplus
-}
-#endif
-
-#endif // _HLMC_LIB_H_
+/***************************************************************************************************
+
+The copyright in this software is being made available under the License included below.
+This software may be subject to other third party and contributor rights, including patent
+rights, and no such rights are granted under this license.
+
+Copyright (C) 2025, Hangzhou Hikvision Digital Technology Co., Ltd. All rights reserved.
+
+Redistribution and use in source and binary forms, with or without modification, are permitted
+only for the purpose of developing standards within Audio and Video Coding Standard Workgroup of
+China (AVS) and for testing and promoting such standards. The following conditions are required
+to be met:
+
+* Redistributions of source code must retain the above copyright notice, this list of
+conditions and the following disclaimer.
+* Redistributions in binary form must reproduce the above copyright notice, this list of
+conditions and the following disclaimer in the documentation and/or other materials
+provided with the distribution.
+* The name of Hangzhou Hikvision Digital Technology Co., Ltd. may not be used to endorse or
+promote products derived from this software without specific prior written permission.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR
+IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND
+FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR
+CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+POSSIBILITY OF SUCH DAMAGE.
+
+***************************************************************************************************/
+#ifndef _HLMC_LIB_H_
+#define _HLMC_LIB_H_
+
+#include "hlm_common.h"
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+// è¾“å…¥ä¿¡æ¯ç»“æ„ä½“
+typedef struct _HLMC_PROCESS_IN
+{
+    HLM_IMAGE  image_in;                    // è¾“å…¥å›¾åƒ
+    HLM_U08   *stream_buf;                  // å¤–éƒ¨åˆ†é…çš„ç æµç¼“å†²åŒºåœ°å€ï¼Œä¸åŒ…å«é˜²ç«äº‰ç 
+    HLM_U08   *out_stream_buf;              // å¤–éƒ¨åˆ†é…çš„ç æµç¼“å†²åŒºåœ°å€ï¼ŒåŒ…å«é˜²ç«äº‰ç 
+    HLM_U32    stream_buf_size;             // å¤–éƒ¨åˆ†é…çš„ç æµç¼“å†²åŒºé•¿åº¦ï¼Œè‡³å°‘4096å­—èŠ‚
+    HLM_U32    force_idr;                   // å¼ºåˆ¶IDRå¸§æ ‡å¿—ï¼Œ0ï¼šç¼–ç ä¸ºIDRå¸§ï¼Œ1ï¼šä¸ç¼–ç ä¸ºIDRå¸§
+#if WRITE_PARAMETERS
+    FILE      *fp_param;                    // log file pointer for "tool/BitstreamAnalyzer"
+#endif
+} HLMC_PROCESS_IN;
+
+// è¾“å‡ºä¿¡æ¯ç»“æ„ä½“
+typedef struct _HLMC_PROCESS_OUT
+{
+    HLM_U32    stream_len;                  // ç æµçš„é•¿åº¦
+    HLM_U32    sei_len;                     // åšå®Œé˜²ä¼ªèµ·å§‹ç åçš„SEIé•¿åº¦ï¼Œè¿™éƒ¨åˆ†æ¯”ç‰¹ä¸ç»Ÿè®¡åœ¨ç ç‡é‡Œ
+    HLM_U16   *recon_dbk_y;                 // é‡å»ºæ•°æ®
+    HLM_U16   *recon_dbk_u;
+    HLM_U16   *recon_dbk_v;
+    HLM_U32    rec_stride_y;
+    HLM_U32    rec_stride_c;
+} HLMC_PROCESS_OUT;
+
+// èƒ½åŠ›é›†å‚æ•°
+typedef struct _HLMC_ABILITY
+{
+    HLM_U32    max_width;                   // èƒ½å¤„ç†æœ€å¤§å›¾åƒå®½åº¦ï¼ˆ>= 64ï¼‰çš„å¶æ•°
+    HLM_U32    max_height;                  // èƒ½å¤„ç†æœ€å¤§å›¾åƒé«˜åº¦ï¼ˆ>= 64ï¼‰çš„å¶æ•°
+} HLMC_ABILITY;
+
+// Profileç±»å‹
+typedef enum _HLMC_PROFILE
+{
+    HLMC_MAIN_PROFILE = 64,                 // 0x40
+    HLMC_HIGH_PROFILE = 80                  // 0x50
+} HLMC_PROFILE;
+
+// åºåˆ—çº§ç¼–ç æ§åˆ¶å‚æ•°
+typedef struct _HLMC_CODING_CTRL
+{
+    HLM_U32         width;                  // ç¼–ç å®½åº¦ï¼Œä¸è¶…è¿‡èƒ½åŠ›é›†max_widthçš„å¶æ•°
+    HLM_U32         height;                 // ç¼–ç é«˜åº¦ï¼Œä¸è¶…è¿‡èƒ½åŠ›é›†max_heightçš„å¶æ•°
+    HLM_U32         bitdepth;               // æ¯”ç‰¹æ·±åº¦
+    HLM_U32         intra_8x8_enable_flag;
+    HLM_U32         img_format;             // å›¾åƒæ ¼å¼
+    HLM_U32         frame_rate_num;         // å¸§ç‡åˆ†å­
+    HLM_U32         frame_rate_denom;       // å¸§ç‡åˆ†æ¯
+    HLMC_PROFILE    profile;                // Profile
+    HLM_S32         uniform_patch_split;    // æ˜¯å¦å‡åŒ€åˆ’åˆ†patch
+    HLM_PATCH_INFO  patch_info;
+    HLM_S32         i_frame_enable_ibc;
+    HLM_S32         p_frame_enable_ibc;
+    HLM_S32         mv_ref_cross_patch;
+    HLM_S32         mv_search_width;
+    HLM_S32         mv_search_height;
+    HLM_S32         chroma_qp_offset;
+    HLM_S32         segment_enable_flag;
+    HLM_S32         segment_width_in_log2;
+    HLM_S32         segment_height_in_log2;
+} HLMC_CODING_CTRL;
+
+// DPBé…ç½®å‚æ•°
+typedef struct _HLMC_DPB_REF_CTRL
+{
+    HLM_U32 intra_period;                   // Iå¸§é—´éš”
+    HLM_U32 base_period;                    // baseå¸§çš„å‘¨æœŸï¼Œ(1, +âˆ)ï¼Œé»˜è®¤ä¸º1
+    HLM_U32 reffed_enable;                  // baseå±‚çš„å¸§æ˜¯å¦è¢«å…¶ä»–baseå±‚çš„å¸§ç”¨ä½œå‚è€ƒå¸§ï¼Œé»˜è®¤ä¸ºå¯å‚è€ƒ
+} HLMC_DPB_REF_CTRL;
+
+// ç ç‡æ§åˆ¶æ¨¡å¼
+typedef enum _HLMC_RATECTRL_TYPE
+{
+    HLMC_RC_CBR = 0,                        // å®šç ç‡
+    HLMC_RC_FIXQP = 1,                      // å®šQP
+} HLMC_RATECTRL_TYPE;
+
+// CBRç ç‡æ§åˆ¶å‚æ•°
+typedef struct _HLMC_RC_CBR_CFG
+{
+    HLM_S32   bpp_i;                        // ç”¨æˆ·é…ç½®ç›®æ ‡BPP * 16
+    HLM_S32   bpp_p;                        // ç”¨æˆ·é…ç½®ç›®æ ‡BPP * 16
+    HLM_S32   rc_buffer_size_log2;          // å€¼ä¸º0è¡¨ç¤ºé‡‡ç”¨é»˜è®¤å‚æ•°
+    HLM_S32   init_qp;                      // ç¬¬ä¸€å¸§çš„èµ·å§‹Qpå€¼
+    HLM_S32   stat_time;                    // ç»Ÿè®¡æ—¶é—´ï¼ˆæ»‘åŠ¨çª—å£å¤§å°ï¼‰,[1,60]
+    HLM_S32   qp_min;                       // På¸§qpæœ€å°å€¼
+    HLM_S32   qp_max;                       // På¸§qpæœ€å¤§å€¼
+    HLM_S32   qp_min_i;                     // Iå¸§qpæœ€å°å€¼
+    HLM_S32   qp_max_i;                     // Iå¸§qpæœ€å¤§å€¼
+} HLMC_RC_CBR_CFG;
+
+//FIX_QPå‚æ•°
+typedef struct _HLMC_RC_FIXQP_CFG
+{
+    HLM_U32 qp_i;                           // Iå¸§QP
+    HLM_U32 qp_p;                           // På¸§QP
+} HLMC_RC_FIXQP_CFG;
+
+// ç ç‡æ§åˆ¶å‚æ•°
+typedef struct _HLMC_RATE_CTRL
+{
+    HLMC_RATECTRL_TYPE rate_ctrl_mode;
+    HLMC_RC_CBR_CFG    rc_cbr_ctrl;
+    HLMC_RC_FIXQP_CFG  rc_fixqp_ctrl;
+} HLMC_RATE_CTRL;
+
+/***************************************************************************************************
+* åŠŸ  èƒ½ï¼šè·å–ç¼–ç ç®—æ³•æ¨¡å‹æ‰€éœ€å­˜å‚¨ä¿¡æ¯
+* å‚  æ•°ï¼š*
+*         ability          -I    èƒ½åŠ›é›†å‚æ•°æŒ‡é’ˆ
+*         mem_tab          -O    å­˜å‚¨ç©ºé—´å‚æ•°ç»“æ„ä½“
+*         coding_ctrl      -I    ç¼–ç æ§åˆ¶ç»“æ„ä½“
+* è¿”å›å€¼ï¼šçŠ¶æ€ç 
+* å¤‡  æ³¨ï¼šå¦‚æœmtab[i].sizeä¸º0ï¼Œåˆ™ä¸éœ€è¦åˆ†é…è¯¥å—å†…å­˜
+***************************************************************************************************/
+HLM_STATUS HLMC_LIB_GetMemSize(HLMC_ABILITY      *ability,
+                               HLM_MEM_TAB        mem_tab[HLM_MEM_TAB_NUM],
+                               HLMC_CODING_CTRL  *coding_ctrl);
+
+/***************************************************************************************************
+* åŠŸ  èƒ½ï¼šåˆ›å»ºç¼–ç ç®—æ³•æ¨¡å‹å®ä¾‹,å†…å­˜åˆå§‹åŒ–
+* å‚  æ•°ï¼š*
+*         ability          -I    èƒ½åŠ›é›†å‚æ•°æŒ‡é’ˆ
+*         mem_tab          -O    å­˜å‚¨ç©ºé—´å‚æ•°ç»“æ„ä½“
+*         handle           -O    ç¼–ç å®ä¾‹å¥æŸ„æŒ‡é’ˆ
+*         coding_ctrl      -I    ç¼–ç æ§åˆ¶ç»“æ„ä½“
+* è¿”å›å€¼ï¼šçŠ¶æ€ç 
+* å¤‡  æ³¨ï¼š
+***************************************************************************************************/
+HLM_STATUS HLMC_LIB_Create(HLMC_ABILITY     *ability,
+                           HLM_MEM_TAB       mem_tab[HLM_MEM_TAB_NUM],
+                           HLM_VOID        **handle,
+                           HLMC_CODING_CTRL *coding_ctrl);
+
+/***************************************************************************************************
+* åŠŸ  èƒ½ï¼šè®¾ç½®åºåˆ—çº§ç¼–ç æ§åˆ¶å‚æ•°
+* å‚  æ•°ï¼š*
+*         handle       -O  ç¼–ç å®ä¾‹å¥æŸ„æŒ‡é’ˆ
+*         code_params  -I  ç¼–ç æ¨¡å‹é…ç½®å‚æ•°
+* è¿”å›å€¼ï¼šçŠ¶æ€ç 
+* å¤‡  æ³¨ï¼š
+***************************************************************************************************/
+HLM_STATUS HLMC_LIB_SetCodingCtrl(HLM_VOID          *handle,
+                                  HLMC_CODING_CTRL  *code_params);
+
+/***************************************************************************************************
+* åŠŸ  èƒ½ï¼šè®¾ç½®DPBåŠå‚è€ƒç»“æ„å‚æ•°
+* å‚  æ•°ï¼š*
+*         handle        -O  ç¼–ç å®ä¾‹å¥æŸ„æŒ‡é’ˆ
+*         dpb_params    -I  DPBç»“æ„å’Œå‚è€ƒå…³ç³»æ§åˆ¶å‚æ•°
+* è¿”å›å€¼ï¼šçŠ¶æ€ç 
+* å¤‡  æ³¨ï¼š
+***************************************************************************************************/
+HLM_STATUS HLMC_LIB_SetDpbRefCtrl(HLM_VOID           *handle,
+                                  HLMC_DPB_REF_CTRL  *dpb_params);
+
+/***************************************************************************************************
+* åŠŸ  èƒ½ï¼šç¼–ç ä¸€å¸§å›¾åƒ
+* å‚  æ•°ï¼š*
+*         handle    -I  ç¼–ç å®ä¾‹å¥æŸ„æŒ‡é’ˆ
+*         in_buf    -I  ç¼–ç æ¨¡å‹è¾“å…¥å‚æ•°åœ°å€
+*         in_size   -I  ç¼–ç æ¨¡å‹è¾“å…¥å‚æ•°å¤§å°
+*         out_buf   -O  ç¼–ç æ¨¡å‹è¾“å‡ºå‚æ•°åœ°å€
+*         out_size  -I  ç¼–ç æ¨¡å‹è¾“å‡ºå‚æ•°å¤§å°
+* è¿”å›å€¼ï¼šçŠ¶æ€ç 
+* å¤‡  æ³¨ï¼š
+***************************************************************************************************/
+HLM_STATUS HLMC_LIB_EncodeFrame(HLM_VOID *handle,
+                                HLM_VOID *in_buf,
+                                HLM_SZT   in_size,
+                                HLM_VOID *out_buf,
+                                HLM_SZT   out_size);
+
+/***************************************************************************************************
+* åŠŸ  èƒ½ï¼šç ç‡æ§åˆ¶æ¨¡å—åˆå§‹åŒ–
+* å‚  æ•°ï¼š*
+*         lib_handle         -IO       ç®—æ³•æ¨¡å‹å¥æŸ„
+*         pic_width          -I        å›¾åƒå®½
+*         pic_height         -I        å›¾åƒé«˜
+*         rate_ctrl          -I        ç æ§å‚æ•°
+* è¿”å›å€¼ï¼šæ— 
+* å¤‡  æ³¨ï¼š
+***************************************************************************************************/
+HLM_VOID HLMC_LIB_InitRc(HLM_VOID        *lib_handle,
+                         HLM_U32          pic_width,
+                         HLM_U32          pic_height,
+                         HLMC_RATE_CTRL  *rate_ctrl);
+
+#ifdef __cplusplus
+}
+#endif
+
+#endif // _HLMC_LIB_H_

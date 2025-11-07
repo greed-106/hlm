@@ -1,205 +1,205 @@
-/***************************************************************************************************
-
-The copyright in this software is being made available under the License included below.
-This software may be subject to other third party and contributor rights, including patent
-rights, and no such rights are granted under this license.
-
-Copyright (C) 2025, Hangzhou Hikvision Digital Technology Co., Ltd. All rights reserved.
-
-Redistribution and use in source and binary forms, with or without modification, are permitted
-only for the purpose of developing standards within Audio and Video Coding Standard Workgroup of
-China (AVS) and for testing and promoting such standards. The following conditions are required
-to be met:
-
-* Redistributions of source code must retain the above copyright notice, this list of
-conditions and the following disclaimer.
-* Redistributions in binary form must reproduce the above copyright notice, this list of
-conditions and the following disclaimer in the documentation and/or other materials
-provided with the distribution.
-* The name of Hangzhou Hikvision Digital Technology Co., Ltd. may not be used to endorse or
-promote products derived from this software without specific prior written permission.
-
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR
-IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND
-FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR
-CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
-CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
-SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
-OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-POSSIBILITY OF SUCH DAMAGE.
-
-***************************************************************************************************/
-#ifndef _HLMC_COMMON_H_
-#define _HLMC_COMMON_H_
-
-#include "hlmc_defs.h"
-
-#ifdef __cplusplus
-extern "C" {
-#endif
-
-/***************************************************************************************************
-* ¹¦  ÄÜ£º½«cur_cu_infoµÄĞÅÏ¢¸´ÖÆ¸øbest_cu_info
-* ²Î  Êı£º*
-*         cur_cu           -I    cur_cuµÄÆğÊ¼µØÖ·
-*         best_cu          -O    best_cuµÄÆğÊ¼µØÖ·
-*         yuv_comp         -I    ·ÖÁ¿¸öÊı
-* ·µ»ØÖµ£º
-* ±¸  ×¢£º
-***************************************************************************************************/
-HLM_VOID HLMC_COM_CopyCuInfo(HLMC_CU_INFO       *cur_cu,
-                             HLMC_CU_INFO       *best_cu,
-                             HLM_U32             yuv_comp);
-
-/***************************************************************************************************
-* ¹¦  ÄÜ£º¼ÆËãÁ½¿éblockµÄSSE
-* ²Î  Êı£º*
-*         block0          -I    µÚÒ»¿éblockµÄÆğÊ¼µØÖ·
-*         block1          -I    µÚ¶ş¿éblockµÄÆğÊ¼µØÖ·
-*         block_width     -I    ¿é¿í¶È
-*         block_height    -I    ¿é¸ß¶È
-*         block0_stride   -I    µÚÒ»¿éblockµÄ¿ç¶È
-*         block1_stride   -I    µÚ¶ş¿éblockµÄ¿ç¶È
-* ·µ»ØÖµ£ºÁ½¿éblockµÄSSEÖµ
-* ±¸  ×¢£º
-***************************************************************************************************/
-HLM_U32 HLMC_COM_ComputeSse(HLM_U16 *block0,
-                            HLM_U16 *block1,
-                            HLM_U32  block_width,
-                            HLM_U32  block_height,
-                            HLM_U32  block0_stride,
-                            HLM_U32  block1_stride);
-
-/***************************************************************************************************
-* ¹¦  ÄÜ£º¼ÆËãÁ½¿éblockµÄ²Ğ²î
-* ²Î  Êı£º*
-*         block0          -I    µÚÒ»¿éblockµÄÆğÊ¼µØÖ·
-*         block1          -I    µÚ¶ş¿éblockµÄÆğÊ¼µØÖ·
-*         res             -O    ²Ğ²îµÄÆğÊ¼µØÖ·
-*         block_width     -I    ¿é¿í¶È
-*         block_height    -I    ¿é¸ß¶È
-*         block0_stride   -I    µÚÒ»¿éblockµÄ¿ç¶È
-*         block1_stride   -I    µÚ¶ş¿éblockµÄ¿ç¶È
-*         res_stride      -I    ²Ğ²îµÄ¿ç¶È
-* ·µ»ØÖµ£º
-* ±¸  ×¢£ºres = block0 - block1
-***************************************************************************************************/
-HLM_VOID HLMC_COM_ComputeRes(HLM_U16 *block0,
-                             HLM_U16 *block1,
-                             HLM_COEFF*res,
-                             HLM_U32  block_width,
-                             HLM_U32  block_height,
-                             HLM_U32  block0_stride,
-                             HLM_U32  block1_stride,
-                             HLM_U32  res_stride);
-
-/***************************************************************************************************
-* ¹¦  ÄÜ£º¼ÆËãÁ½¿éblockµÄSAD
-* ²Î  Êı£º*
-*         block0          -I    µÚÒ»¿éblockµÄÆğÊ¼µØÖ·
-*         block1          -I    µÚ¶ş¿éblockµÄÆğÊ¼µØÖ·
-*         block_width     -I    Á½¿éblockµÄ¿í
-*         block_height    -I    Á½¿éblockµÄ¸ß
-*         block0_stride   -I    µÚÒ»¿éblockµÄ¿ç¶È
-*         block1_stride   -I    µÚ¶ş¿éblockµÄ¿ç¶È
-* ·µ»ØÖµ£ºÁ½¿éblockµÄSADÖµ
-* ±¸  ×¢£º
-***************************************************************************************************/
-HLM_U32 HLMC_COM_ComputeSad(HLM_U16 *block0,
-                            HLM_U16 *block1,
-                            HLM_U32  block_width,
-                            HLM_U32  block_height,
-                            HLM_U32  block0_stride,
-                            HLM_U32  block1_stride);
-
-#if MIX_IBC
-/***************************************************************************************************
-* ¹¦  ÄÜ£º¼ÆËãÁ½¿éibc4x4¿éµÄSAD
-* ²Î  Êı£º*
-*         block0          -I    µÚÒ»¿éblockµÄÆğÊ¼µØÖ·
-*         block1          -I    µÚ¶ş¿éblockµÄÆğÊ¼µØÖ·
-*         block0_stride   -I    µÚÒ»¿éblockµÄ¿ç¶È
-*         block1_stride   -I    µÚ¶ş¿éblockµÄ¿ç¶È
-*         sad             -O    sad
-* ·µ»ØÖµ£ºÎŞ
-* ±¸  ×¢£º
-***************************************************************************************************/
-HLM_VOID HLMC_COM_ComputeIbc4x4Sad(HLM_U16 *block0,
-                                   HLM_U16 *block1,
-                                   HLM_U32  block0_stride,
-                                   HLM_U32  block1_stride,
-                                   HLM_U32  sad[HLM_IBC_PART_NUM][4]);
-
-/***************************************************************************************************
-* ¹¦  ÄÜ£ºµ¼³ömix_ibc_flagºÍbvy_zero_flag
-* ²Î  Êı£º*
-*        com_cu_info            -I         µ±Ç°CUĞÅÏ¢
-*        merge_flag             -I         merge·½Ê½
-*        mix_ibc_flag           -O         ÊÇ·ñÎª»ìºÏibc
-*        bvy_zero_flag          -O         bvyÊÇ·ñÈ«Áã
-* ·µ»ØÖµ£ºÎŞ
-* ±¸  ×¢£º
-***************************************************************************************************/
-HLM_VOID HLMC_COM_DeriveMixIbcInfo(HLM_CU_INFO  *com_cu_info,
-                                   HLM_U08       merge_flag,
-                                   HLM_U08      *mix_ibc_flag,
-                                   HLM_U08      *bvy_zero_flag);
-#endif
-
-#if PK_WITH_SATD
-/***************************************************************************************************
-* ¹¦  ÄÜ£º¼ÆËãÁ½¿é4x4blockµÄsatd
-* ²Î  Êı£º*
-*         block0          -I    µÚÒ»¿éblockµÄÆğÊ¼µØÖ·
-*         block1          -I    µÚ¶ş¿éblockµÄÆğÊ¼µØÖ·
-*         block0_stride   -I    µÚÒ»¿éblockµÄ¿ç¶È
-*         block1_stride   -I    µÚ¶ş¿éblockµÄ¿ç¶È
-* ·µ»ØÖµ£ºÁ½¿éblockµÄsatdÖµ
-* ±¸  ×¢£º
-***************************************************************************************************/
-HLM_U32 HLMC_COM_ComputeSatd4x4(HLM_U16 *block0,
-                                HLM_U16 *block1,
-                                HLM_U32  block0_stride,
-                                HLM_U32  block1_stride);
-#endif
-
-/***************************************************************************************************
-* ¹¦  ÄÜ£º¼ÆËãÁ½¸ö¿éµÄsatd»òsad£¬Ê¹ÓÃ4x4Îª»ù±¾µ¥Ôª
-* ²Î  Êı£º*
-*         block0          -I    µÚÒ»¿éblockµÄÆğÊ¼µØÖ·
-*         block1          -I    µÚ¶ş¿éblockµÄÆğÊ¼µØÖ·
-*         satd_record_4x4 -I    ¼ÇÂ¼4x4×Ó¿éµÄsatdÖµ
-*         block_w         -I    Á½¿éblockµÄ¿í¶È
-*         block_h         -I    Á½¿éblockµÄ¸ß¶È
-*         stride_0        -I    µÚÒ»¿éblockµÄ¿ç¶È
-*         stride_1        -I    µÚ¶ş¿éblockµÄ¿ç¶È
-* ·µ»ØÖµ£ºÁ½¿éblockµÄsatdÖµ
-* ±¸  ×¢£º
-***************************************************************************************************/
-HLM_U32 HLMC_COM_ComputeDist16x8(HLM_U16  *block_0,
-                                 HLM_U16  *block_1,
-                                 HLM_U32  *satd_record_4x4,
-                                 HLM_S32   block_w,
-                                 HLM_S32   block_h,
-                                 HLM_U32   stride_0,
-                                 HLM_U32   stride_1);
-
-/***************************************************************************************************
-* ¹¦  ÄÜ£º¼ÆËãcbf
-* ²Î  Êı£º*
-*         cu_type          -I    µ±Ç°ºê¿éÀàĞÍ
-*         cbf              -O    Èı·ÖÁ¿cbf
-*         coeffs_num       -I    µ±Ç°ºê¿é4x4·ÇÁãÏµÊı¸öÊı
-* ·µ»ØÖµ£º
-* ±¸  ×¢£º
-***************************************************************************************************/
-HLM_VOID HLMC_COM_GetCbf(HLM_CU_TYPE      cu_type,
-                         HLM_U08          cbf[3],
-                         HLM_U08          coeffs_num[3][2][4]);
-
-#ifdef __cplusplus
-}
-#endif
-
-#endif // _HLMC_COMMON_H_
+/***************************************************************************************************
+
+The copyright in this software is being made available under the License included below.
+This software may be subject to other third party and contributor rights, including patent
+rights, and no such rights are granted under this license.
+
+Copyright (C) 2025, Hangzhou Hikvision Digital Technology Co., Ltd. All rights reserved.
+
+Redistribution and use in source and binary forms, with or without modification, are permitted
+only for the purpose of developing standards within Audio and Video Coding Standard Workgroup of
+China (AVS) and for testing and promoting such standards. The following conditions are required
+to be met:
+
+* Redistributions of source code must retain the above copyright notice, this list of
+conditions and the following disclaimer.
+* Redistributions in binary form must reproduce the above copyright notice, this list of
+conditions and the following disclaimer in the documentation and/or other materials
+provided with the distribution.
+* The name of Hangzhou Hikvision Digital Technology Co., Ltd. may not be used to endorse or
+promote products derived from this software without specific prior written permission.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR
+IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND
+FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR
+CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+POSSIBILITY OF SUCH DAMAGE.
+
+***************************************************************************************************/
+#ifndef _HLMC_COMMON_H_
+#define _HLMC_COMMON_H_
+
+#include "hlmc_defs.h"
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+/***************************************************************************************************
+* åŠŸ  èƒ½ï¼šå°†cur_cu_infoçš„ä¿¡æ¯å¤åˆ¶ç»™best_cu_info
+* å‚  æ•°ï¼š*
+*         cur_cu           -I    cur_cuçš„èµ·å§‹åœ°å€
+*         best_cu          -O    best_cuçš„èµ·å§‹åœ°å€
+*         yuv_comp         -I    åˆ†é‡ä¸ªæ•°
+* è¿”å›å€¼ï¼š
+* å¤‡  æ³¨ï¼š
+***************************************************************************************************/
+HLM_VOID HLMC_COM_CopyCuInfo(HLMC_CU_INFO       *cur_cu,
+                             HLMC_CU_INFO       *best_cu,
+                             HLM_U32             yuv_comp);
+
+/***************************************************************************************************
+* åŠŸ  èƒ½ï¼šè®¡ç®—ä¸¤å—blockçš„SSE
+* å‚  æ•°ï¼š*
+*         block0          -I    ç¬¬ä¸€å—blockçš„èµ·å§‹åœ°å€
+*         block1          -I    ç¬¬äºŒå—blockçš„èµ·å§‹åœ°å€
+*         block_width     -I    å—å®½åº¦
+*         block_height    -I    å—é«˜åº¦
+*         block0_stride   -I    ç¬¬ä¸€å—blockçš„è·¨åº¦
+*         block1_stride   -I    ç¬¬äºŒå—blockçš„è·¨åº¦
+* è¿”å›å€¼ï¼šä¸¤å—blockçš„SSEå€¼
+* å¤‡  æ³¨ï¼š
+***************************************************************************************************/
+HLM_U32 HLMC_COM_ComputeSse(HLM_U16 *block0,
+                            HLM_U16 *block1,
+                            HLM_U32  block_width,
+                            HLM_U32  block_height,
+                            HLM_U32  block0_stride,
+                            HLM_U32  block1_stride);
+
+/***************************************************************************************************
+* åŠŸ  èƒ½ï¼šè®¡ç®—ä¸¤å—blockçš„æ®‹å·®
+* å‚  æ•°ï¼š*
+*         block0          -I    ç¬¬ä¸€å—blockçš„èµ·å§‹åœ°å€
+*         block1          -I    ç¬¬äºŒå—blockçš„èµ·å§‹åœ°å€
+*         res             -O    æ®‹å·®çš„èµ·å§‹åœ°å€
+*         block_width     -I    å—å®½åº¦
+*         block_height    -I    å—é«˜åº¦
+*         block0_stride   -I    ç¬¬ä¸€å—blockçš„è·¨åº¦
+*         block1_stride   -I    ç¬¬äºŒå—blockçš„è·¨åº¦
+*         res_stride      -I    æ®‹å·®çš„è·¨åº¦
+* è¿”å›å€¼ï¼š
+* å¤‡  æ³¨ï¼šres = block0 - block1
+***************************************************************************************************/
+HLM_VOID HLMC_COM_ComputeRes(HLM_U16 *block0,
+                             HLM_U16 *block1,
+                             HLM_COEFF*res,
+                             HLM_U32  block_width,
+                             HLM_U32  block_height,
+                             HLM_U32  block0_stride,
+                             HLM_U32  block1_stride,
+                             HLM_U32  res_stride);
+
+/***************************************************************************************************
+* åŠŸ  èƒ½ï¼šè®¡ç®—ä¸¤å—blockçš„SAD
+* å‚  æ•°ï¼š*
+*         block0          -I    ç¬¬ä¸€å—blockçš„èµ·å§‹åœ°å€
+*         block1          -I    ç¬¬äºŒå—blockçš„èµ·å§‹åœ°å€
+*         block_width     -I    ä¸¤å—blockçš„å®½
+*         block_height    -I    ä¸¤å—blockçš„é«˜
+*         block0_stride   -I    ç¬¬ä¸€å—blockçš„è·¨åº¦
+*         block1_stride   -I    ç¬¬äºŒå—blockçš„è·¨åº¦
+* è¿”å›å€¼ï¼šä¸¤å—blockçš„SADå€¼
+* å¤‡  æ³¨ï¼š
+***************************************************************************************************/
+HLM_U32 HLMC_COM_ComputeSad(HLM_U16 *block0,
+                            HLM_U16 *block1,
+                            HLM_U32  block_width,
+                            HLM_U32  block_height,
+                            HLM_U32  block0_stride,
+                            HLM_U32  block1_stride);
+
+#if MIX_IBC
+/***************************************************************************************************
+* åŠŸ  èƒ½ï¼šè®¡ç®—ä¸¤å—ibc4x4å—çš„SAD
+* å‚  æ•°ï¼š*
+*         block0          -I    ç¬¬ä¸€å—blockçš„èµ·å§‹åœ°å€
+*         block1          -I    ç¬¬äºŒå—blockçš„èµ·å§‹åœ°å€
+*         block0_stride   -I    ç¬¬ä¸€å—blockçš„è·¨åº¦
+*         block1_stride   -I    ç¬¬äºŒå—blockçš„è·¨åº¦
+*         sad             -O    sad
+* è¿”å›å€¼ï¼šæ— 
+* å¤‡  æ³¨ï¼š
+***************************************************************************************************/
+HLM_VOID HLMC_COM_ComputeIbc4x4Sad(HLM_U16 *block0,
+                                   HLM_U16 *block1,
+                                   HLM_U32  block0_stride,
+                                   HLM_U32  block1_stride,
+                                   HLM_U32  sad[HLM_IBC_PART_NUM][4]);
+
+/***************************************************************************************************
+* åŠŸ  èƒ½ï¼šå¯¼å‡ºmix_ibc_flagå’Œbvy_zero_flag
+* å‚  æ•°ï¼š*
+*        com_cu_info            -I         å½“å‰CUä¿¡æ¯
+*        merge_flag             -I         mergeæ–¹å¼
+*        mix_ibc_flag           -O         æ˜¯å¦ä¸ºæ··åˆibc
+*        bvy_zero_flag          -O         bvyæ˜¯å¦å…¨é›¶
+* è¿”å›å€¼ï¼šæ— 
+* å¤‡  æ³¨ï¼š
+***************************************************************************************************/
+HLM_VOID HLMC_COM_DeriveMixIbcInfo(HLM_CU_INFO  *com_cu_info,
+                                   HLM_U08       merge_flag,
+                                   HLM_U08      *mix_ibc_flag,
+                                   HLM_U08      *bvy_zero_flag);
+#endif
+
+#if PK_WITH_SATD
+/***************************************************************************************************
+* åŠŸ  èƒ½ï¼šè®¡ç®—ä¸¤å—4x4blockçš„satd
+* å‚  æ•°ï¼š*
+*         block0          -I    ç¬¬ä¸€å—blockçš„èµ·å§‹åœ°å€
+*         block1          -I    ç¬¬äºŒå—blockçš„èµ·å§‹åœ°å€
+*         block0_stride   -I    ç¬¬ä¸€å—blockçš„è·¨åº¦
+*         block1_stride   -I    ç¬¬äºŒå—blockçš„è·¨åº¦
+* è¿”å›å€¼ï¼šä¸¤å—blockçš„satdå€¼
+* å¤‡  æ³¨ï¼š
+***************************************************************************************************/
+HLM_U32 HLMC_COM_ComputeSatd4x4(HLM_U16 *block0,
+                                HLM_U16 *block1,
+                                HLM_U32  block0_stride,
+                                HLM_U32  block1_stride);
+#endif
+
+/***************************************************************************************************
+* åŠŸ  èƒ½ï¼šè®¡ç®—ä¸¤ä¸ªå—çš„satdæˆ–sadï¼Œä½¿ç”¨4x4ä¸ºåŸºæœ¬å•å…ƒ
+* å‚  æ•°ï¼š*
+*         block0          -I    ç¬¬ä¸€å—blockçš„èµ·å§‹åœ°å€
+*         block1          -I    ç¬¬äºŒå—blockçš„èµ·å§‹åœ°å€
+*         satd_record_4x4 -I    è®°å½•4x4å­å—çš„satdå€¼
+*         block_w         -I    ä¸¤å—blockçš„å®½åº¦
+*         block_h         -I    ä¸¤å—blockçš„é«˜åº¦
+*         stride_0        -I    ç¬¬ä¸€å—blockçš„è·¨åº¦
+*         stride_1        -I    ç¬¬äºŒå—blockçš„è·¨åº¦
+* è¿”å›å€¼ï¼šä¸¤å—blockçš„satdå€¼
+* å¤‡  æ³¨ï¼š
+***************************************************************************************************/
+HLM_U32 HLMC_COM_ComputeDist16x8(HLM_U16  *block_0,
+                                 HLM_U16  *block_1,
+                                 HLM_U32  *satd_record_4x4,
+                                 HLM_S32   block_w,
+                                 HLM_S32   block_h,
+                                 HLM_U32   stride_0,
+                                 HLM_U32   stride_1);
+
+/***************************************************************************************************
+* åŠŸ  èƒ½ï¼šè®¡ç®—cbf
+* å‚  æ•°ï¼š*
+*         cu_type          -I    å½“å‰å®å—ç±»å‹
+*         cbf              -O    ä¸‰åˆ†é‡cbf
+*         coeffs_num       -I    å½“å‰å®å—4x4éé›¶ç³»æ•°ä¸ªæ•°
+* è¿”å›å€¼ï¼š
+* å¤‡  æ³¨ï¼š
+***************************************************************************************************/
+HLM_VOID HLMC_COM_GetCbf(HLM_CU_TYPE      cu_type,
+                         HLM_U08          cbf[3],
+                         HLM_U08          coeffs_num[3][2][4]);
+
+#ifdef __cplusplus
+}
+#endif
+
+#endif // _HLMC_COMMON_H_

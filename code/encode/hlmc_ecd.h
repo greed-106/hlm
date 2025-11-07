@@ -1,277 +1,277 @@
-/***************************************************************************************************
-
-The copyright in this software is being made available under the License included below.
-This software may be subject to other third party and contributor rights, including patent
-rights, and no such rights are granted under this license.
-
-Copyright (C) 2025, Hangzhou Hikvision Digital Technology Co., Ltd. All rights reserved.
-
-Redistribution and use in source and binary forms, with or without modification, are permitted
-only for the purpose of developing standards within Audio and Video Coding Standard Workgroup of
-China (AVS) and for testing and promoting such standards. The following conditions are required
-to be met:
-
-* Redistributions of source code must retain the above copyright notice, this list of
-conditions and the following disclaimer.
-* Redistributions in binary form must reproduce the above copyright notice, this list of
-conditions and the following disclaimer in the documentation and/or other materials
-provided with the distribution.
-* The name of Hangzhou Hikvision Digital Technology Co., Ltd. may not be used to endorse or
-promote products derived from this software without specific prior written permission.
-
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR
-IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND
-FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR
-CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
-CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
-SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
-OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-POSSIBILITY OF SUCH DAMAGE.
-
-***************************************************************************************************/
-#ifndef _HLMC_ECD_H_
-#define _HLMC_ECD_H_
-
-#include "hlmc_defs.h"
-
-// ÎŞ·ûºÅÖ¸Êı¸çÂ×²¼µÄÂë³¤
-static const HLM_U08 HLMC_UE_SIZE_TAB[256] =
-{
-     1, 1, 3, 3, 5, 5, 5, 5, 7, 7, 7, 7, 7, 7, 7, 7,
-     9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9,
-    11,11,11,11,11,11,11,11,11,11,11,11,11,11,11,11,
-    11,11,11,11,11,11,11,11,11,11,11,11,11,11,11,11,
-    13,13,13,13,13,13,13,13,13,13,13,13,13,13,13,13,
-    13,13,13,13,13,13,13,13,13,13,13,13,13,13,13,13,
-    13,13,13,13,13,13,13,13,13,13,13,13,13,13,13,13,
-    13,13,13,13,13,13,13,13,13,13,13,13,13,13,13,13,
-    15,15,15,15,15,15,15,15,15,15,15,15,15,15,15,15,
-    15,15,15,15,15,15,15,15,15,15,15,15,15,15,15,15,
-    15,15,15,15,15,15,15,15,15,15,15,15,15,15,15,15,
-    15,15,15,15,15,15,15,15,15,15,15,15,15,15,15,15,
-    15,15,15,15,15,15,15,15,15,15,15,15,15,15,15,15,
-    15,15,15,15,15,15,15,15,15,15,15,15,15,15,15,15,
-    15,15,15,15,15,15,15,15,15,15,15,15,15,15,15,15,
-    15,15,15,15,15,15,15,15,15,15,15,15,15,15,15,15,
-};
-
-/***************************************************************************************************
-* ¹¦  ÄÜ£º³õÊ¼»¯ÂëÁ÷ĞÅÏ¢½á¹¹Ìå
-* ²Î  Êı£º*
-*         stream_buf                -I         ÂëÁ÷»º³åÇøµØÖ·
-*         stream_buf_size           -I         ÂëÁ÷»º³åÇø³¤¶È
-*         bs                        -O         ÂëÁ÷ĞÅÏ¢½á¹¹Ìå
-* ·µ»ØÖµ£ºÎŞ
-* ±¸  ×¢£º
-***************************************************************************************************/
-HLM_VOID HLMC_ECD_InitBitstream(HLM_U08         *stream_buf,
-                                HLM_S32          stream_buf_size,
-                                HLMC_BITSTREAM  *bs);
-
-/***************************************************************************************************
-* ¹¦  ÄÜ£º±àÂëËÄ×Ö½ÚµÄÆğÊ¼Âë0x00 00 00 01
-* ²Î  Êı£º*
-*         bs                -I        ÂëÁ÷ĞÅÏ¢½á¹¹Ìå
-* ·µ»ØÖµ£ºÎŞ
-* ±¸  ×¢£º
-***************************************************************************************************/
-HLM_VOID HLMC_ECD_PutStartCode4Byte(HLMC_BITSTREAM *bs);
-
-#if START_CODE_FIX
-/***************************************************************************************************
-* ¹¦  ÄÜ£º±àÂëÈı×Ö½ÚµÄÆğÊ¼Âë0x00 00 01
-* ²Î  Êı£º*
-*         bs                -I        ÂëÁ÷ĞÅÏ¢½á¹¹Ìå
-* ·µ»ØÖµ£ºÎŞ
-* ±¸  ×¢£º
-***************************************************************************************************/
-HLM_VOID HLMC_ECD_PutStartCode3Byte(HLMC_BITSTREAM *bs);
-#endif
-
-/***************************************************************************************************
-* ¹¦  ÄÜ£ºÉú³Énal_unit_header
-* ²Î  Êı£º*
-*         nal_unit_type             -I         naluÀàĞÍ
-*         nal_ref_idc               -I         nalu²Î¿¼ÀàĞÍË÷Òı
-*         bs                        -O         ÂëÁ÷ĞÅÏ¢½á¹¹Ìå
-* ·µ»ØÖµ£ºÎŞ
-* ±¸  ×¢£º
-***************************************************************************************************/
-HLM_VOID HLMC_ECD_PutNaluHeader(HLM_NAL_UNIT_TYPE    nal_unit_type,
-                                HLM_U32              nal_ref_idc,
-                                HLMC_BITSTREAM      *bs);
-
-/***************************************************************************************************
-* ¹¦  ÄÜ£º±àÂë²»³¬¹ı8bitµÄÎŞ·ûºÅÕûÊı
-* ²Î  Êı£º*
-*         bs                -I         ÂëÁ÷ĞÅÏ¢½á¹¹Ìå
-*         code              -I         ´ı±àÂë×Ö·û
-*         len               -I         ×Ö·ûbitÊı
-*         syntax_element    -I         Óï·¨ÔªËØÃû³Æ£¬¼ÓÉÏ¸Ã×Ö·û´®ÊÇÎªÁË±ãÓÚÔÄ¶Á£¬º¯ÊıÖĞÓÃ²»µ½
-* ·µ»ØÖµ£ºÎŞ
-* ±¸  ×¢£º
-***************************************************************************************************/
-HLM_VOID HLMC_ECD_PutShortBits(HLMC_BITSTREAM  *bs,
-                               HLM_U32          code,
-                               HLM_S32          len,
-                               const HLM_S08   *syntax_element);
-
-/***************************************************************************************************
-* ¹¦  ÄÜ£º±àÂë²»³¬¹ı32bitµÄÎŞ·ûºÅÕûÊı
-* ²Î  Êı£º*
-*         bs                -I         ÂëÁ÷ĞÅÏ¢½á¹¹Ìå
-*         code              -I         ´ı±àÂë×Ö·û
-*         len               -I         ×Ö·ûbitÊı
-*         syntax_element    -I         Óï·¨ÔªËØÃû³Æ£¬¼ÓÉÏ¸Ã×Ö·û´®ÊÇÎªÁË±ãÓÚÔÄ¶Á£¬º¯ÊıÖĞÓÃ²»µ½
-* ·µ»ØÖµ£ºÎŞ
-* ±¸  ×¢£º
-***************************************************************************************************/
-HLM_VOID HLMC_ECD_PutLongBits(HLMC_BITSTREAM  *bs,
-                              HLM_U32          code,
-                              HLM_S32          len,
-                              const HLM_S08   *syntax_element);
-
-/***************************************************************************************************
-* ¹¦  ÄÜ£ºÎŞ·ûºÅÕûÊıÖ¸Êı¸çÂ×²¼±àÂë
-* ²Î  Êı£º*
-*         bs                -I         ÂëÁ÷ĞÅÏ¢½á¹¹Ìå
-*         code              -I         ´ı±àÂë×Ö·û
-*         write_flag        -I         ÊÇ·ñĞ´ÈëÂëÁ÷
-*         syntax_element    -I         Óï·¨ÔªËØÃû³Æ£¬¼ÓÉÏ¸Ã×Ö·û´®ÊÇÎªÁË±ãÓÚÔÄ¶Á£¬º¯ÊıÖĞÓÃ²»µ½
-* ·µ»ØÖµ£ºÎŞ
-* ±¸  ×¢£º
-***************************************************************************************************/
-HLM_U32 HLMC_ECD_PutUeBits(HLMC_BITSTREAM  *bs,
-                           HLM_U32          code,
-                           HLM_U08          write_flag,
-                           const HLM_S08   *syntax_element);
-
-/***************************************************************************************************
-* ¹¦  ÄÜ£ºÓĞ·ûºÅÕûÊıÖ¸Êı¸çÂ×²¼±àÂë
-* ²Î  Êı£º*
-*         bs                -I         ÂëÁ÷ĞÅÏ¢½á¹¹Ìå
-*         code              -I         ´ı±àÂë×Ö·û
-*         write_flag        -I         ÊÇ·ñĞ´ÈëÂëÁ÷
-*         syntax_element    -I         Óï·¨ÔªËØÃû³Æ£¬¼ÓÉÏ¸Ã×Ö·û´®ÊÇÎªÁË±ãÓÚÔÄ¶Á£¬º¯ÊıÖĞÓÃ²»µ½
-* ·µ»ØÖµ£ºÎŞ
-* ±¸  ×¢£º
-***************************************************************************************************/
-HLM_U32 HLMC_ECD_PutSeBits(HLMC_BITSTREAM  *bs,
-                           HLM_S32          code,
-                           HLM_U08          write_flag,
-                           const HLM_S08   *syntax_element);
-
-/***************************************************************************************************
-* ¹¦  ÄÜ£ºÍÏÎ²±ÈÌØ±àÂë
-* ²Î  Êı£º*
-*         bs                -I         ÂëÁ÷ĞÅÏ¢½á¹¹Ìå
-* ·µ»ØÖµ£ºÎŞ
-* ±¸  ×¢£º
-***************************************************************************************************/
-HLM_VOID HLMC_ECD_RbspTrailingBits(HLMC_BITSTREAM *bs);
-
-/***************************************************************************************************
-* ¹¦  ÄÜ£ºÔÚÕû¸öÂëÁ÷ÖĞÌí¼Ó·À¾ºÕùÂë
-* ²Î  Êı£º*
-*         src_bs                -I           ²»°üº¬·À¾ºÕùÂëµÄÂëÁ÷ĞÅÏ¢½á¹¹Ìå
-*         dst_bs                -I           °üº¬·À¾ºÕùÂëµÄÂëÁ÷ĞÅÏ¢½á¹¹Ìå
-* ·µ»ØÖµ£ºÎŞ
-* ±¸  ×¢£º
-***************************************************************************************************/
-HLM_VOID HLMC_ECD_WriteEmulaPreventBytes(HLMC_BITSTREAM *src_bs,
-                                         HLMC_BITSTREAM *dst_bs);
-
-/***************************************************************************************************
-* ¹¦  ÄÜ£ºcu_type±àÂëºÍ±ÈÌØ¹À¼Æ
-* ²Î  Êı£º*
-*        cu_type             -I                   CUÀàĞÍ
-*        frame_type          -I                   Ö¡ÀàĞÍ
-*        write_flag          -I                   ÊÇ·ñĞ´ÂëÁ÷
-*        bs                  -IO                  ÂëÁ÷½á¹¹Ìå
-*        ibc_enable_flag     -I                   ibcÊ¹ÄÜ¿ª¹Ø
-* ·µ»ØÖµ£º±ÈÌØ³¤¶È
-* ±¸  ×¢£º
-***************************************************************************************************/
-HLM_U32 HLMC_ECD_EncodeCuType(HLM_CU_TYPE          cu_type,
-                              HLM_FRAME_TYPE       frame_type,
-                              HLM_U08              write_flag,
-                              HLMC_BITSTREAM      *bs,
-                              HLM_U32              ibc_enable_flag);
-
-/***************************************************************************************************
-* ¹¦  ÄÜ£ºBV±àÂëºÍ±ÈÌØ¹À¼Æ
-* ²Î  Êı£º*
-*        cu_x                -I                   CUºá×ø±ê
-*        merge_flag          -I                   merge×ÓÄ£Ê½Ë÷Òı
-*        zscan_idx           -I                   Z×ÖĞÍÉ¨ÃèË³ĞòË÷Òı
-*        bv                  -I                   bv
-*        bs                  -O                   ÂëÁ÷½á¹¹Ìå
-*        is_bitcount         -I                   ÊÇ·ñ×ö±ÈÌØ¹À¼Æ
-* ·µ»ØÖµ£º±ÈÌØ³¤¶È
-* ±¸  ×¢£º
-***************************************************************************************************/
-HLM_U32 HLMC_ECD_EncodeBV(HLM_U32            cu_x,
-#if BVY_ZERO
-                          HLM_U08            bvy_zero_flag,
-#endif
-                          HLM_U08            merge_flag,
-                          HLM_U08            zscan_idx,
-                          HLM_MV             bv[8],
-                          HLMC_BITSTREAM    *bs,
-                          HLM_U08            is_bitcount);
-
-#if MIX_IBC
-/***************************************************************************************************
-* ¹¦  ÄÜ£º»ìºÏibc»®·ÖÀàĞÍµÄ±àÂëºÍ±ÈÌØ¹À¼Æ
-* ²Î  Êı£º*
-*        part_type           -I                   »®·ÖÀàĞÍ
-*        bs                  -O                   ÂëÁ÷½á¹¹Ìå
-*        is_bitcount         -I                   ÊÇ·ñ×ö±ÈÌØ¹À¼Æ
-* ·µ»ØÖµ£º±ÈÌØ³¤¶È
-* ±¸  ×¢£º
-***************************************************************************************************/
-HLM_U32 HLMC_ECD_EncodePartType(HLM_IBC_PART_TYPE  part_type,
-                                HLMC_BITSTREAM    *bs,
-                                HLM_U08            is_bitcount);
-#endif
-
-/***************************************************************************************************
-* ¹¦  ÄÜ£º¶ÔCUÄÚÓï·¨ÔªËØ½øĞĞìØ±àÂë
-* ²Î  Êı£º*
-*        cur_cu                 -I        µ±Ç°ºê¿é
-*        nbi_info               -I        ÏàÁÚ¿éĞÅÏ¢½á¹¹Ìå
-*        frame_type             -I        Ö¡ÀàĞÍ
-*        yuv_comp               -I        ·ÖÁ¿¸öÊı
-*        bs                     -O        Ğ´ÈëÂëÁ÷µÄ½á¹¹Ìå
-*        segment_enable_flag    -I        ¸ô¶Ï²Î¿¼¿ª¹Ø
-*        ibc_enable_flag        -I        ibcÊ¹ÄÜ¿ª¹Ø
-* ±¸  ×¢£º
-***************************************************************************************************/
-HLM_VOID HLMC_ECD_CU(HLMC_CU_INFO            *cur_cu,
-                     HLM_NEIGHBOR_INFO       *nbi_info,
-                     HLM_FRAME_TYPE           frame_type,
-                     HLM_U32                  yuv_comp,
-                     HLMC_BITSTREAM          *bs,
-                     HLM_U08                  segment_enable_flag,
-                     HLM_U32                  segment_width_in_log2,
-                     HLM_U08                  ibc_enable_flag);
-
-#if LINE_BY_LINE_4x1_RESI
-HLM_VOID HLMC_ECD_resi_pred(HLMC_CU_INFO           *cur_cu,
-                            HLM_COMPONENT           plane);
-#endif
-/***************************************************************************************************
-* ¹¦  ÄÜ£º¶Ô16x8¿é²Ğ²îÏµÊı½øĞĞ±ÈÌØÔ¤¹À
-* ²Î  Êı£º*
-*        cur_cu            -I                   µ±Ç°ºê¿é
-*        nbi_info          -I                   ÏàÁÚ¿éĞÅÏ¢
-*        plane             -I                   yuv·ÖÁ¿
-* ·µ»ØÖµ£º±ÈÌØ³¤¶È
-* ±¸  ×¢£º
-***************************************************************************************************/
-HLM_U32 HLMC_ECD_EstimateCoeff16x8(HLMC_CU_INFO           *cur_cu,
-                                   HLM_NEIGHBOR_INFO      *nbi_info,
-                                   HLM_COMPONENT           plane);
-
-#endif // _HLMC_ECD_H_
+/***************************************************************************************************
+
+The copyright in this software is being made available under the License included below.
+This software may be subject to other third party and contributor rights, including patent
+rights, and no such rights are granted under this license.
+
+Copyright (C) 2025, Hangzhou Hikvision Digital Technology Co., Ltd. All rights reserved.
+
+Redistribution and use in source and binary forms, with or without modification, are permitted
+only for the purpose of developing standards within Audio and Video Coding Standard Workgroup of
+China (AVS) and for testing and promoting such standards. The following conditions are required
+to be met:
+
+* Redistributions of source code must retain the above copyright notice, this list of
+conditions and the following disclaimer.
+* Redistributions in binary form must reproduce the above copyright notice, this list of
+conditions and the following disclaimer in the documentation and/or other materials
+provided with the distribution.
+* The name of Hangzhou Hikvision Digital Technology Co., Ltd. may not be used to endorse or
+promote products derived from this software without specific prior written permission.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR
+IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND
+FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR
+CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+POSSIBILITY OF SUCH DAMAGE.
+
+***************************************************************************************************/
+#ifndef _HLMC_ECD_H_
+#define _HLMC_ECD_H_
+
+#include "hlmc_defs.h"
+
+// æ— ç¬¦å·æŒ‡æ•°å“¥ä¼¦å¸ƒçš„ç é•¿
+static const HLM_U08 HLMC_UE_SIZE_TAB[256] =
+{
+     1, 1, 3, 3, 5, 5, 5, 5, 7, 7, 7, 7, 7, 7, 7, 7,
+     9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9,
+    11,11,11,11,11,11,11,11,11,11,11,11,11,11,11,11,
+    11,11,11,11,11,11,11,11,11,11,11,11,11,11,11,11,
+    13,13,13,13,13,13,13,13,13,13,13,13,13,13,13,13,
+    13,13,13,13,13,13,13,13,13,13,13,13,13,13,13,13,
+    13,13,13,13,13,13,13,13,13,13,13,13,13,13,13,13,
+    13,13,13,13,13,13,13,13,13,13,13,13,13,13,13,13,
+    15,15,15,15,15,15,15,15,15,15,15,15,15,15,15,15,
+    15,15,15,15,15,15,15,15,15,15,15,15,15,15,15,15,
+    15,15,15,15,15,15,15,15,15,15,15,15,15,15,15,15,
+    15,15,15,15,15,15,15,15,15,15,15,15,15,15,15,15,
+    15,15,15,15,15,15,15,15,15,15,15,15,15,15,15,15,
+    15,15,15,15,15,15,15,15,15,15,15,15,15,15,15,15,
+    15,15,15,15,15,15,15,15,15,15,15,15,15,15,15,15,
+    15,15,15,15,15,15,15,15,15,15,15,15,15,15,15,15,
+};
+
+/***************************************************************************************************
+* åŠŸ  èƒ½ï¼šåˆå§‹åŒ–ç æµä¿¡æ¯ç»“æ„ä½“
+* å‚  æ•°ï¼š*
+*         stream_buf                -I         ç æµç¼“å†²åŒºåœ°å€
+*         stream_buf_size           -I         ç æµç¼“å†²åŒºé•¿åº¦
+*         bs                        -O         ç æµä¿¡æ¯ç»“æ„ä½“
+* è¿”å›å€¼ï¼šæ— 
+* å¤‡  æ³¨ï¼š
+***************************************************************************************************/
+HLM_VOID HLMC_ECD_InitBitstream(HLM_U08         *stream_buf,
+                                HLM_S32          stream_buf_size,
+                                HLMC_BITSTREAM  *bs);
+
+/***************************************************************************************************
+* åŠŸ  èƒ½ï¼šç¼–ç å››å­—èŠ‚çš„èµ·å§‹ç 0x00 00 00 01
+* å‚  æ•°ï¼š*
+*         bs                -I        ç æµä¿¡æ¯ç»“æ„ä½“
+* è¿”å›å€¼ï¼šæ— 
+* å¤‡  æ³¨ï¼š
+***************************************************************************************************/
+HLM_VOID HLMC_ECD_PutStartCode4Byte(HLMC_BITSTREAM *bs);
+
+#if START_CODE_FIX
+/***************************************************************************************************
+* åŠŸ  èƒ½ï¼šç¼–ç ä¸‰å­—èŠ‚çš„èµ·å§‹ç 0x00 00 01
+* å‚  æ•°ï¼š*
+*         bs                -I        ç æµä¿¡æ¯ç»“æ„ä½“
+* è¿”å›å€¼ï¼šæ— 
+* å¤‡  æ³¨ï¼š
+***************************************************************************************************/
+HLM_VOID HLMC_ECD_PutStartCode3Byte(HLMC_BITSTREAM *bs);
+#endif
+
+/***************************************************************************************************
+* åŠŸ  èƒ½ï¼šç”Ÿæˆnal_unit_header
+* å‚  æ•°ï¼š*
+*         nal_unit_type             -I         naluç±»å‹
+*         nal_ref_idc               -I         naluå‚è€ƒç±»å‹ç´¢å¼•
+*         bs                        -O         ç æµä¿¡æ¯ç»“æ„ä½“
+* è¿”å›å€¼ï¼šæ— 
+* å¤‡  æ³¨ï¼š
+***************************************************************************************************/
+HLM_VOID HLMC_ECD_PutNaluHeader(HLM_NAL_UNIT_TYPE    nal_unit_type,
+                                HLM_U32              nal_ref_idc,
+                                HLMC_BITSTREAM      *bs);
+
+/***************************************************************************************************
+* åŠŸ  èƒ½ï¼šç¼–ç ä¸è¶…è¿‡8bitçš„æ— ç¬¦å·æ•´æ•°
+* å‚  æ•°ï¼š*
+*         bs                -I         ç æµä¿¡æ¯ç»“æ„ä½“
+*         code              -I         å¾…ç¼–ç å­—ç¬¦
+*         len               -I         å­—ç¬¦bitæ•°
+*         syntax_element    -I         è¯­æ³•å…ƒç´ åç§°ï¼ŒåŠ ä¸Šè¯¥å­—ç¬¦ä¸²æ˜¯ä¸ºäº†ä¾¿äºé˜…è¯»ï¼Œå‡½æ•°ä¸­ç”¨ä¸åˆ°
+* è¿”å›å€¼ï¼šæ— 
+* å¤‡  æ³¨ï¼š
+***************************************************************************************************/
+HLM_VOID HLMC_ECD_PutShortBits(HLMC_BITSTREAM  *bs,
+                               HLM_U32          code,
+                               HLM_S32          len,
+                               const HLM_S08   *syntax_element);
+
+/***************************************************************************************************
+* åŠŸ  èƒ½ï¼šç¼–ç ä¸è¶…è¿‡32bitçš„æ— ç¬¦å·æ•´æ•°
+* å‚  æ•°ï¼š*
+*         bs                -I         ç æµä¿¡æ¯ç»“æ„ä½“
+*         code              -I         å¾…ç¼–ç å­—ç¬¦
+*         len               -I         å­—ç¬¦bitæ•°
+*         syntax_element    -I         è¯­æ³•å…ƒç´ åç§°ï¼ŒåŠ ä¸Šè¯¥å­—ç¬¦ä¸²æ˜¯ä¸ºäº†ä¾¿äºé˜…è¯»ï¼Œå‡½æ•°ä¸­ç”¨ä¸åˆ°
+* è¿”å›å€¼ï¼šæ— 
+* å¤‡  æ³¨ï¼š
+***************************************************************************************************/
+HLM_VOID HLMC_ECD_PutLongBits(HLMC_BITSTREAM  *bs,
+                              HLM_U32          code,
+                              HLM_S32          len,
+                              const HLM_S08   *syntax_element);
+
+/***************************************************************************************************
+* åŠŸ  èƒ½ï¼šæ— ç¬¦å·æ•´æ•°æŒ‡æ•°å“¥ä¼¦å¸ƒç¼–ç 
+* å‚  æ•°ï¼š*
+*         bs                -I         ç æµä¿¡æ¯ç»“æ„ä½“
+*         code              -I         å¾…ç¼–ç å­—ç¬¦
+*         write_flag        -I         æ˜¯å¦å†™å…¥ç æµ
+*         syntax_element    -I         è¯­æ³•å…ƒç´ åç§°ï¼ŒåŠ ä¸Šè¯¥å­—ç¬¦ä¸²æ˜¯ä¸ºäº†ä¾¿äºé˜…è¯»ï¼Œå‡½æ•°ä¸­ç”¨ä¸åˆ°
+* è¿”å›å€¼ï¼šæ— 
+* å¤‡  æ³¨ï¼š
+***************************************************************************************************/
+HLM_U32 HLMC_ECD_PutUeBits(HLMC_BITSTREAM  *bs,
+                           HLM_U32          code,
+                           HLM_U08          write_flag,
+                           const HLM_S08   *syntax_element);
+
+/***************************************************************************************************
+* åŠŸ  èƒ½ï¼šæœ‰ç¬¦å·æ•´æ•°æŒ‡æ•°å“¥ä¼¦å¸ƒç¼–ç 
+* å‚  æ•°ï¼š*
+*         bs                -I         ç æµä¿¡æ¯ç»“æ„ä½“
+*         code              -I         å¾…ç¼–ç å­—ç¬¦
+*         write_flag        -I         æ˜¯å¦å†™å…¥ç æµ
+*         syntax_element    -I         è¯­æ³•å…ƒç´ åç§°ï¼ŒåŠ ä¸Šè¯¥å­—ç¬¦ä¸²æ˜¯ä¸ºäº†ä¾¿äºé˜…è¯»ï¼Œå‡½æ•°ä¸­ç”¨ä¸åˆ°
+* è¿”å›å€¼ï¼šæ— 
+* å¤‡  æ³¨ï¼š
+***************************************************************************************************/
+HLM_U32 HLMC_ECD_PutSeBits(HLMC_BITSTREAM  *bs,
+                           HLM_S32          code,
+                           HLM_U08          write_flag,
+                           const HLM_S08   *syntax_element);
+
+/***************************************************************************************************
+* åŠŸ  èƒ½ï¼šæ‹–å°¾æ¯”ç‰¹ç¼–ç 
+* å‚  æ•°ï¼š*
+*         bs                -I         ç æµä¿¡æ¯ç»“æ„ä½“
+* è¿”å›å€¼ï¼šæ— 
+* å¤‡  æ³¨ï¼š
+***************************************************************************************************/
+HLM_VOID HLMC_ECD_RbspTrailingBits(HLMC_BITSTREAM *bs);
+
+/***************************************************************************************************
+* åŠŸ  èƒ½ï¼šåœ¨æ•´ä¸ªç æµä¸­æ·»åŠ é˜²ç«äº‰ç 
+* å‚  æ•°ï¼š*
+*         src_bs                -I           ä¸åŒ…å«é˜²ç«äº‰ç çš„ç æµä¿¡æ¯ç»“æ„ä½“
+*         dst_bs                -I           åŒ…å«é˜²ç«äº‰ç çš„ç æµä¿¡æ¯ç»“æ„ä½“
+* è¿”å›å€¼ï¼šæ— 
+* å¤‡  æ³¨ï¼š
+***************************************************************************************************/
+HLM_VOID HLMC_ECD_WriteEmulaPreventBytes(HLMC_BITSTREAM *src_bs,
+                                         HLMC_BITSTREAM *dst_bs);
+
+/***************************************************************************************************
+* åŠŸ  èƒ½ï¼šcu_typeç¼–ç å’Œæ¯”ç‰¹ä¼°è®¡
+* å‚  æ•°ï¼š*
+*        cu_type             -I                   CUç±»å‹
+*        frame_type          -I                   å¸§ç±»å‹
+*        write_flag          -I                   æ˜¯å¦å†™ç æµ
+*        bs                  -IO                  ç æµç»“æ„ä½“
+*        ibc_enable_flag     -I                   ibcä½¿èƒ½å¼€å…³
+* è¿”å›å€¼ï¼šæ¯”ç‰¹é•¿åº¦
+* å¤‡  æ³¨ï¼š
+***************************************************************************************************/
+HLM_U32 HLMC_ECD_EncodeCuType(HLM_CU_TYPE          cu_type,
+                              HLM_FRAME_TYPE       frame_type,
+                              HLM_U08              write_flag,
+                              HLMC_BITSTREAM      *bs,
+                              HLM_U32              ibc_enable_flag);
+
+/***************************************************************************************************
+* åŠŸ  èƒ½ï¼šBVç¼–ç å’Œæ¯”ç‰¹ä¼°è®¡
+* å‚  æ•°ï¼š*
+*        cu_x                -I                   CUæ¨ªåæ ‡
+*        merge_flag          -I                   mergeå­æ¨¡å¼ç´¢å¼•
+*        zscan_idx           -I                   Zå­—å‹æ‰«æé¡ºåºç´¢å¼•
+*        bv                  -I                   bv
+*        bs                  -O                   ç æµç»“æ„ä½“
+*        is_bitcount         -I                   æ˜¯å¦åšæ¯”ç‰¹ä¼°è®¡
+* è¿”å›å€¼ï¼šæ¯”ç‰¹é•¿åº¦
+* å¤‡  æ³¨ï¼š
+***************************************************************************************************/
+HLM_U32 HLMC_ECD_EncodeBV(HLM_U32            cu_x,
+#if BVY_ZERO
+                          HLM_U08            bvy_zero_flag,
+#endif
+                          HLM_U08            merge_flag,
+                          HLM_U08            zscan_idx,
+                          HLM_MV             bv[8],
+                          HLMC_BITSTREAM    *bs,
+                          HLM_U08            is_bitcount);
+
+#if MIX_IBC
+/***************************************************************************************************
+* åŠŸ  èƒ½ï¼šæ··åˆibcåˆ’åˆ†ç±»å‹çš„ç¼–ç å’Œæ¯”ç‰¹ä¼°è®¡
+* å‚  æ•°ï¼š*
+*        part_type           -I                   åˆ’åˆ†ç±»å‹
+*        bs                  -O                   ç æµç»“æ„ä½“
+*        is_bitcount         -I                   æ˜¯å¦åšæ¯”ç‰¹ä¼°è®¡
+* è¿”å›å€¼ï¼šæ¯”ç‰¹é•¿åº¦
+* å¤‡  æ³¨ï¼š
+***************************************************************************************************/
+HLM_U32 HLMC_ECD_EncodePartType(HLM_IBC_PART_TYPE  part_type,
+                                HLMC_BITSTREAM    *bs,
+                                HLM_U08            is_bitcount);
+#endif
+
+/***************************************************************************************************
+* åŠŸ  èƒ½ï¼šå¯¹CUå†…è¯­æ³•å…ƒç´ è¿›è¡Œç†µç¼–ç 
+* å‚  æ•°ï¼š*
+*        cur_cu                 -I        å½“å‰å®å—
+*        nbi_info               -I        ç›¸é‚»å—ä¿¡æ¯ç»“æ„ä½“
+*        frame_type             -I        å¸§ç±»å‹
+*        yuv_comp               -I        åˆ†é‡ä¸ªæ•°
+*        bs                     -O        å†™å…¥ç æµçš„ç»“æ„ä½“
+*        segment_enable_flag    -I        éš”æ–­å‚è€ƒå¼€å…³
+*        ibc_enable_flag        -I        ibcä½¿èƒ½å¼€å…³
+* å¤‡  æ³¨ï¼š
+***************************************************************************************************/
+HLM_VOID HLMC_ECD_CU(HLMC_CU_INFO            *cur_cu,
+                     HLM_NEIGHBOR_INFO       *nbi_info,
+                     HLM_FRAME_TYPE           frame_type,
+                     HLM_U32                  yuv_comp,
+                     HLMC_BITSTREAM          *bs,
+                     HLM_U08                  segment_enable_flag,
+                     HLM_U32                  segment_width_in_log2,
+                     HLM_U08                  ibc_enable_flag);
+
+#if LINE_BY_LINE_4x1_RESI
+HLM_VOID HLMC_ECD_resi_pred(HLMC_CU_INFO           *cur_cu,
+                            HLM_COMPONENT           plane);
+#endif
+/***************************************************************************************************
+* åŠŸ  èƒ½ï¼šå¯¹16x8å—æ®‹å·®ç³»æ•°è¿›è¡Œæ¯”ç‰¹é¢„ä¼°
+* å‚  æ•°ï¼š*
+*        cur_cu            -I                   å½“å‰å®å—
+*        nbi_info          -I                   ç›¸é‚»å—ä¿¡æ¯
+*        plane             -I                   yuvåˆ†é‡
+* è¿”å›å€¼ï¼šæ¯”ç‰¹é•¿åº¦
+* å¤‡  æ³¨ï¼š
+***************************************************************************************************/
+HLM_U32 HLMC_ECD_EstimateCoeff16x8(HLMC_CU_INFO           *cur_cu,
+                                   HLM_NEIGHBOR_INFO      *nbi_info,
+                                   HLM_COMPONENT           plane);
+
+#endif // _HLMC_ECD_H_

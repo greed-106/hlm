@@ -1,220 +1,220 @@
-/***************************************************************************************************
-
-The copyright in this software is being made available under the License included below.
-This software may be subject to other third party and contributor rights, including patent
-rights, and no such rights are granted under this license.
-
-Copyright (C) 2025, Hangzhou Hikvision Digital Technology Co., Ltd. All rights reserved.
-
-Redistribution and use in source and binary forms, with or without modification, are permitted
-only for the purpose of developing standards within Audio and Video Coding Standard Workgroup of
-China (AVS) and for testing and promoting such standards. The following conditions are required
-to be met:
-
-* Redistributions of source code must retain the above copyright notice, this list of
-conditions and the following disclaimer.
-* Redistributions in binary form must reproduce the above copyright notice, this list of
-conditions and the following disclaimer in the documentation and/or other materials
-provided with the distribution.
-* The name of Hangzhou Hikvision Digital Technology Co., Ltd. may not be used to endorse or
-promote products derived from this software without specific prior written permission.
-
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR
-IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND
-FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR
-CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
-CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
-SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
-OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-POSSIBILITY OF SUCH DAMAGE.
-
-***************************************************************************************************/
-#ifndef _HLMD_DEFS_H_
-#define _HLMD_DEFS_H_
-
-#include "hlmd_lib.h"
-
-#ifdef __cplusplus
-extern "C" {
-#endif
-
-#define HLMD_MAX_REF_NUM           (1)         // ×î´ó²Î¿¼Ö¡Êı
-
-#if defined(_M_IX86)
-#define HLMD_BSWAP(a)              __asm mov eax, a    __asm bswap eax     __asm  mov a, eax
-#elif defined(_M_ARM)
-#if defined(__ANDROID__)
-#define HLMD_BSWAP(a)              __asm("rev %0, %1":"=r"(tmp):"r"(tmp));
-#else
-#define HLMD_BSWAP(a)              (a = HLMD_BSWAP32(a)) 
-#endif
-#elif defined(_M_X64)
-#define HLMD_BSWAP(a)              (a = (((a & 0xFF) << 24)    | \
-                                         ((a & 0xFF00) << 8)   | \
-                                         ((a & 0xFF0000) >> 8) | \
-                                         ((a & 0xFF000000) >> 24)))
-#else
-#define HLMD_BSWAP(a)              (a = HLMD_BSWAP32(a))
-#endif
-
-// NALUÍ·ĞÅÏ¢
-typedef struct _HLMD_NALU_HEADER
-{
-    HLM_U32  forbidden_zero_bit;
-    HLM_U32  nal_ref_idc;
-    HLM_U32  nal_unit_type;
-} HLMD_NALU_HEADER;
-
-// º¬ÏñËØÖµĞÅÏ¢µÄÖ¡
-typedef struct _HLMD_YUV_FRAME
-{
-    HLM_U16 *data[3];
-    HLM_S32  step[3];
-} HLMD_YUV_FRAME;
-
-// ½âÂëÒ»Ö¡ËùÓĞÍ¼ÏñÊôĞÔ
-typedef struct _HLMD_PIC_DATA_
-{
-    HLMD_YUV_FRAME  yuv;                       // Í¼ÏñµØÖ·ºÍ¿ç¶È
-    HLM_S32         fram_num;                  // µ±Ç°Ö¡µÄframe_num
-    HLM_S32         dpb_lock_flag;             // DPBÖĞµÄÍ¼ÏñÎ»ÖÃÊÇ·ñ¿ÉÓÃ£¬0±íÊ¾¿ÉÓÃ£¬1±íÊ¾²»¿ÉÓÃ
-    HLM_U32         unref_set_id;              // ÊÍ·ÅÎŞĞ§²Î¿¼Ö¡µÄÏß³Ì±êÊ¶
-    HLM_U16        *cu_type_mem;               // ´æ´¢ËùÓĞºê¿éÀàĞÍµÄÄÚ´æÖ¸Õë
-    HLM_S16        *mv;                        // L0¡¢L1Á½¸ö·½Ïò£¬Ã¿¸ö·½Ïòºê¿éÊı * 16·İ(mv_x, mv_y)
-    HLM_S08        *ref_idx;                   // L0¡¢L1Á½¸ö·½Ïò£¬Ã¿¸ö·½Ïòºê¿éÊı * 4¸ö×Ö½Ú
-    HLM_U16        *luma_ref_padding_y;        // ²Î¿¼Ö¡£¨»òÖØ½¨Ö¡£©paddingºóY·ÖÁ¿Í¼ÏñµØÖ·
-    HLM_U16        *luma_ref_padding_cb;       // ²Î¿¼Ö¡£¨»òÖØ½¨Ö¡£©paddingºóCb·ÖÁ¿Í¼ÏñµØÖ·
-    HLM_U16        *luma_ref_padding_cr;       // ²Î¿¼Ö¡£¨»òÖØ½¨Ö¡£©paddingºóCr·ÖÁ¿Í¼ÏñµØÖ·
-    HLM_U16        *patch_padding_recon[3];    // paddingºóµÄpatchÖØ½¨Êı¾İ£¬strideÍ¬yuv.step
-} HLMD_PIC_DATA;
-
-// Ö¡½á¹¹Ìå
-typedef struct _HLMD_FRAME
-{
-    HLMD_PIC_DATA *ref_pic_data;
-} HLMD_FRAME;
-
-// ²Î¿¼Ö¡ÁĞ±í½á¹¹Ìå
-typedef struct _HLMD_REF_LIST
-{
-    HLMD_PIC_DATA  ref_pic_data;
-} HLMD_REF_LIST;
-
-// Ìõ´øÉÏÏÂÎÄĞÅÏ¢½á¹¹Ìå
-typedef struct _HLMD_PATCH_CTX
-{
-    HLM_PATCH_HEADER   patch_header;           // Ìõ´øÍ·ĞÅÏ¢
-    HLM_U32            last_ref_count;
-    HLM_S32            last_patch_type;        // Ç°Ò»¸öpatchÀàĞÍ
-    HLM_S32            first_cu_in_patch;
-    HLM_U32            nal_ref_idc;            // nalµ¥Ôªnal_ref_idc
-    HLM_U32            idr_frame_flag;         // idr±êÖ¾
-    HLM_U32            ref_count;              // ²Î¿¼ÁĞ±íÖĞµÄ²Î¿¼Ö¡ÊıÁ¿
-    HLM_U32            short_ref_cnt;          // ¶ÌÆÚ²Î¿¼Ö¡µÄÊıÁ¿
-    HLMD_FRAME        *short_ref_list[HLMD_MAX_REF_NUM + 1];  // ¶ÌÆÚ²Î¿¼Ö¡ÁĞ±í
-    HLMD_REF_LIST      ref_list[HLMD_MAX_REF_NUM];            // Ç°Ïò²Î¿¼Ö¡ÁĞ±í
-} HLMD_PATCH_CTX;
-
-// ÂëÁ÷ĞÅÏ¢½á¹¹Ìå
-typedef struct _HLMD_BITSTREAM
-{
-    HLM_U32  max_bits_num;                     // ÂëÁ÷µÄ³¤¶È, µ¥Î»bit
-    HLM_U08 *init_buf;                         // initbufÖ¸ÏòÃ¿Ò»Ö¡µÄÊı¾İ¿ªÊ¼µØÖ·
-    HLM_U32  bits_cnt;                         // bitcntÎªÔÚ´Ë»ù´¡ÉÏµ±Ç°Î»ÖÃµÄÆ«ÒÆ£¬µ¥Î»Îªbit
-} HLMD_BITSTREAM;
-
-// Ëã·¨Ä£ĞÍÄÚcu_info¹«¹²²ÎÊı
-typedef struct _HLMD_CU_INFO
-{
-    HLM_CU_INFO com_cu_info;                   // ±à½âÂë¹«¹²²ÎÊı
-    HLM_MV    mvd_l0[2];                       // µ±Ç°ºê¿éµÄmvdÖµ
-    HLM_U16   luma_bitdepth;
-    HLM_U16   chroma_bitdepth;
-    HLM_COEFF dc_coeffs[3][HLM_TU_4x4_NUMS];   // ½âÂëµÄDCÏµÊı
-    HLM_U08   dc_coeffs_num[3];                // DC·ÇÁãÏµÊı¸öÊı
-#if !MIX_IBC
-    HLM_MV    bv[8];
-#endif
-} HLMD_CU_INFO;
-
-// Ó²¼ş½âÂë²ãÅäÖÃĞÅÏ¢½á¹¹Ìå
-typedef struct _HLMD_REGS
-{
-    HLMD_PATCH_CTX  *patch_ctx;
-    HLMD_FRAME      *cur_frame;                // µ±Ç°¹¤×÷Ö¡»º´æ
-    HLM_U32   dec_frame_coding_type;           // ½âÂëÖ¡ÀàĞÍ
-    HLM_S32   segment_enable_flag;
-    HLM_S32   segment_width_in_log2;
-    HLM_S32   segment_height_in_log2;
-    HLMD_BITSTREAM  *bs;
-    HLM_S32   image_format;
-    HLM_U32   intra_8x8_enable_flag;
-    HLM_U32   cu_delta_qp_enable_flag;
-
-    // Êä³ö
-    HLM_U32   dec_pic_width;                   // ½âÂëÍ¼Ïñ¿í¶È
-    HLM_U32   dec_pic_height;                  // ½âÂëÍ¼Ïñ¸ß¶È
-    HLM_U32   dec_bitdepth;
-    HLM_U32   dec_pic_luma_bitdepth;           // ½âÂëÍ¼ÏñÁÁ¶ÈÎ»¿í
-    HLM_U32   dec_pic_chroma_bitdepth;         // ½âÂëÍ¼ÏñÉ«¶ÈÎ»¿í
-    HLM_U16  *dec_recon_y_base;                // ÖØ¹¹Í¼ÏñµØÖ·
-    HLM_U16  *dec_recon_cb_base;
-    HLM_U16  *dec_recon_cr_base;
-
-    // stride
-    HLM_U32   dec_output_luma_stride;          // ÖØ¹¹Í¼Ïñ¿ç¶È
-    HLM_U32   dec_output_chroma_stride;
-    HLM_U32   dec_ref_frame_luma_stride;       // ²Î¿¼Ö¡¿ç¶È£¬paddingºó´óĞ¡
-    HLM_U32   dec_ref_frame_chroma_stride;
-    HLM_U16  *dec_ref_y_padding_base;          // ²Î¿¼Ö¡paddingºóÍ¼ÏñY·ÖÁ¿»ùµØÖ·
-    HLM_U16  *dec_ref_cb_padding_base;         // ²Î¿¼Ö¡paddingºóÍ¼Ïñcb·ÖÁ¿»ùµØÖ·
-    HLM_U16  *dec_ref_cr_padding_base;         // ²Î¿¼Ö¡paddingºóÍ¼Ïñcr·ÖÁ¿»ùµØÖ·
-
-    HLM_PATCH_PARAM *cur_patch_param;          // µ±Ç°patchµÄ²ÎÊı
-    HLMD_CU_INFO    *cur_cu;
-    HLM_NEIGHBOR_INFO *nbi_info;
-    HLM_S32   mv_ref_cross_patch;
-    HLM_S32   inter_pad_w_left;
-    HLM_S32   inter_pad_w_right;
-    HLM_S32   inter_pad_h_up;
-    HLM_S32   inter_pad_h_down;
-} HLMD_REGS;
-
-// Ëã·¨Ä£ĞÍÄÚ¹«¹²²ÎÊı½á¹¹Ìå£¬µÈĞ§Ëã·¨Ä£ĞÍ¾ä±ú
-typedef struct _HLMD_SW_SPEC
-{
-    HLMD_ABILITY       ability;
-    HLM_VOID          *dpb_handle;             // DPBÄ£¿éÖ¸Õë
-    HLMD_FRAME        *dec_pic_buf;
-    HLMD_FRAME        *cur_frame;              // µ±Ç°¹¤×÷Ö¡»º´æ
-    HLM_S32            dpb_free_index;         // DPB¿ÕÏĞÖ¡Ë÷Òı
-    HLM_PARAM_SPS      sps;                    // SPS
-    HLM_PARAM_PPS      pps;                    // PPS
-    HLMD_PATCH_CTX     patch_ctx;              // patch_ctx
-    HLM_U32            poc;                    // POCÖµ
-    HLM_U08           *ram_buf;                // RAM»º´æµØÖ·
-    HLM_SZT            ram_size;
-    HLM_U32            coded_patch_cnt;        // µ±Ç°Ö¡µÄÒÑ½âÂëpatch¸öÊı
-    HLMD_CU_INFO       cur_cu;                 // ÔÚÈí¼ş²ãÉêÇëÄÚ´æ£¬È»ºó´«¸ø¼Ä´æÆ÷ºÍÓ²¼ş²ã
-    HLM_NEIGHBOR_INFO  nbi_info;
-} HLMD_SW_SPEC;
-
-// Ëã·¨Ä£ĞÍÄÚ¹«¹²²ÎÊı½á¹¹Ìå£¬µÈĞ§Ëã·¨Ä£ĞÍ¾ä±ú
-typedef struct _HLMD_HW_SPEC
-{
-    HLMD_REGS         *regs;
-    HLMD_CU_INFO      *cur_cu;
-    HLM_NEIGHBOR_INFO *nbi_info;
-    HLMD_BITSTREAM     bs;
-    HLM_U32            cu_rows;                // CUĞĞÊı
-    HLM_U32            cu_cols;                // CUÁĞÊı
-    HLM_S32            bit_depth_luma;
-    HLM_S32            bit_depth_chroma;
-} HLMD_HW_SPEC;
-
-#ifdef __cplusplus
-}
-#endif
-
-#endif // _HLMD_DEFS_H_
+/***************************************************************************************************
+
+The copyright in this software is being made available under the License included below.
+This software may be subject to other third party and contributor rights, including patent
+rights, and no such rights are granted under this license.
+
+Copyright (C) 2025, Hangzhou Hikvision Digital Technology Co., Ltd. All rights reserved.
+
+Redistribution and use in source and binary forms, with or without modification, are permitted
+only for the purpose of developing standards within Audio and Video Coding Standard Workgroup of
+China (AVS) and for testing and promoting such standards. The following conditions are required
+to be met:
+
+* Redistributions of source code must retain the above copyright notice, this list of
+conditions and the following disclaimer.
+* Redistributions in binary form must reproduce the above copyright notice, this list of
+conditions and the following disclaimer in the documentation and/or other materials
+provided with the distribution.
+* The name of Hangzhou Hikvision Digital Technology Co., Ltd. may not be used to endorse or
+promote products derived from this software without specific prior written permission.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR
+IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND
+FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR
+CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+POSSIBILITY OF SUCH DAMAGE.
+
+***************************************************************************************************/
+#ifndef _HLMD_DEFS_H_
+#define _HLMD_DEFS_H_
+
+#include "hlmd_lib.h"
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+#define HLMD_MAX_REF_NUM           (1)         // æœ€å¤§å‚è€ƒå¸§æ•°
+
+#if defined(_M_IX86)
+#define HLMD_BSWAP(a)              __asm mov eax, a    __asm bswap eax     __asm  mov a, eax
+#elif defined(_M_ARM)
+#if defined(__ANDROID__)
+#define HLMD_BSWAP(a)              __asm("rev %0, %1":"=r"(tmp):"r"(tmp));
+#else
+#define HLMD_BSWAP(a)              (a = HLMD_BSWAP32(a)) 
+#endif
+#elif defined(_M_X64)
+#define HLMD_BSWAP(a)              (a = (((a & 0xFF) << 24)    | \
+                                         ((a & 0xFF00) << 8)   | \
+                                         ((a & 0xFF0000) >> 8) | \
+                                         ((a & 0xFF000000) >> 24)))
+#else
+#define HLMD_BSWAP(a)              (a = HLMD_BSWAP32(a))
+#endif
+
+// NALUå¤´ä¿¡æ¯
+typedef struct _HLMD_NALU_HEADER
+{
+    HLM_U32  forbidden_zero_bit;
+    HLM_U32  nal_ref_idc;
+    HLM_U32  nal_unit_type;
+} HLMD_NALU_HEADER;
+
+// å«åƒç´ å€¼ä¿¡æ¯çš„å¸§
+typedef struct _HLMD_YUV_FRAME
+{
+    HLM_U16 *data[3];
+    HLM_S32  step[3];
+} HLMD_YUV_FRAME;
+
+// è§£ç ä¸€å¸§æ‰€æœ‰å›¾åƒå±æ€§
+typedef struct _HLMD_PIC_DATA_
+{
+    HLMD_YUV_FRAME  yuv;                       // å›¾åƒåœ°å€å’Œè·¨åº¦
+    HLM_S32         fram_num;                  // å½“å‰å¸§çš„frame_num
+    HLM_S32         dpb_lock_flag;             // DPBä¸­çš„å›¾åƒä½ç½®æ˜¯å¦å¯ç”¨ï¼Œ0è¡¨ç¤ºå¯ç”¨ï¼Œ1è¡¨ç¤ºä¸å¯ç”¨
+    HLM_U32         unref_set_id;              // é‡Šæ”¾æ— æ•ˆå‚è€ƒå¸§çš„çº¿ç¨‹æ ‡è¯†
+    HLM_U16        *cu_type_mem;               // å­˜å‚¨æ‰€æœ‰å®å—ç±»å‹çš„å†…å­˜æŒ‡é’ˆ
+    HLM_S16        *mv;                        // L0ã€L1ä¸¤ä¸ªæ–¹å‘ï¼Œæ¯ä¸ªæ–¹å‘å®å—æ•° * 16ä»½(mv_x, mv_y)
+    HLM_S08        *ref_idx;                   // L0ã€L1ä¸¤ä¸ªæ–¹å‘ï¼Œæ¯ä¸ªæ–¹å‘å®å—æ•° * 4ä¸ªå­—èŠ‚
+    HLM_U16        *luma_ref_padding_y;        // å‚è€ƒå¸§ï¼ˆæˆ–é‡å»ºå¸§ï¼‰paddingåYåˆ†é‡å›¾åƒåœ°å€
+    HLM_U16        *luma_ref_padding_cb;       // å‚è€ƒå¸§ï¼ˆæˆ–é‡å»ºå¸§ï¼‰paddingåCbåˆ†é‡å›¾åƒåœ°å€
+    HLM_U16        *luma_ref_padding_cr;       // å‚è€ƒå¸§ï¼ˆæˆ–é‡å»ºå¸§ï¼‰paddingåCråˆ†é‡å›¾åƒåœ°å€
+    HLM_U16        *patch_padding_recon[3];    // paddingåçš„patché‡å»ºæ•°æ®ï¼ŒstrideåŒyuv.step
+} HLMD_PIC_DATA;
+
+// å¸§ç»“æ„ä½“
+typedef struct _HLMD_FRAME
+{
+    HLMD_PIC_DATA *ref_pic_data;
+} HLMD_FRAME;
+
+// å‚è€ƒå¸§åˆ—è¡¨ç»“æ„ä½“
+typedef struct _HLMD_REF_LIST
+{
+    HLMD_PIC_DATA  ref_pic_data;
+} HLMD_REF_LIST;
+
+// æ¡å¸¦ä¸Šä¸‹æ–‡ä¿¡æ¯ç»“æ„ä½“
+typedef struct _HLMD_PATCH_CTX
+{
+    HLM_PATCH_HEADER   patch_header;           // æ¡å¸¦å¤´ä¿¡æ¯
+    HLM_U32            last_ref_count;
+    HLM_S32            last_patch_type;        // å‰ä¸€ä¸ªpatchç±»å‹
+    HLM_S32            first_cu_in_patch;
+    HLM_U32            nal_ref_idc;            // nalå•å…ƒnal_ref_idc
+    HLM_U32            idr_frame_flag;         // idræ ‡å¿—
+    HLM_U32            ref_count;              // å‚è€ƒåˆ—è¡¨ä¸­çš„å‚è€ƒå¸§æ•°é‡
+    HLM_U32            short_ref_cnt;          // çŸ­æœŸå‚è€ƒå¸§çš„æ•°é‡
+    HLMD_FRAME        *short_ref_list[HLMD_MAX_REF_NUM + 1];  // çŸ­æœŸå‚è€ƒå¸§åˆ—è¡¨
+    HLMD_REF_LIST      ref_list[HLMD_MAX_REF_NUM];            // å‰å‘å‚è€ƒå¸§åˆ—è¡¨
+} HLMD_PATCH_CTX;
+
+// ç æµä¿¡æ¯ç»“æ„ä½“
+typedef struct _HLMD_BITSTREAM
+{
+    HLM_U32  max_bits_num;                     // ç æµçš„é•¿åº¦, å•ä½bit
+    HLM_U08 *init_buf;                         // initbufæŒ‡å‘æ¯ä¸€å¸§çš„æ•°æ®å¼€å§‹åœ°å€
+    HLM_U32  bits_cnt;                         // bitcntä¸ºåœ¨æ­¤åŸºç¡€ä¸Šå½“å‰ä½ç½®çš„åç§»ï¼Œå•ä½ä¸ºbit
+} HLMD_BITSTREAM;
+
+// ç®—æ³•æ¨¡å‹å†…cu_infoå…¬å…±å‚æ•°
+typedef struct _HLMD_CU_INFO
+{
+    HLM_CU_INFO com_cu_info;                   // ç¼–è§£ç å…¬å…±å‚æ•°
+    HLM_MV    mvd_l0[2];                       // å½“å‰å®å—çš„mvdå€¼
+    HLM_U16   luma_bitdepth;
+    HLM_U16   chroma_bitdepth;
+    HLM_COEFF dc_coeffs[3][HLM_TU_4x4_NUMS];   // è§£ç çš„DCç³»æ•°
+    HLM_U08   dc_coeffs_num[3];                // DCéé›¶ç³»æ•°ä¸ªæ•°
+#if !MIX_IBC
+    HLM_MV    bv[8];
+#endif
+} HLMD_CU_INFO;
+
+// ç¡¬ä»¶è§£ç å±‚é…ç½®ä¿¡æ¯ç»“æ„ä½“
+typedef struct _HLMD_REGS
+{
+    HLMD_PATCH_CTX  *patch_ctx;
+    HLMD_FRAME      *cur_frame;                // å½“å‰å·¥ä½œå¸§ç¼“å­˜
+    HLM_U32   dec_frame_coding_type;           // è§£ç å¸§ç±»å‹
+    HLM_S32   segment_enable_flag;
+    HLM_S32   segment_width_in_log2;
+    HLM_S32   segment_height_in_log2;
+    HLMD_BITSTREAM  *bs;
+    HLM_S32   image_format;
+    HLM_U32   intra_8x8_enable_flag;
+    HLM_U32   cu_delta_qp_enable_flag;
+
+    // è¾“å‡º
+    HLM_U32   dec_pic_width;                   // è§£ç å›¾åƒå®½åº¦
+    HLM_U32   dec_pic_height;                  // è§£ç å›¾åƒé«˜åº¦
+    HLM_U32   dec_bitdepth;
+    HLM_U32   dec_pic_luma_bitdepth;           // è§£ç å›¾åƒäº®åº¦ä½å®½
+    HLM_U32   dec_pic_chroma_bitdepth;         // è§£ç å›¾åƒè‰²åº¦ä½å®½
+    HLM_U16  *dec_recon_y_base;                // é‡æ„å›¾åƒåœ°å€
+    HLM_U16  *dec_recon_cb_base;
+    HLM_U16  *dec_recon_cr_base;
+
+    // stride
+    HLM_U32   dec_output_luma_stride;          // é‡æ„å›¾åƒè·¨åº¦
+    HLM_U32   dec_output_chroma_stride;
+    HLM_U32   dec_ref_frame_luma_stride;       // å‚è€ƒå¸§è·¨åº¦ï¼Œpaddingåå¤§å°
+    HLM_U32   dec_ref_frame_chroma_stride;
+    HLM_U16  *dec_ref_y_padding_base;          // å‚è€ƒå¸§paddingåå›¾åƒYåˆ†é‡åŸºåœ°å€
+    HLM_U16  *dec_ref_cb_padding_base;         // å‚è€ƒå¸§paddingåå›¾åƒcbåˆ†é‡åŸºåœ°å€
+    HLM_U16  *dec_ref_cr_padding_base;         // å‚è€ƒå¸§paddingåå›¾åƒcråˆ†é‡åŸºåœ°å€
+
+    HLM_PATCH_PARAM *cur_patch_param;          // å½“å‰patchçš„å‚æ•°
+    HLMD_CU_INFO    *cur_cu;
+    HLM_NEIGHBOR_INFO *nbi_info;
+    HLM_S32   mv_ref_cross_patch;
+    HLM_S32   inter_pad_w_left;
+    HLM_S32   inter_pad_w_right;
+    HLM_S32   inter_pad_h_up;
+    HLM_S32   inter_pad_h_down;
+} HLMD_REGS;
+
+// ç®—æ³•æ¨¡å‹å†…å…¬å…±å‚æ•°ç»“æ„ä½“ï¼Œç­‰æ•ˆç®—æ³•æ¨¡å‹å¥æŸ„
+typedef struct _HLMD_SW_SPEC
+{
+    HLMD_ABILITY       ability;
+    HLM_VOID          *dpb_handle;             // DPBæ¨¡å—æŒ‡é’ˆ
+    HLMD_FRAME        *dec_pic_buf;
+    HLMD_FRAME        *cur_frame;              // å½“å‰å·¥ä½œå¸§ç¼“å­˜
+    HLM_S32            dpb_free_index;         // DPBç©ºé—²å¸§ç´¢å¼•
+    HLM_PARAM_SPS      sps;                    // SPS
+    HLM_PARAM_PPS      pps;                    // PPS
+    HLMD_PATCH_CTX     patch_ctx;              // patch_ctx
+    HLM_U32            poc;                    // POCå€¼
+    HLM_U08           *ram_buf;                // RAMç¼“å­˜åœ°å€
+    HLM_SZT            ram_size;
+    HLM_U32            coded_patch_cnt;        // å½“å‰å¸§çš„å·²è§£ç patchä¸ªæ•°
+    HLMD_CU_INFO       cur_cu;                 // åœ¨è½¯ä»¶å±‚ç”³è¯·å†…å­˜ï¼Œç„¶åä¼ ç»™å¯„å­˜å™¨å’Œç¡¬ä»¶å±‚
+    HLM_NEIGHBOR_INFO  nbi_info;
+} HLMD_SW_SPEC;
+
+// ç®—æ³•æ¨¡å‹å†…å…¬å…±å‚æ•°ç»“æ„ä½“ï¼Œç­‰æ•ˆç®—æ³•æ¨¡å‹å¥æŸ„
+typedef struct _HLMD_HW_SPEC
+{
+    HLMD_REGS         *regs;
+    HLMD_CU_INFO      *cur_cu;
+    HLM_NEIGHBOR_INFO *nbi_info;
+    HLMD_BITSTREAM     bs;
+    HLM_U32            cu_rows;                // CUè¡Œæ•°
+    HLM_U32            cu_cols;                // CUåˆ—æ•°
+    HLM_S32            bit_depth_luma;
+    HLM_S32            bit_depth_chroma;
+} HLMD_HW_SPEC;
+
+#ifdef __cplusplus
+}
+#endif
+
+#endif // _HLMD_DEFS_H_

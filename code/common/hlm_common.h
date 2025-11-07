@@ -1,314 +1,314 @@
-/***************************************************************************************************
-
-The copyright in this software is being made available under the License included below.
-This software may be subject to other third party and contributor rights, including patent
-rights, and no such rights are granted under this license.
-
-Copyright (C) 2025, Hangzhou Hikvision Digital Technology Co., Ltd. All rights reserved.
-
-Redistribution and use in source and binary forms, with or without modification, are permitted
-only for the purpose of developing standards within Audio and Video Coding Standard Workgroup of
-China (AVS) and for testing and promoting such standards. The following conditions are required
-to be met:
-
-* Redistributions of source code must retain the above copyright notice, this list of
-conditions and the following disclaimer.
-* Redistributions in binary form must reproduce the above copyright notice, this list of
-conditions and the following disclaimer in the documentation and/or other materials
-provided with the distribution.
-* The name of Hangzhou Hikvision Digital Technology Co., Ltd. may not be used to endorse or
-promote products derived from this software without specific prior written permission.
-
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR
-IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND
-FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR
-CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
-CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
-SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
-OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-POSSIBILITY OF SUCH DAMAGE.
-
-***************************************************************************************************/
-#ifndef _HLM_COMMON_H_
-#define _HLM_COMMON_H_
-
-#include <stdio.h>
-#include <assert.h>
-#include <string.h>
-#include "hlm_defs.h"
-#include "hlm_mem.h"
-#include "hlm_nbi.h"
-#include "hlm_com_iqt.h"
-#include "hlm_com_pred.h"
-
-#ifdef __cplusplus
-extern "C" {
-#endif
-
-#define WRITE_PARAMETERS                        (0)       // output data for "tool/BitstreamAnalyzer"
-#define COLOR_TYPE                              (1)       // 1: BT.601   2: BT.709   3: BT.2020
-
-#define MD5FUNC(f, w, x, y, z, msg1, s,msg2 )   (w += f(x, y, z) + msg1 + msg2, \
-                                                 w = w<<s | w>>(32-s), w += x)
-#define FF(x, y, z)                             (z ^ (x & (y ^ z)))
-#define GG(x, y, z)                             (y ^ (z & (x ^ y)))
-#define HH(x, y, z)                             (x ^ y ^ z)
-#define II(x, y, z)                             (y ^ (x | ~z))
-
-#define PATCH_HOR_OVERLAP(x, w, xx, ww)         ((x + w <= xx) || (xx + ww <= x))  // ÎŞË®Æ½ÖØµş
-#define PATCH_VER_OVERLAP(y, h, yy, hh)         ((y + h <= yy) || (yy + hh <= y))  // ÎŞ´¹Ö±ÖØµş
-
-#define HLM_MAX_QP(bitdepth)                    (51 + 6 * (bitdepth - 8))          // ×î´óQP
-
-typedef struct _HLM_MD5
-{
-    HLM_U32  h[4];                                  // hash state ABCD
-    HLM_U08  msg[64];                               // input buffer (chunk message)
-    HLM_U32  bits[2];                               // number of bits, modulo 2^64 (lsb first)
-} HLM_MD5;
-
-// patch²ÎÊı
-typedef struct _HLM_PATCH_PARAM
-{
-    HLM_U32  patch_x;                               // patch×óÉÏ½ÇÏñËØµÄºá×ø±ê
-    HLM_U32  patch_y;                               // patch×óÉÏ½ÇÏñËØµÄ×İ×ø±ê
-    HLM_U32  patch_width[2];                        // patchµÄÔ­Ê¼¿í¶È
-    HLM_U32  patch_height[2];                       // patchµÄÔ­Ê¼¸ß¶È
-    HLM_U32  patch_coded_width[2];                  // patchµÄpaddingºóµÄ¿í¶È£¬16µÄ±¶Êı
-    HLM_U32  patch_coded_height[2];                 // patchµÄpaddingºóµÄ¸ß¶È£¬8µÄ±¶Êı
-} HLM_PATCH_PARAM;
-
-// patch»®·ÖĞÅÏ¢
-typedef struct _HLM_PATCH_INFO
-{
-    HLM_S32  patch_num;                             // »®·ÖµÄpatch¸öÊı
-    HLM_PATCH_PARAM patch_param[HLM_MAX_PATCH_NUM]; // Ã¿¸öpatchµÄ²ÎÊı
-} HLM_PATCH_INFO;
-
-// ĞòÁĞÍ·²ÎÊı
-typedef struct _HLM_PARAM_SPS
-{
-    HLM_S32  pic_height_in_map_units_minus1;
-    HLM_S32  pic_width_in_cus_minus1;
-    HLM_S32  bitdepth;
-    HLM_S32  bit_depth_luma_minus8;
-    HLM_S32  bit_depth_chroma_minus8;
-    HLM_S32  format;
-    HLM_S32  frame_cropping_flag;
-    HLM_S32  frame_crop_left_offset;
-    HLM_S32  frame_crop_right_offset;
-    HLM_S32  frame_crop_top_offset;
-    HLM_S32  frame_crop_bottom_offset;
-    HLM_S32  profile;
-    HLM_S32  intra_8x8_enable_flag;
-    HLM_S32  cu_delta_qp_enable_flag;
-    HLM_S32  mv_limit_enable_flag;
-    HLM_S32  bpp_i;
-    HLM_S32  bpp_p;
-    HLM_S32  i_frame_enable_ibc;
-    HLM_S32  p_frame_enable_ibc;
-    HLM_S32  mv_ref_cross_patch;
-    HLM_S32  mv_search_width;
-    HLM_S32  mv_search_height;
-    HLM_PATCH_INFO patch_info;
-} HLM_PARAM_SPS;
-
-// Í¼ÏñÍ·²ÎÊı
-typedef struct _HLM_PARAM_PPS
-{
-    HLM_S32  pic_type;
-    HLM_S32  poc;
-    HLM_S32  pic_luma_qp;
-    HLM_S32  pic_chroma_delta_qp;
-} HLM_PARAM_PPS;
-
-//Ìõ´øÍ·²ÎÊı
-typedef struct _HLM_PATCH_HEADER
-{
-    HLM_S32  patch_idx;
-    HLM_S32  patch_bpp;
-    HLM_S32  segment_enable_flag;
-    HLM_S32  segment_width_in_log2;
-    HLM_S32  segment_height_in_log2;
-    HLM_S32  patch_extra_params_present_flag;
-    HLM_PARAM_SPS  sps;  // patch¼¶ÖØ´«µÄĞòÁĞÍ·Óï·¨
-    HLM_PARAM_PPS  pps;  // patch¼¶ÖØ´«µÄÍ¼ÏñÍ·Óï·¨
-} HLM_PATCH_HEADER;
-
-// SEI¿ØÖÆ²ÎÊı
-typedef struct _HLM_SEI_INFO
-{
-    SEI_PAYLOAD_TYPE  payload_type;
-    HLM_U32  payload_size;  // ÒÔ×Ö½ÚÎªµ¥Î»
-    HLM_U08 *payload_data;
-} HLM_PARAM_SEI;
-
-/***************************************************************************************************
-* ³£Á¿±í¶¨Òå
-***************************************************************************************************/
-static const HLM_U08 HLM_B4_X_8[8]   = { 0,1,2,3,0,1,2,3 };  // 4x4¿é×ø±ê×ª»»
-static const HLM_U08 HLM_B4_Y_8[8]   = { 0,0,0,0,1,1,1,1 };
-static const HLM_U08 HLM_B4_X_4[4]   = { 0,1,0,1 };
-static const HLM_U08 HLM_B4_Y_4[4]   = { 0,0,1,1 };
-static const HLM_U08 HLM_B4_X_2[2]   = { 0,1 };
-static const HLM_U08 HLM_B4_Y_2[2]   = { 0,0 };
-#if !MIX_IBC
-static const HLM_U08 tbl_bvx_bits[8] = { 3, 4, 5, 5, 6, 6, 7, 7 };  // Ë÷ÒıÎªcu_x£¬ÖµÎªbv_xµÄ±ÈÌØÊı
-
-// zscanÉ¨ÃèË³ĞòÏÂBV Merge·½Ê½£¬0:²»merge£¬1:Ïò×ó£¬2:ÏòÉÏ
-static const HLM_U08 tbl_merge_type[HLM_BV_MERGE_NUM][8] =
-{
-    { 0, 0, 0, 0, 0, 0, 0, 0 },        // HLM_BV_NO_MERGE
-    { 0, 1, 2, 1, 1, 1, 1, 1 },        // HLM_BV_MERGE_LEFT
-    { 0, 0, 2, 2, 0, 0, 2, 2 },        // HLM_BV_MERGE_UP
-    { 0, 1, 2, 2, 1, 1, 2, 2 }         // HLM_BV_MERGE_MIX
-};
-#endif
-
-/***************************************************************************************************
-* ¹¦  ÄÜ£º¼ÆËã¶ÔÊı
-* ²Î  Êı£º
-*        v                        -I       ´ıÇó¶ÔÊıµÄÖµ
-* ·µ»ØÖµ£º¼ÆËã¶ÔÊıºóÏòÏÂÈ¡ÕûµÄ½á¹û
-* ±¸  ×¢£º
-***************************************************************************************************/
-HLM_S32 HLM_COM_Log2(HLM_U32 v);
-
-/***************************************************************************************************
-* ¹¦  ÄÜ£º¼ÆËãMD5
-* ²Î  Êı£º*
-*        yuv_buf                  -I       Í¼ÏñÊı¾İ
-*        digest                   -O       MD5Öµ
-*        luma_width               -I       Í¼ÏñÁÁ¶È¿í¶È
-*        luma_height              -I       Í¼ÏñÁÁ¶È¸ß¶È
-*        chroma_width             -I       Í¼ÏñÉ«¶È¿í¶È
-*        chroma_height            -I       Í¼ÏñÉ«¶È¸ß¶È
-* ·µ»ØÖµ£ºÎŞ
-* ±¸  ×¢£º
-***************************************************************************************************/
-HLM_VOID HLM_COM_GetMd5(HLM_U16 *y_buf,
-                        HLM_U16 *cb_buf,
-                        HLM_U16 *cr_buf,
-                        HLM_U08  digest[16],
-                        HLM_U32  luma_width,
-                        HLM_U32  luma_height,
-                        HLM_U32  chroma_width,
-                        HLM_U32  chroma_height);
-
-/***************************************************************************************************
-* ¹¦  ÄÜ£ºCSC ÑÕÉ«¿Õ¼ä×ª»»£¨RGB -> YCbCr£©
-* ²Î  Êı£º*
-*        src0                     -IO      µÚÒ»·ÖÁ¿Êı¾İ
-*        src1                     -IO      µÚ¶ş·ÖÁ¿Êı¾İ
-*        src2                     -IO      µÚÈı·ÖÁ¿Êı¾İ
-*        width                    -I       ¿í¶È
-*        height                   -I       ¸ß¶È
-*        bitdepth                 -I       ±ÈÌØÉî¶È
-* ·µ»ØÖµ£ºÎŞ
-* ±¸  ×¢£º
-*      Y  =  0.29900 * R + 0.58700 * G + 0.11400 * B
-*      Cb = -0.16874 * R - 0.33126 * G + 0.50000 * B  + 128
-*      Cr =  0.50000 * R - 0.41869 * G - 0.08131 * B  + 128
-***************************************************************************************************/
-HLM_VOID HLM_COM_Rgb_To_YCbCr(HLM_U16 *src0,
-                              HLM_U16 *src1,
-                              HLM_U16 *src2,
-                              HLM_S32  width,
-                              HLM_S32  height,
-                              HLM_U08  bitdepth);
-
-/***************************************************************************************************
-* ¹¦  ÄÜ£ºCSC ÑÕÉ«¿Õ¼ä×ª»»£¨YCbCr -> RGB£©
-* ²Î  Êı£º*
-*        src0                     -IO      µÚÒ»·ÖÁ¿Êı¾İ
-*        src1                     -IO      µÚ¶ş·ÖÁ¿Êı¾İ
-*        src2                     -IO      µÚÈı·ÖÁ¿Êı¾İ
-*        width                    -I       ¿í¶È
-*        height                   -I       ¸ß¶È
-*        bitdepth                 -I       ±ÈÌØÉî¶È
-* ·µ»ØÖµ£ºÎŞ
-* ±¸  ×¢£º
-*      R  =  Y + 1.402 * (Cr - 128)
-*      G  =  Y - 0.344 * (Cb - 128) - 0.714 *( Cr - 128)
-*      B  =  Y + 1.772 * (Cb - 128)
-***************************************************************************************************/
-HLM_VOID HLM_COM_YCbCr_To_Rgb(HLM_U16 *src0,
-                              HLM_U16 *src1,
-                              HLM_U16 *src2,
-                              HLM_S32  width,
-                              HLM_S32  height,
-                              HLM_U08  bitdepth);
-
-/***************************************************************************************************
-* ¹¦  ÄÜ£º»ñÈ¡Ã¿¸ö4x4¿é¶ÔÓ¦µÄÏµÊıÎ»ÖÃ
-* ²Î  Êı£º*
-*        num_4x4                  -I       4x4¿é¸öÊı
-*        idx_4                    -I       4x4¿éË³Ğò
-*        pos_x                    -IO      ºá×ø±ê
-*        pos_y                    -IO      ×İ×ø±ê
-*        com_cu_info              -IO      µ±Ç°CUµÄĞÅÏ¢
-*        yuv_idx                  -I       ·ÖÁ¿Ë÷Òı
-* ·µ»ØÖµ£ºÎŞ
-* ±¸  ×¢£º
-***************************************************************************************************/
-HLM_VOID HLM_COM_4x4_Block_To_Coeff_Pos(HLM_U08          num_4x4,
-                                        HLM_S32          idx_4,
-                                        HLM_U08         *pos_x,
-                                        HLM_U08         *pos_y,
-                                        HLM_CU_INFO     *com_cu_info,
-                                        HLM_U08          yuv_idx);
-
-/***************************************************************************************************
-* ¹¦  ÄÜ£º»ñÈ¡²»Í¬¸ñÊ½ÏÂ¡¢²»Í¬·ÖÁ¿µÄË®Æ½·½ÏòºÍ´¹Ö±·½ÏòµÄ²ÉÑùÂÊ
-* ²Î  Êı£º*
-*        image_format             -I       Í¼Ïñ¸ñÊ½
-*        hor_shift                -O       Ë®Æ½²ÉÑùÂÊ
-*        ver_shift                -O       ´¹Ö±²ÉÑùÂÊ
-* ·µ»ØÖµ£ºÎŞ
-* ±¸  ×¢£º
-***************************************************************************************************/
-HLM_VOID HLM_COM_GetFormatShift(HLM_U32  image_format,
-                                HLM_S08  hor_shift[3],
-                                HLM_S08  ver_shift[3]);
-
-/***************************************************************************************************
-* ¹¦  ÄÜ£º»ñÈ¡srcÉÏµÄ(blk_x,blk_y)Î»ÖÃ´¦µÄ¿í¸ßÎªblk_wºÍblk_hµÄÏñËØ¿é
-* ²Î  Êı£º*
-*        src                      -I       Êı¾İÔ´Ö¸Õë
-*        src_stride               -I       Êı¾İÔ´stride
-*        blk                      -O       ÏñËØ¿éÖ¸Õë
-*        blk_stride               -I       ÏñËØ¿éstride
-*        blk_x                    -I       ÏñËØ¿é×óÉÏ½ÇµãµÄºá×ø±ê
-*        blk_y                    -I       ÏñËØ¿é×óÉÏ½ÇµãµÄ×İ×ø±ê
-*        blk_w                    -I       ÏñËØ¿é¿í¶È
-*        blk_h                    -I       ÏñËØ¿é¸ß¶È
-* ·µ»ØÖµ£ºÎŞ
-***************************************************************************************************/
-HLM_VOID HLM_COM_GetBlock(HLM_U16  *src,
-                          HLM_U32   src_stride,
-                          HLM_U16  *blk,
-                          HLM_U32   blk_stride,
-                          HLM_U32   blk_x,
-                          HLM_U32   blk_y,
-                          HLM_U32   blk_w,
-                          HLM_U32   blk_h);
-
-/***************************************************************************************************
-* ¹¦  ÄÜ£ºĞ£ÑéPatch»®·ÖÄÜ·ñÆ´³ÉÍêÕûÍ¼Ïñ
-* ²Î  Êı£º*
-*        pic_width                -I       Í¼Ïñ¿í¶È
-*        pic_height               -I       Í¼Ïñ¸ß¶È
-*        patch_info               -I       patchĞÅÏ¢
-* ·µ»ØÖµ£ºĞ£ÑéÊÇ·ñÍ¨¹ı(0/1)
-* ±¸  ×¢£º
-***************************************************************************************************/
-HLM_S32 HLM_COM_CheckPatchSplit(HLM_S32            pic_width,
-                                HLM_S32            pic_height,
-                                HLM_PATCH_INFO    *patch_info);
-
-#ifdef __cplusplus
-}
-#endif
-
-#endif //_HLM_COMMON_H_
+/***************************************************************************************************
+
+The copyright in this software is being made available under the License included below.
+This software may be subject to other third party and contributor rights, including patent
+rights, and no such rights are granted under this license.
+
+Copyright (C) 2025, Hangzhou Hikvision Digital Technology Co., Ltd. All rights reserved.
+
+Redistribution and use in source and binary forms, with or without modification, are permitted
+only for the purpose of developing standards within Audio and Video Coding Standard Workgroup of
+China (AVS) and for testing and promoting such standards. The following conditions are required
+to be met:
+
+* Redistributions of source code must retain the above copyright notice, this list of
+conditions and the following disclaimer.
+* Redistributions in binary form must reproduce the above copyright notice, this list of
+conditions and the following disclaimer in the documentation and/or other materials
+provided with the distribution.
+* The name of Hangzhou Hikvision Digital Technology Co., Ltd. may not be used to endorse or
+promote products derived from this software without specific prior written permission.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR
+IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND
+FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR
+CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+POSSIBILITY OF SUCH DAMAGE.
+
+***************************************************************************************************/
+#ifndef _HLM_COMMON_H_
+#define _HLM_COMMON_H_
+
+#include <stdio.h>
+#include <assert.h>
+#include <string.h>
+#include "hlm_defs.h"
+#include "hlm_mem.h"
+#include "hlm_nbi.h"
+#include "hlm_com_iqt.h"
+#include "hlm_com_pred.h"
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+#define WRITE_PARAMETERS                        (0)       // output data for "tool/BitstreamAnalyzer"
+#define COLOR_TYPE                              (1)       // 1: BT.601   2: BT.709   3: BT.2020
+
+#define MD5FUNC(f, w, x, y, z, msg1, s,msg2 )   (w += f(x, y, z) + msg1 + msg2, \
+                                                 w = w<<s | w>>(32-s), w += x)
+#define FF(x, y, z)                             (z ^ (x & (y ^ z)))
+#define GG(x, y, z)                             (y ^ (z & (x ^ y)))
+#define HH(x, y, z)                             (x ^ y ^ z)
+#define II(x, y, z)                             (y ^ (x | ~z))
+
+#define PATCH_HOR_OVERLAP(x, w, xx, ww)         ((x + w <= xx) || (xx + ww <= x))  // æ— æ°´å¹³é‡å 
+#define PATCH_VER_OVERLAP(y, h, yy, hh)         ((y + h <= yy) || (yy + hh <= y))  // æ— å‚ç›´é‡å 
+
+#define HLM_MAX_QP(bitdepth)                    (51 + 6 * (bitdepth - 8))          // æœ€å¤§QP
+
+typedef struct _HLM_MD5
+{
+    HLM_U32  h[4];                                  // hash state ABCD
+    HLM_U08  msg[64];                               // input buffer (chunk message)
+    HLM_U32  bits[2];                               // number of bits, modulo 2^64 (lsb first)
+} HLM_MD5;
+
+// patchå‚æ•°
+typedef struct _HLM_PATCH_PARAM
+{
+    HLM_U32  patch_x;                               // patchå·¦ä¸Šè§’åƒç´ çš„æ¨ªåæ ‡
+    HLM_U32  patch_y;                               // patchå·¦ä¸Šè§’åƒç´ çš„çºµåæ ‡
+    HLM_U32  patch_width[2];                        // patchçš„åŸå§‹å®½åº¦
+    HLM_U32  patch_height[2];                       // patchçš„åŸå§‹é«˜åº¦
+    HLM_U32  patch_coded_width[2];                  // patchçš„paddingåçš„å®½åº¦ï¼Œ16çš„å€æ•°
+    HLM_U32  patch_coded_height[2];                 // patchçš„paddingåçš„é«˜åº¦ï¼Œ8çš„å€æ•°
+} HLM_PATCH_PARAM;
+
+// patchåˆ’åˆ†ä¿¡æ¯
+typedef struct _HLM_PATCH_INFO
+{
+    HLM_S32  patch_num;                             // åˆ’åˆ†çš„patchä¸ªæ•°
+    HLM_PATCH_PARAM patch_param[HLM_MAX_PATCH_NUM]; // æ¯ä¸ªpatchçš„å‚æ•°
+} HLM_PATCH_INFO;
+
+// åºåˆ—å¤´å‚æ•°
+typedef struct _HLM_PARAM_SPS
+{
+    HLM_S32  pic_height_in_map_units_minus1;
+    HLM_S32  pic_width_in_cus_minus1;
+    HLM_S32  bitdepth;
+    HLM_S32  bit_depth_luma_minus8;
+    HLM_S32  bit_depth_chroma_minus8;
+    HLM_S32  format;
+    HLM_S32  frame_cropping_flag;
+    HLM_S32  frame_crop_left_offset;
+    HLM_S32  frame_crop_right_offset;
+    HLM_S32  frame_crop_top_offset;
+    HLM_S32  frame_crop_bottom_offset;
+    HLM_S32  profile;
+    HLM_S32  intra_8x8_enable_flag;
+    HLM_S32  cu_delta_qp_enable_flag;
+    HLM_S32  mv_limit_enable_flag;
+    HLM_S32  bpp_i;
+    HLM_S32  bpp_p;
+    HLM_S32  i_frame_enable_ibc;
+    HLM_S32  p_frame_enable_ibc;
+    HLM_S32  mv_ref_cross_patch;
+    HLM_S32  mv_search_width;
+    HLM_S32  mv_search_height;
+    HLM_PATCH_INFO patch_info;
+} HLM_PARAM_SPS;
+
+// å›¾åƒå¤´å‚æ•°
+typedef struct _HLM_PARAM_PPS
+{
+    HLM_S32  pic_type;
+    HLM_S32  poc;
+    HLM_S32  pic_luma_qp;
+    HLM_S32  pic_chroma_delta_qp;
+} HLM_PARAM_PPS;
+
+//æ¡å¸¦å¤´å‚æ•°
+typedef struct _HLM_PATCH_HEADER
+{
+    HLM_S32  patch_idx;
+    HLM_S32  patch_bpp;
+    HLM_S32  segment_enable_flag;
+    HLM_S32  segment_width_in_log2;
+    HLM_S32  segment_height_in_log2;
+    HLM_S32  patch_extra_params_present_flag;
+    HLM_PARAM_SPS  sps;  // patchçº§é‡ä¼ çš„åºåˆ—å¤´è¯­æ³•
+    HLM_PARAM_PPS  pps;  // patchçº§é‡ä¼ çš„å›¾åƒå¤´è¯­æ³•
+} HLM_PATCH_HEADER;
+
+// SEIæ§åˆ¶å‚æ•°
+typedef struct _HLM_SEI_INFO
+{
+    SEI_PAYLOAD_TYPE  payload_type;
+    HLM_U32  payload_size;  // ä»¥å­—èŠ‚ä¸ºå•ä½
+    HLM_U08 *payload_data;
+} HLM_PARAM_SEI;
+
+/***************************************************************************************************
+* å¸¸é‡è¡¨å®šä¹‰
+***************************************************************************************************/
+static const HLM_U08 HLM_B4_X_8[8]   = { 0,1,2,3,0,1,2,3 };  // 4x4å—åæ ‡è½¬æ¢
+static const HLM_U08 HLM_B4_Y_8[8]   = { 0,0,0,0,1,1,1,1 };
+static const HLM_U08 HLM_B4_X_4[4]   = { 0,1,0,1 };
+static const HLM_U08 HLM_B4_Y_4[4]   = { 0,0,1,1 };
+static const HLM_U08 HLM_B4_X_2[2]   = { 0,1 };
+static const HLM_U08 HLM_B4_Y_2[2]   = { 0,0 };
+#if !MIX_IBC
+static const HLM_U08 tbl_bvx_bits[8] = { 3, 4, 5, 5, 6, 6, 7, 7 };  // ç´¢å¼•ä¸ºcu_xï¼Œå€¼ä¸ºbv_xçš„æ¯”ç‰¹æ•°
+
+// zscanæ‰«æé¡ºåºä¸‹BV Mergeæ–¹å¼ï¼Œ0:ä¸mergeï¼Œ1:å‘å·¦ï¼Œ2:å‘ä¸Š
+static const HLM_U08 tbl_merge_type[HLM_BV_MERGE_NUM][8] =
+{
+    { 0, 0, 0, 0, 0, 0, 0, 0 },        // HLM_BV_NO_MERGE
+    { 0, 1, 2, 1, 1, 1, 1, 1 },        // HLM_BV_MERGE_LEFT
+    { 0, 0, 2, 2, 0, 0, 2, 2 },        // HLM_BV_MERGE_UP
+    { 0, 1, 2, 2, 1, 1, 2, 2 }         // HLM_BV_MERGE_MIX
+};
+#endif
+
+/***************************************************************************************************
+* åŠŸ  èƒ½ï¼šè®¡ç®—å¯¹æ•°
+* å‚  æ•°ï¼š
+*        v                        -I       å¾…æ±‚å¯¹æ•°çš„å€¼
+* è¿”å›å€¼ï¼šè®¡ç®—å¯¹æ•°åå‘ä¸‹å–æ•´çš„ç»“æœ
+* å¤‡  æ³¨ï¼š
+***************************************************************************************************/
+HLM_S32 HLM_COM_Log2(HLM_U32 v);
+
+/***************************************************************************************************
+* åŠŸ  èƒ½ï¼šè®¡ç®—MD5
+* å‚  æ•°ï¼š*
+*        yuv_buf                  -I       å›¾åƒæ•°æ®
+*        digest                   -O       MD5å€¼
+*        luma_width               -I       å›¾åƒäº®åº¦å®½åº¦
+*        luma_height              -I       å›¾åƒäº®åº¦é«˜åº¦
+*        chroma_width             -I       å›¾åƒè‰²åº¦å®½åº¦
+*        chroma_height            -I       å›¾åƒè‰²åº¦é«˜åº¦
+* è¿”å›å€¼ï¼šæ— 
+* å¤‡  æ³¨ï¼š
+***************************************************************************************************/
+HLM_VOID HLM_COM_GetMd5(HLM_U16 *y_buf,
+                        HLM_U16 *cb_buf,
+                        HLM_U16 *cr_buf,
+                        HLM_U08  digest[16],
+                        HLM_U32  luma_width,
+                        HLM_U32  luma_height,
+                        HLM_U32  chroma_width,
+                        HLM_U32  chroma_height);
+
+/***************************************************************************************************
+* åŠŸ  èƒ½ï¼šCSC é¢œè‰²ç©ºé—´è½¬æ¢ï¼ˆRGB -> YCbCrï¼‰
+* å‚  æ•°ï¼š*
+*        src0                     -IO      ç¬¬ä¸€åˆ†é‡æ•°æ®
+*        src1                     -IO      ç¬¬äºŒåˆ†é‡æ•°æ®
+*        src2                     -IO      ç¬¬ä¸‰åˆ†é‡æ•°æ®
+*        width                    -I       å®½åº¦
+*        height                   -I       é«˜åº¦
+*        bitdepth                 -I       æ¯”ç‰¹æ·±åº¦
+* è¿”å›å€¼ï¼šæ— 
+* å¤‡  æ³¨ï¼š
+*      Y  =  0.29900 * R + 0.58700 * G + 0.11400 * B
+*      Cb = -0.16874 * R - 0.33126 * G + 0.50000 * B  + 128
+*      Cr =  0.50000 * R - 0.41869 * G - 0.08131 * B  + 128
+***************************************************************************************************/
+HLM_VOID HLM_COM_Rgb_To_YCbCr(HLM_U16 *src0,
+                              HLM_U16 *src1,
+                              HLM_U16 *src2,
+                              HLM_S32  width,
+                              HLM_S32  height,
+                              HLM_U08  bitdepth);
+
+/***************************************************************************************************
+* åŠŸ  èƒ½ï¼šCSC é¢œè‰²ç©ºé—´è½¬æ¢ï¼ˆYCbCr -> RGBï¼‰
+* å‚  æ•°ï¼š*
+*        src0                     -IO      ç¬¬ä¸€åˆ†é‡æ•°æ®
+*        src1                     -IO      ç¬¬äºŒåˆ†é‡æ•°æ®
+*        src2                     -IO      ç¬¬ä¸‰åˆ†é‡æ•°æ®
+*        width                    -I       å®½åº¦
+*        height                   -I       é«˜åº¦
+*        bitdepth                 -I       æ¯”ç‰¹æ·±åº¦
+* è¿”å›å€¼ï¼šæ— 
+* å¤‡  æ³¨ï¼š
+*      R  =  Y + 1.402 * (Cr - 128)
+*      G  =  Y - 0.344 * (Cb - 128) - 0.714 *( Cr - 128)
+*      B  =  Y + 1.772 * (Cb - 128)
+***************************************************************************************************/
+HLM_VOID HLM_COM_YCbCr_To_Rgb(HLM_U16 *src0,
+                              HLM_U16 *src1,
+                              HLM_U16 *src2,
+                              HLM_S32  width,
+                              HLM_S32  height,
+                              HLM_U08  bitdepth);
+
+/***************************************************************************************************
+* åŠŸ  èƒ½ï¼šè·å–æ¯ä¸ª4x4å—å¯¹åº”çš„ç³»æ•°ä½ç½®
+* å‚  æ•°ï¼š*
+*        num_4x4                  -I       4x4å—ä¸ªæ•°
+*        idx_4                    -I       4x4å—é¡ºåº
+*        pos_x                    -IO      æ¨ªåæ ‡
+*        pos_y                    -IO      çºµåæ ‡
+*        com_cu_info              -IO      å½“å‰CUçš„ä¿¡æ¯
+*        yuv_idx                  -I       åˆ†é‡ç´¢å¼•
+* è¿”å›å€¼ï¼šæ— 
+* å¤‡  æ³¨ï¼š
+***************************************************************************************************/
+HLM_VOID HLM_COM_4x4_Block_To_Coeff_Pos(HLM_U08          num_4x4,
+                                        HLM_S32          idx_4,
+                                        HLM_U08         *pos_x,
+                                        HLM_U08         *pos_y,
+                                        HLM_CU_INFO     *com_cu_info,
+                                        HLM_U08          yuv_idx);
+
+/***************************************************************************************************
+* åŠŸ  èƒ½ï¼šè·å–ä¸åŒæ ¼å¼ä¸‹ã€ä¸åŒåˆ†é‡çš„æ°´å¹³æ–¹å‘å’Œå‚ç›´æ–¹å‘çš„é‡‡æ ·ç‡
+* å‚  æ•°ï¼š*
+*        image_format             -I       å›¾åƒæ ¼å¼
+*        hor_shift                -O       æ°´å¹³é‡‡æ ·ç‡
+*        ver_shift                -O       å‚ç›´é‡‡æ ·ç‡
+* è¿”å›å€¼ï¼šæ— 
+* å¤‡  æ³¨ï¼š
+***************************************************************************************************/
+HLM_VOID HLM_COM_GetFormatShift(HLM_U32  image_format,
+                                HLM_S08  hor_shift[3],
+                                HLM_S08  ver_shift[3]);
+
+/***************************************************************************************************
+* åŠŸ  èƒ½ï¼šè·å–srcä¸Šçš„(blk_x,blk_y)ä½ç½®å¤„çš„å®½é«˜ä¸ºblk_wå’Œblk_hçš„åƒç´ å—
+* å‚  æ•°ï¼š*
+*        src                      -I       æ•°æ®æºæŒ‡é’ˆ
+*        src_stride               -I       æ•°æ®æºstride
+*        blk                      -O       åƒç´ å—æŒ‡é’ˆ
+*        blk_stride               -I       åƒç´ å—stride
+*        blk_x                    -I       åƒç´ å—å·¦ä¸Šè§’ç‚¹çš„æ¨ªåæ ‡
+*        blk_y                    -I       åƒç´ å—å·¦ä¸Šè§’ç‚¹çš„çºµåæ ‡
+*        blk_w                    -I       åƒç´ å—å®½åº¦
+*        blk_h                    -I       åƒç´ å—é«˜åº¦
+* è¿”å›å€¼ï¼šæ— 
+***************************************************************************************************/
+HLM_VOID HLM_COM_GetBlock(HLM_U16  *src,
+                          HLM_U32   src_stride,
+                          HLM_U16  *blk,
+                          HLM_U32   blk_stride,
+                          HLM_U32   blk_x,
+                          HLM_U32   blk_y,
+                          HLM_U32   blk_w,
+                          HLM_U32   blk_h);
+
+/***************************************************************************************************
+* åŠŸ  èƒ½ï¼šæ ¡éªŒPatchåˆ’åˆ†èƒ½å¦æ‹¼æˆå®Œæ•´å›¾åƒ
+* å‚  æ•°ï¼š*
+*        pic_width                -I       å›¾åƒå®½åº¦
+*        pic_height               -I       å›¾åƒé«˜åº¦
+*        patch_info               -I       patchä¿¡æ¯
+* è¿”å›å€¼ï¼šæ ¡éªŒæ˜¯å¦é€šè¿‡(0/1)
+* å¤‡  æ³¨ï¼š
+***************************************************************************************************/
+HLM_S32 HLM_COM_CheckPatchSplit(HLM_S32            pic_width,
+                                HLM_S32            pic_height,
+                                HLM_PATCH_INFO    *patch_info);
+
+#ifdef __cplusplus
+}
+#endif
+
+#endif //_HLM_COMMON_H_

@@ -1,639 +1,639 @@
-/***************************************************************************************************
-
-The copyright in this software is being made available under the License included below.
-This software may be subject to other third party and contributor rights, including patent
-rights, and no such rights are granted under this license.
-
-Copyright (C) 2025, Hangzhou Hikvision Digital Technology Co., Ltd. All rights reserved.
-
-Redistribution and use in source and binary forms, with or without modification, are permitted
-only for the purpose of developing standards within Audio and Video Coding Standard Workgroup of
-China (AVS) and for testing and promoting such standards. The following conditions are required
-to be met:
-
-* Redistributions of source code must retain the above copyright notice, this list of
-conditions and the following disclaimer.
-* Redistributions in binary form must reproduce the above copyright notice, this list of
-conditions and the following disclaimer in the documentation and/or other materials
-provided with the distribution.
-* The name of Hangzhou Hikvision Digital Technology Co., Ltd. may not be used to endorse or
-promote products derived from this software without specific prior written permission.
-
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR
-IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND
-FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR
-CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
-CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
-SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
-OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-POSSIBILITY OF SUCH DAMAGE.
-
-***************************************************************************************************/
-#include "hlmd_lib.h"
-#include "hlmd_defs.h"
-#include "hlmd_init.h"
-#include "hlmd_hls.h"
-
-// ¬Î¡˜ÃÓ≥‰
-HLM_VOID HLMD_LIB_bitstream_refill(HLMD_PRE_BITSTREAM *bs)
-{
-    HLM_S32 shift = 64 - bs->next_bits_cnt;  //¥˝ÃÓ≥‰µƒ±»Ãÿ ˝
-    HLM_U64 val   = 0;
-
-    while ((shift >= 8) && (bs->bytes_remaining))
-    {
-        val = *bs->data++;      //ªÒ»°“ª∏ˆ◊÷Ω⁄
-        bs->bytes_remaining--;  //¬Î¡˜÷– £”‡◊÷Ω⁄ ˝
-        if (0 == val)
-        {
-            bs->zero_succession_cnt++;
-        }
-        else if ((3 == val) && (2 <= bs->zero_succession_cnt))  //º«¬º0x00≥ˆœ÷¥Œ ˝£¨µ±0x00≥ˆœ÷¡Ω¥Œ ±£¨–Ë“™øº¬«0x03
-        {
-            bs->zero_succession_cnt = 0;
-            continue;
-        }
-        else
-        {
-            bs->zero_succession_cnt = 0;
-        }
-
-        shift -= 8;             //∆´“∆ºı8
-        val <<= shift;          //Ω´∏√◊÷Ω⁄∆´“∆µΩ  µ±Œª÷√
-        bs->next_bits |= val;
-    }
-
-    bs->next_bits_cnt = 64 - shift;  //nextbits÷–”––ß±»Ãÿ ˝
-}
-
-/***************************************************************************************************
-* π¶  ƒ‹£∫¬Î¡˜≥ı ºªØ
-* ≤Œ   ˝£∫
-*         bs_in     -IO     ¬Î¡˜Ω·ππÃÂ
-*         buffer    -I      bufferª∫≥Â«¯
-*         len       -I      buffer≥§∂»
-* ∑µªÿ÷µ£∫HLM_VOID
-* ±∏  ◊¢£∫
-***************************************************************************************************/
-HLM_VOID HLMD_LIB_bitstream_Init(HLM_VOID               *bs_in,
-                                 HLM_U08                *buffer,
-                                 HLM_S32                 len)
-{
-    HLMD_PRE_BITSTREAM *bs = (HLMD_PRE_BITSTREAM *)bs_in;
-
-    bs->data                = buffer;     //¬Î¡˜∆ ºµÿ÷∑
-    bs->bytes_remaining     = len;        //∏√∂Œ¬Î¡˜ £”‡◊÷Ω⁄ ˝
-    bs->next_bits           = 0;          //º¥Ω´¥¶¿Ìµƒ¬Î¡˜£¨¥Ê∑≈µΩ∏√±‰¡ø÷–°£8◊÷Ω⁄¥Û–°°£
-    bs->next_bits_cnt       = 0;          //¥Ê∑≈‘⁄nextbits¿Ôµƒ¬Î¡˜µƒ £”‡±»Ãÿ ˝
-    bs->zero_succession_cnt = 0;          //¡¨–¯≥ˆœ÷0x00µƒ¥Œ ˝
-    HLMD_LIB_bitstream_refill(bs);  //ÃÓ≥‰next_bits±‰¡ø
-}
-
-// ªÒ»°¬Î¡˜÷–µƒn∏ˆ±»Ãÿ
-HLM_U32 HLMD_LIB_read_bits(HLM_VOID             *bs_in,
-                           HLM_S32               n)
-{
-    HLMD_PRE_BITSTREAM *bs = (HLMD_PRE_BITSTREAM *)bs_in;
-    HLM_U64 val            = 0;
-
-    if (bs->next_bits_cnt < n)  //µ±nextbits÷–◊÷Ω⁄≤ªπª ±£¨ÃÓ≥‰
-    {
-        HLMD_LIB_bitstream_refill(bs);
-    }
-
-    val                = bs->next_bits;
-    val              >>= 64 - n;  //ªÒ»°n∏ˆ±»Ãÿ
-    bs->next_bits    <<= n;       //◊Û“∆◊Ó◊Û∂Àn∏ˆ±»Ãÿ
-    bs->next_bits_cnt -= n;       //nextbits÷–”––ß±»Ãÿ ˝ºı…Ÿ
-
-    return (HLM_U32)val;
-}
-
-// ‘§Ω‚Œˆ–Ú¡–Õ∑
-HLM_STATUS HLMD_LIB_pre_parse_sps(HLMD_PRE_BITSTREAM      *bs,
-                                  HLM_PARAM_SPS           *sps)
-{
-    HLM_S32 i                   = 0;
-    HLM_S32 uniform_patch_split = 1;  // patchªÆ∑÷ «∑Òæ˘‘»
-    HLM_S32 seq_horizontal_size = 0;
-    HLM_S32 seq_vertical_size   = 0;
-    HLM_S32 padded_pic_width    = 0;
-    HLM_S32 padded_pic_height   = 0;
-
-    sps->profile                 = HLMD_LIB_read_bits(bs,  8);  // profile_id
-    seq_horizontal_size          = HLMD_LIB_read_bits(bs, 32);  // seq_horizontal_size
-    seq_vertical_size            = HLMD_LIB_read_bits(bs, 32);  // seq_vertical_size
-    sps->bit_depth_luma_minus8   = HLMD_LIB_read_bits(bs,  4);  // seq_bit_depth_luma_minus8
-    sps->bit_depth_chroma_minus8 = HLMD_LIB_read_bits(bs,  4);  // seq_bit_depth_chroma_minus8
-    sps->bpp_i                   = HLMD_LIB_read_bits(bs, 12);  // seq_bpp_i_picture
-    sps->bpp_p                   = HLMD_LIB_read_bits(bs, 12);  // seq_bpp_p_picture
-    sps->format                  = HLMD_LIB_read_bits(bs,  3);  // seq_picture_format
-    sps->i_frame_enable_ibc      = HLMD_LIB_read_bits(bs,  1);  // seq_i_picture_ibc_enable_flag
-    sps->p_frame_enable_ibc      = HLMD_LIB_read_bits(bs,  1);  // seq_p_picture_ibc_enable_flag
-    sps->mv_ref_cross_patch      = HLMD_LIB_read_bits(bs,  1);  // seq_mv_cross_patch_enable_flag
-    sps->intra_8x8_enable_flag   = HLMD_LIB_read_bits(bs,  1);  // seq_intra_8x8_enable_flag
-    sps->cu_delta_qp_enable_flag = HLMD_LIB_read_bits(bs,  1);  // seq_cu_delta_qp_enable_flag
-    sps->mv_limit_enable_flag    = HLMD_LIB_read_bits(bs,  1);  // seq_mv_search_range_limit_enable_flag
-    if (sps->mv_limit_enable_flag)
-    {
-        sps->mv_search_width  = HLMD_LIB_read_bits(bs, 8);  // seq_mv_search_range_width
-        sps->mv_search_height = HLMD_LIB_read_bits(bs, 8);  // seq_mv_search_range_height
-    }
-    else
-    {
-        sps->mv_search_width  = seq_horizontal_size << 1;
-        sps->mv_search_height = seq_vertical_size << 1;
-    }
-    sps->patch_info.patch_num = HLMD_LIB_read_bits(bs, 8) + 1;  // seq_patch_num_minus1
-    for (i = 0; i < (HLM_S32)sps->patch_info.patch_num; i++)
-    {
-        sps->patch_info.patch_param[i].patch_x               = HLMD_LIB_read_bits(bs, 32);  // seq_patch_x
-        sps->patch_info.patch_param[i].patch_y               = HLMD_LIB_read_bits(bs, 32);  // seq_patch_y
-        sps->patch_info.patch_param[i].patch_width[0]        = HLMD_LIB_read_bits(bs, 32);  // seq_patch_width
-        sps->patch_info.patch_param[i].patch_height[0]       = HLMD_LIB_read_bits(bs, 32);  // seq_patch_height
-        sps->patch_info.patch_param[i].patch_coded_width[0]  = HLM_SIZE_ALIGN_16(sps->patch_info.patch_param[i].patch_width[0]);
-        sps->patch_info.patch_param[i].patch_coded_height[0] = HLM_SIZE_ALIGN_8(sps->patch_info.patch_param[i].patch_height[0]);
-        switch (sps->format)
-        {
-        case HLM_IMG_YUV_444:
-        case HLM_IMG_RGB:
-            sps->patch_info.patch_param[i].patch_width[1]        = sps->patch_info.patch_param[i].patch_width[0];
-            sps->patch_info.patch_param[i].patch_height[1]       = sps->patch_info.patch_param[i].patch_height[0];
-            sps->patch_info.patch_param[i].patch_coded_width[1]  = sps->patch_info.patch_param[i].patch_coded_width[0];
-            sps->patch_info.patch_param[i].patch_coded_height[1] = sps->patch_info.patch_param[i].patch_coded_height[0];
-            break;
-        case HLM_IMG_YUV_420:
-            sps->patch_info.patch_param[i].patch_width[1]        = sps->patch_info.patch_param[i].patch_width[0] >> 1;
-            sps->patch_info.patch_param[i].patch_height[1]       = sps->patch_info.patch_param[i].patch_height[0] >> 1;
-            sps->patch_info.patch_param[i].patch_coded_width[1]  = sps->patch_info.patch_param[i].patch_coded_width[0] >> 1;
-            sps->patch_info.patch_param[i].patch_coded_height[1] = sps->patch_info.patch_param[i].patch_coded_height[0] >> 1;
-            break;
-        case HLM_IMG_YUV_422:
-            sps->patch_info.patch_param[i].patch_width[1]        = sps->patch_info.patch_param[i].patch_width[0] >> 1;
-            sps->patch_info.patch_param[i].patch_height[1]       = sps->patch_info.patch_param[i].patch_height[0];
-            sps->patch_info.patch_param[i].patch_coded_width[1]  = sps->patch_info.patch_param[i].patch_coded_width[0] >> 1;
-            sps->patch_info.patch_param[i].patch_coded_height[1] = sps->patch_info.patch_param[i].patch_coded_height[0];
-            break;
-        }
-    }
-
-    sps->pic_width_in_cus_minus1 = ((seq_horizontal_size + 15) >> 4) - 1;
-    sps->pic_height_in_map_units_minus1 = ((seq_vertical_size + 7) >> 3) - 1;
-    padded_pic_width = (sps->pic_width_in_cus_minus1 + 1) << 4;
-    padded_pic_height = (sps->pic_height_in_map_units_minus1 + 1) << 3;
-    if (seq_horizontal_size != padded_pic_width || seq_vertical_size != padded_pic_height)
-    {
-        sps->frame_cropping_flag      = 1;
-        sps->frame_crop_left_offset   = 0;
-        sps->frame_crop_right_offset  = padded_pic_width - seq_horizontal_size;
-        sps->frame_crop_top_offset    = 0;
-        sps->frame_crop_bottom_offset = padded_pic_height - seq_vertical_size;
-    }
-    else
-    {
-        sps->frame_cropping_flag      = 0;
-        sps->frame_crop_left_offset   = 0;
-        sps->frame_crop_right_offset  = 0;
-        sps->frame_crop_top_offset    = 0;
-        sps->frame_crop_bottom_offset = 0;
-    }
-
-    if (sps->format == HLM_IMG_YUV_420 || sps->format == HLM_IMG_YUV_422)
-    {
-        sps->intra_8x8_enable_flag = 1;  // 420∫Õ422«ø÷∆intra8x8
-    }
-
-    // –£—ÈpatchªÆ∑÷µƒ∫œ¿Ì–‘
-    assert(0 < sps->patch_info.patch_num && sps->patch_info.patch_num < HLM_MAX_PATCH_NUM);
-    for (i = 1; i < (HLM_S32)sps->patch_info.patch_num; i++)
-    {
-        if (sps->patch_info.patch_param[i].patch_width[0] != sps->patch_info.patch_param[0].patch_width[0] ||
-            sps->patch_info.patch_param[i].patch_height[0] != sps->patch_info.patch_param[0].patch_height[0])
-        {
-            uniform_patch_split = 0;
-            break;
-        }
-    }
-    if (uniform_patch_split == 0 && 0 == HLM_COM_CheckPatchSplit(
-        ((sps->pic_width_in_cus_minus1 + 1) << 4) - sps->frame_crop_left_offset - sps->frame_crop_right_offset,  // ’Ê µµƒÕºœÒøÌ∏ﬂ
-        ((sps->pic_height_in_map_units_minus1 + 1) << 3) - sps->frame_crop_top_offset - sps->frame_crop_bottom_offset,
-        &sps->patch_info))
-    {
-        printf("PatchªÆ∑÷–≈œ¢Œﬁ∑®∆¥≥…ÕÍ’˚ÕºœÒ!\n");
-        assert(0);
-    }
-
-    return HLM_STS_OK;
-}
-
-// RAMø’º‰∑÷≈‰
-HLM_STATUS HLMD_LIB_alloc_ram(HLM_U32             code_height,
-                              HLM_U32             code_width,
-                              HLM_U32             component,
-                              HLM_RAM_BUF        *ram_buf,
-                              HLMD_CU_INFO       *cur_cu,
-                              HLM_NEIGHBOR_INFO  *nbi_info,
-                              HLMD_PATCH_CTX     *patch_ctx)
-{
-    HLM_U32 i        = 0;
-    HLM_U32 j        = 0;
-    HLM_U32 cu_width = code_width >> HLM_LOG2_WIDTH_SIZE;
-
-    for (i = 0; i < component; i++)
-    {
-        cur_cu->com_cu_info.cu_pred_info.pred[i] = (HLM_U16 *)HLM_MEM_Calloc(ram_buf, HLM_CU_SIZE * sizeof(HLM_U16), 16);
-        HLM_CHECK_ERROR(HLM_NULL == cur_cu->com_cu_info.cu_pred_info.pred[i], HLM_STS_ERR_MEM_LACK);
-        cur_cu->com_cu_info.cu_pred_info.res[i] = (HLM_COEFF *)HLM_MEM_Calloc(ram_buf, HLM_CU_SIZE * sizeof(HLM_COEFF), 16);
-        HLM_CHECK_ERROR(HLM_NULL == cur_cu->com_cu_info.cu_pred_info.res[i], HLM_STS_ERR_MEM_LACK);
-        cur_cu->com_cu_info.cu_pred_info.rec[i] = (HLM_U16 *)HLM_MEM_Calloc(ram_buf, HLM_CU_SIZE * sizeof(HLM_U16), 16);
-        HLM_CHECK_ERROR(HLM_NULL == cur_cu->com_cu_info.cu_pred_info.rec[i], HLM_STS_ERR_MEM_LACK);
-        cur_cu->com_cu_info.cu_pred_info.coeff[i] = (HLM_COEFF *)HLM_MEM_Calloc(ram_buf, HLM_CU_SIZE * sizeof(HLM_COEFF), 16);
-        HLM_CHECK_ERROR(HLM_NULL == cur_cu->com_cu_info.cu_pred_info.coeff[i], HLM_STS_ERR_MEM_LACK);
-    }
-
-    nbi_info->intra_rec_up_y = (HLM_U16 *)HLM_MEM_Calloc(ram_buf, (cu_width << 4) * sizeof(HLM_U16), 16);
-    HLM_CHECK_ERROR(HLM_NULL == nbi_info->intra_rec_up_y, HLM_STS_ERR_MEM_LACK);
-    nbi_info->intra_rec_up_u = (HLM_U16 *)HLM_MEM_Calloc(ram_buf, (cu_width << 4) * sizeof(HLM_U16), 16);
-    HLM_CHECK_ERROR(HLM_NULL == nbi_info->intra_rec_up_u, HLM_STS_ERR_MEM_LACK);
-    nbi_info->intra_rec_up_v = (HLM_U16 *)HLM_MEM_Calloc(ram_buf, (cu_width << 4) * sizeof(HLM_U16), 16);
-    HLM_CHECK_ERROR(HLM_NULL == nbi_info->intra_rec_up_v, HLM_STS_ERR_MEM_LACK);
-    nbi_info->intra_pred_mode_up = (HLM_U08 *)HLM_MEM_Calloc(ram_buf, cu_width << 2, 16);
-    HLM_CHECK_ERROR(HLM_NULL == nbi_info->intra_pred_mode_up, HLM_STS_ERR_MEM_LACK);
-    nbi_info->inter_mv_up = (HLM_MV *)HLM_MEM_Calloc(ram_buf, sizeof(HLM_MV)*(cu_width << 2), 16);
-    HLM_CHECK_ERROR(HLM_NULL == nbi_info->inter_mv_up, HLM_STS_ERR_MEM_LACK);
-    nbi_info->pred_type_up = (HLM_CU_TYPE *)HLM_MEM_Calloc(ram_buf, sizeof(HLM_CU_TYPE)* (cu_width << 2), 16);
-    HLM_CHECK_ERROR(HLM_NULL == nbi_info->pred_type_up, HLM_STS_ERR_MEM_LACK);
-
-    return HLM_STS_OK;
-}
-
-/***************************************************************************************************
-* π¶  ƒ‹£∫‘§Ω‚Œˆ–Ú¡–Õ∑
-* ≤Œ   ˝£∫*
-*         in_buf       -I       SPS∞¸ ˝æ›÷∏’Î
-*         in_size      -O       SPS∞¸µƒ¥Û–°
-*         video_info   -I       ÕºœÒ–Ú¡––≈œ¢Ω·ππÃÂ
-* ∑µªÿ÷µ£∫◊¥Ã¨¬Î
-* ±∏  ◊¢£∫»Áπ˚mtab[i].sizeŒ™0£¨‘Ú≤ª–Ë“™∑÷≈‰∏√øÈƒ⁄¥Ê
-***************************************************************************************************/
-HLM_STATUS HLMD_LIB_PreParseSeqHeader(HLM_VOID           *in_buf,
-                                      HLM_SZT             in_size,
-                                      HLMD_VIDEO_INFO    *video_info)
-{
-    HLM_STATUS         sts            = HLM_STS_ERR;
-    HLM_U08           *stream_buf     = in_buf;  // ÷∏œÚµ±«∞¥˝Ω‚Œˆµƒ¬Î¡˜µÿ÷∑
-    HLM_SZT            stream_len     = in_size;
-    HLM_U08           *nalu_buf       = HLM_NULL;
-    HLM_S32            nalu_len       = 0;
-    HLM_S32            start_code_len = 0;
-    HLM_PARAM_SPS      tmp_sps        = { 0 };
-    HLMD_PRE_BITSTREAM ip_bs          = { 0 };
-    HLMD_NALU_HEADER   nalu_header    = { 0 };
-
-    HLM_CHECK_ERROR((HLM_NULL == in_buf), HLM_STS_ERR_NULL_PTR);
-    HLM_CHECK_ERROR((HLM_NULL == video_info), HLM_STS_ERR_NULL_PTR);
-
-    while (stream_len > 0 && HLM_STS_OK == HLMD_HLS_GetNalu(stream_buf, stream_len, &nalu_buf, &nalu_len, &start_code_len))
-    {
-        nalu_buf += start_code_len;
-        nalu_len -= start_code_len;
-        if (nalu_len > 0)
-        {
-            sts = HLMD_HLS_ProcessNaluHeader(nalu_buf, nalu_len, &nalu_header);
-
-            nalu_buf += HLMD_NALU_HEADER_LEN;  // Ã¯π˝nalu_header(1◊÷Ω⁄)
-            nalu_len -= HLMD_NALU_HEADER_LEN;
-            HLMD_LIB_bitstream_Init(&ip_bs, nalu_buf, nalu_len);
-
-            if (nalu_header.nal_unit_type == HLM_SPS_NUT)
-            {
-                sts = HLMD_LIB_pre_parse_sps(&ip_bs, &tmp_sps);
-
-                video_info->code_width[0]    = (tmp_sps.pic_width_in_cus_minus1 + 1) * 16;
-                video_info->code_height[0]   = (tmp_sps.pic_height_in_map_units_minus1 + 1) * 8;
-                video_info->bit_depth_luma   = (tmp_sps.bit_depth_luma_minus8 + 8);
-                video_info->bit_depth_chroma = (tmp_sps.bit_depth_chroma_minus8 + 8);
-                video_info->format           = tmp_sps.format;
-                video_info->ref_frm_num      = 1;
-                video_info->profile_idc      = tmp_sps.profile;
-                video_info->mv_search_width  = tmp_sps.mv_search_width;
-                video_info->mv_search_height = tmp_sps.mv_search_height;
-                if (tmp_sps.frame_cropping_flag)
-                {
-                    video_info->crop_left    = tmp_sps.frame_crop_left_offset;
-                    video_info->crop_right   = tmp_sps.frame_crop_right_offset;
-                    video_info->crop_top     = tmp_sps.frame_crop_top_offset;
-                    video_info->crop_bottom  = tmp_sps.frame_crop_bottom_offset;
-                }
-                else
-                {
-                    video_info->crop_left    = 0;
-                    video_info->crop_right   = 0;
-                    video_info->crop_top     = 0;
-                    video_info->crop_bottom  = 0;
-                }
-            }
-            stream_len -= (nalu_buf - stream_buf) + nalu_len;
-            stream_buf = nalu_buf + nalu_len;
-        }
-    }
-
-    switch (video_info->format)
-    {
-    case HLM_IMG_YUV_444:
-    case HLM_IMG_RGB:
-        video_info->code_width[1]  = video_info->code_width[0];
-        video_info->code_height[1] = video_info->code_height[0];
-        video_info->code_width[2]  = video_info->code_width[0];
-        video_info->code_height[2] = video_info->code_height[0];
-        break;
-    case HLM_IMG_YUV_422:
-        video_info->code_width[1]  = video_info->code_width[0] >> 1;
-        video_info->code_height[1] = video_info->code_height[0];
-        video_info->code_width[2]  = video_info->code_width[0] >> 1;
-        video_info->code_height[2] = video_info->code_height[0];
-        break;
-    case HLM_IMG_YUV_420:
-        video_info->code_width[1]  = video_info->code_width[0] >> 1;
-        video_info->code_height[1] = video_info->code_height[0]>>1;
-        video_info->code_width[2]  = video_info->code_width[0] >> 1;
-        video_info->code_height[2] = video_info->code_height[0]>>1;
-        break;
-    }
-
-    return HLM_STS_OK;
-}
-
-/***************************************************************************************************
-* π¶  ƒ‹£∫ªÒ»°Ω‚¬ÎÀ„∑®ƒ£–ÕÀ˘–Ë¥Ê¥¢–≈œ¢
-* ≤Œ   ˝£∫*
-*         ability         -I    ƒ‹¡¶ºØ≤Œ ˝÷∏’Î
-*         mem_tab         -O    ¥Ê¥¢ø’º‰≤Œ ˝Ω·ππÃÂ
-*         video_info      -I     ”∆µ–≈œ¢
-* ∑µªÿ÷µ£∫◊¥Ã¨¬Î
-* ±∏  ◊¢£∫»Áπ˚mtab[i].sizeŒ™0£¨‘Ú≤ª–Ë“™∑÷≈‰∏√øÈƒ⁄¥Ê
-***************************************************************************************************/
-HLM_STATUS HLMD_LIB_GetMemSize(HLMD_ABILITY     *ability,
-                               HLM_MEM_TAB       mem_tab[HLM_MEM_TAB_NUM],
-                               HLMD_VIDEO_INFO  *video_info)
-{
-    HLM_STATUS   sts                       = HLM_STS_ERR;
-    HLMD_SW_SPEC spec                      = { 0 };
-    HLM_SZT      tmp_buf_size              = 0;
-    HLM_SZT      ddr_persist_size          = 0;
-    HLM_SZT      ddr_scratch_size          = 0;
-    HLM_SZT      ram_scratch_size          = 0;
-    HLM_SZT      modu_status_size          = 0;
-    HLM_SZT      modu_work_size            = 0;
-    HLM_MEM_TAB  mtab_tmp[HLM_MEM_TAB_NUM] = { 0 };
-    HLM_MEM_TAB *mtab_ddr_persist          = HLM_NULL;
-    HLM_MEM_TAB *mtab_ddr_scratch          = HLM_NULL;
-    HLM_MEM_TAB *mtab_ram_scratch          = HLM_NULL;
-
-    //≤Œ ˝ºÏ≤‚
-    HLM_CHECK_ERROR((HLM_NULL == ability) || (HLM_NULL == mem_tab), HLM_STS_ERR_NULL_PTR);
-
-    sts = HLMD_INIT_CheckAbility(ability);
-    HLM_CHECK_ERROR((HLM_STS_OK != sts), sts);
-
-    // ≥ı ºªØæ÷≤ø±‰¡ø
-    ddr_persist_size = 0;
-    ddr_scratch_size = 0;
-    ram_scratch_size = 0;
-    mtab_ddr_persist = &mtab_tmp[HLM_MEM_TAB_DDR_PERSIST];
-    mtab_ddr_scratch = &mtab_tmp[HLM_MEM_TAB_DDR_SCRATCH];
-    mtab_ram_scratch = &mtab_tmp[HLM_MEM_TAB_RAM_SCRATCH];
-
-    // ≥ı ºªØ¡Ÿ ±spec
-    memset(&spec, 0, sizeof(HLMD_SW_SPEC));
-    memcpy(&spec.ability, ability, sizeof(HLMD_ABILITY));
-    spec.sps.mv_search_width = video_info->mv_search_width;
-    spec.sps.mv_search_height = video_info->mv_search_height;
-
-    // ªÒ»°Ω”ø⁄ƒ£øÈÀ˘–ËÕ‚≤øDDR≤ªø…∏¥”√µƒª∫¥Ê¥Û–°
-    mtab_ddr_persist->size = HLM_MAX_MEM_SIZE;  // –Èƒ‚∑÷≈‰◊„πª¥Ûø’º‰
-    mtab_ddr_persist->alignment = HLM_MEM_ALIGN_16BYTE;
-    mtab_ddr_persist->base = (HLM_VOID *)&spec;
-
-    sts = HLMD_INIT_AllocDdrPersistMem(&spec, mtab_ddr_persist, &tmp_buf_size);
-    HLM_CHECK_ERROR(sts != HLM_STS_OK, sts);
-    ddr_persist_size += tmp_buf_size;
-
-    // ªÒ»°Ω”ø⁄ƒ£øÈÀ˘–ËÕ‚≤øDDRø…∏¥”√µƒª∫¥Ê¥Û–°
-    mtab_ddr_scratch->size = HLM_MAX_MEM_SIZE;  // –Èƒ‚∑÷≈‰◊„πª¥Ûø’º‰
-    mtab_ddr_scratch->alignment = HLM_MEM_ALIGN_16BYTE;
-    mtab_ddr_scratch->base = (HLM_VOID *)&spec;
-
-    // ªÒ»°Ω”ø⁄ƒ£øÈÀ˘–Ëƒ⁄≤øRAMª∫¥Ê¥Û–°
-    mtab_ram_scratch->size = HLM_MAX_MEM_SIZE;  // –Èƒ‚∑÷≈‰◊„πª¥Ûø’º‰
-    mtab_ram_scratch->alignment = HLM_MEM_ALIGN_16BYTE;
-    mtab_ram_scratch->base = (HLM_VOID *)&spec;
-
-    sts = HLMD_INIT_AllocRamScratchMem(&spec, mtab_ram_scratch, &tmp_buf_size);
-    HLM_CHECK_ERROR(sts != HLM_STS_OK, sts);
-    ram_scratch_size += tmp_buf_size;
-
-    //º∆À„∏˜ƒ£øÈÀ˘–Ëµƒƒ⁄¥Ê£¨∞¸¿®◊¥Ã¨ƒ⁄¥Ê°¢π§◊˜ƒ⁄¥Ê
-    sts = HLMD_INIT_GetModuleBuf(&spec, &modu_status_size, &modu_work_size);
-    HLM_CHECK_ERROR(sts != HLM_STS_OK, sts);
-    ddr_persist_size += modu_status_size;
-    ddr_scratch_size += modu_work_size;
-
-    //◊‹¥Û–°
-    ddr_persist_size = HLM_SIZE_ALIGN(ddr_persist_size, HLM_MEM_ALIGN_16BYTE);
-    ddr_scratch_size = HLM_SIZE_ALIGN(ddr_scratch_size, HLM_MEM_ALIGN_16BYTE);
-    ram_scratch_size = HLM_SIZE_ALIGN(ram_scratch_size, HLM_MEM_ALIGN_16BYTE);
-    HLM_CHECK_ERROR((ddr_persist_size + ddr_scratch_size + ram_scratch_size) > HLM_MAX_MEM_SIZE, HLM_STS_ERR_OVER_MAX_MEM);
-
-    mtab_ddr_persist = &mem_tab[HLM_MEM_TAB_DDR_PERSIST];
-    mtab_ddr_persist->size = ddr_persist_size;
-    mtab_ddr_persist->alignment = HLM_MEM_ALIGN_16BYTE;
-    mtab_ddr_persist->space = HLM_MEM_EXTERNAL_DDR;
-    mtab_ddr_persist->attrs = HLM_MEM_PERSIST;
-    mtab_ddr_persist->base = HLM_NULL;
-
-    mtab_ddr_scratch = &mem_tab[HLM_MEM_TAB_DDR_SCRATCH];
-    mtab_ddr_scratch->size = ddr_scratch_size;
-    mtab_ddr_scratch->alignment = HLM_MEM_ALIGN_16BYTE;
-    mtab_ddr_scratch->space = HLM_MEM_INTERNAL_ROM;
-    mtab_ddr_scratch->attrs = HLM_MEM_PERSIST;
-    mtab_ddr_scratch->base = HLM_NULL;
-
-    mtab_ram_scratch = &mem_tab[HLM_MEM_TAB_RAM_SCRATCH];
-    mtab_ram_scratch->size = ram_scratch_size;
-    mtab_ram_scratch->alignment = HLM_MEM_ALIGN_16BYTE;
-    mtab_ram_scratch->space = HLM_MEM_EXTERNAL_DDR;
-    mtab_ram_scratch->attrs = HLM_MEM_PERSIST;
-    mtab_ram_scratch->base = HLM_NULL;
-
-    return HLM_STS_OK;
-}
-
-/***************************************************************************************************
-* π¶  ƒ‹£∫¥¥Ω®Ω‚¬ÎÀ„∑®ƒ£–Õ µ¿˝,ƒ⁄¥Ê≥ı ºªØ
-* ≤Œ   ˝£∫*
-*         ability         -I    ƒ‹¡¶ºØ≤Œ ˝÷∏’Î
-*         mem_tab         -O    ¥Ê¥¢ø’º‰≤Œ ˝Ω·ππÃÂ
-*         handle          -O    ±‡¬Î µ¿˝æ‰±˙÷∏’Î
-*         video_info      -I     ”∆µ–≈œ¢
-* ∑µªÿ÷µ£∫◊¥Ã¨¬Î
-* ±∏  ◊¢£∫
-***************************************************************************************************/
-HLM_STATUS HLMD_LIB_Create(HLMD_ABILITY     *ability,
-                           HLM_MEM_TAB       mem_tab[HLM_MEM_TAB_NUM],
-                           HLM_VOID        **handle,
-                           HLMD_VIDEO_INFO  *video_info)
-{
-    HLM_STATUS     sts                       = HLM_STS_ERR;
-    HLMD_SW_SPEC  *spec                      = HLM_NULL;
-    HLM_MEM_TAB    mtab_tmp[HLM_MEM_TAB_NUM] = { 0 };
-    HLM_MEM_TAB   *mtab_ddr_persist          = HLM_NULL;
-    HLM_MEM_TAB   *mtab_ddr_scratch          = HLM_NULL;
-    HLM_MEM_TAB   *mtab_ram_scratch          = HLM_NULL;
-    HLM_U08       *left_ddr_persist_buf      = HLM_NULL;
-    HLM_U08       *left_ddr_scratch_buf      = HLM_NULL;
-    HLM_U08       *left_ram_scratch_buf      = HLM_NULL;
-    HLM_SZT        left_ddr_persist_size     = 0;
-    HLM_SZT        left_ddr_scratch_size     = 0;
-    HLM_SZT        left_ram_scratch_size     = 0;
-    HLM_SZT        tmp_buf_size              = 0;
-    HLM_RAM_BUF    ram_buf                   = { 0 };
-
-    // ≤Œ ˝ºÏ≤‚
-    HLM_CHECK_ERROR((HLM_NULL == ability) || (HLM_NULL == mem_tab) || (HLM_NULL == handle), HLM_STS_ERR_NULL_PTR);
-
-    // ºÏ≤Èª∫¥Ê±Ì «∑Ò∫œ∑®
-    sts = HLM_MEM_CheckMemTab(mem_tab, (HLM_S32)HLM_MEM_TAB_NUM, HLM_MEM_ALIGN_16BYTE);
-    HLM_CHECK_ERROR(sts != HLM_STS_OK, sts);
-
-    // ºÏ≤È≈‰÷√≤Œ ˝ «∑Ò‘⁄”––ß∑∂Œß
-    sts = HLMD_INIT_CheckAbility(ability);
-    HLM_CHECK_ERROR(sts != HLM_STS_OK, sts);
-
-    // ≥ı ºªØ
-    mtab_ddr_persist = &mem_tab[HLM_MEM_TAB_DDR_PERSIST];
-    mtab_ddr_persist->alignment = HLM_MEM_ALIGN_16BYTE;
-    left_ddr_persist_size = mtab_ddr_persist->size;
-    left_ddr_persist_buf = (HLM_U08 *)mtab_ddr_persist->base;
-
-    mtab_ddr_scratch = &mem_tab[HLM_MEM_TAB_DDR_SCRATCH];
-    mtab_ddr_scratch->alignment = HLM_MEM_ALIGN_16BYTE;
-    left_ddr_scratch_size = mtab_ddr_scratch->size;
-    left_ddr_scratch_buf = (HLM_U08 *)mtab_ddr_scratch->base;
-
-    mtab_ram_scratch = &mem_tab[HLM_MEM_TAB_RAM_SCRATCH];
-    mtab_ram_scratch->alignment = HLM_MEM_ALIGN_16BYTE;
-    left_ram_scratch_size = mtab_ram_scratch->size;
-    left_ram_scratch_buf = (HLM_U08 *)mtab_ram_scratch->base;
-
-    // ∑÷≈‰spec≤Œ ˝ µ¿˝
-    tmp_buf_size = sizeof(HLMD_SW_SPEC);
-    tmp_buf_size = HLM_SIZE_ALIGN_16(tmp_buf_size);
-    HLM_CHECK_ERROR(left_ddr_persist_size < tmp_buf_size, HLM_STS_ERR_MEM_LACK);
-    spec = (HLMD_SW_SPEC *)(left_ddr_persist_buf);
-
-    // ≥ı ºªØspecΩ·ππÃÂ≤Œ ˝
-    memset(spec, 0, sizeof(HLMD_SW_SPEC));
-    memcpy(&spec->ability, ability, sizeof(HLMD_ABILITY));
-    spec->sps.mv_search_width = video_info->mv_search_width;
-    spec->sps.mv_search_height = video_info->mv_search_height;
-
-    // ∑÷≈‰Ω”ø⁄ƒ£øÈÀ˘–ËÕ‚≤øDDR≤ªø…∏¥”√µƒª∫¥Ê¥Û–°
-    mtab_ddr_persist = &mtab_tmp[HLM_MEM_TAB_DDR_PERSIST];
-    mtab_ddr_persist->size = left_ddr_persist_size;
-    mtab_ddr_persist->alignment = HLM_MEM_ALIGN_16BYTE;
-    mtab_ddr_persist->base = left_ddr_persist_buf;
-
-    sts = HLMD_INIT_AllocDdrPersistMem(spec, mtab_ddr_persist, &tmp_buf_size);
-    HLM_CHECK_ERROR(sts != HLM_STS_OK, sts);
-    left_ddr_persist_size -= tmp_buf_size;
-    left_ddr_persist_buf += tmp_buf_size;
-
-    // ∑÷≈‰Ω”ø⁄ƒ£øÈÀ˘–ËÕ‚≤øDDRø…∏¥”√µƒª∫¥Ê¥Û–°
-    mtab_ddr_scratch = &mtab_tmp[HLM_MEM_TAB_DDR_SCRATCH];
-    mtab_ddr_scratch->size = left_ddr_scratch_size;
-    mtab_ddr_scratch->alignment = HLM_MEM_ALIGN_16BYTE;
-    mtab_ddr_scratch->base = left_ddr_scratch_buf;
-
-    // ∑÷≈‰Ω”ø⁄ƒ£øÈÀ˘–Ëƒ⁄≤øRAMª∫¥Ê
-    mtab_ram_scratch = &mtab_tmp[HLM_MEM_TAB_RAM_SCRATCH];
-    mtab_ram_scratch->size = left_ram_scratch_size;
-    mtab_ram_scratch->alignment = HLM_MEM_ALIGN_16BYTE;
-    mtab_ram_scratch->base = left_ram_scratch_buf;
-
-    sts = HLMD_INIT_AllocRamScratchMem(spec, mtab_ram_scratch, &tmp_buf_size);
-    HLM_CHECK_ERROR(sts != HLM_STS_OK, sts);
-
-    // Ω´RAMø’º‰∑÷≈‰∏¯cur_cu∫Õnbi_info£¨±‹√‚√ø∏ˆpatch÷ÿ∏¥ø™±Ÿ
-    ram_buf.start = spec->ram_buf;
-    ram_buf.end = spec->ram_buf + spec->ram_size;
-    ram_buf.cur_pos = spec->ram_buf;
-    sts = HLMD_LIB_alloc_ram(HLM_SIZE_ALIGN_8(spec->ability.code_height[0]), HLM_SIZE_ALIGN_16(spec->ability.code_width[0]),
-        spec->sps.format== HLM_IMG_YUV_400 ? 1 : 3, &ram_buf, &spec->cur_cu, &spec->nbi_info, &spec->patch_ctx);
-    HLM_CHECK_ERROR((HLM_STS_OK != sts), sts);
-
-    //∑÷≈‰◊”ƒ£øÈÀ˘–Ëƒ⁄¥Ê£¨≤¢¥¥Ω®◊”ƒ£øÈ
-    sts = HLMD_INIT_AllocModuleBuf(spec, left_ddr_persist_buf, left_ddr_persist_size, left_ddr_scratch_buf, left_ddr_scratch_size);
-    HLM_CHECK_ERROR(sts != HLM_STS_OK, sts);
-
-    // ‰≥ˆ µ¿˝æ‰±˙
-    *handle = (HLM_VOID *)spec;
-
-    return HLM_STS_OK;
-}
-
-/***************************************************************************************************
-* π¶  ƒ‹£∫Ω‚¬Î“ª÷°¬Î¡˜
-* ≤Œ   ˝£∫*
-*         handle    -I  Ω‚¬Î µ¿˝æ‰±˙÷∏’Î
-*         in_buf    -I  Ω‚¬Îƒ£–Õ ‰»Î≤Œ ˝µÿ÷∑
-*         in_size   -I  Ω‚¬Îƒ£–Õ ‰»Î≤Œ ˝¥Û–°
-*         out_buf   -O  Ω‚¬Îƒ£–Õ ‰≥ˆ≤Œ ˝µÿ÷∑
-*         out_size  -I  Ω‚¬Îƒ£–Õ ‰≥ˆ≤Œ ˝¥Û–°
-* ∑µªÿ÷µ£∫◊¥Ã¨¬Î
-* ±∏  ◊¢£∫
-***************************************************************************************************/
-HLM_STATUS HLMD_LIB_DecodeFrame(HLM_VOID *handle,
-                                HLM_VOID *in_buf,
-                                HLM_SZT   in_size,
-                                HLM_VOID *out_buf,
-                                HLM_SZT   out_size)
-{
-    HLM_STATUS         sts            = HLM_STS_ERR;
-    HLMD_STREAM_IN    *input          = HLM_NULL;
-    HLMD_PROCESS_OUT  *output         = HLM_NULL;
-    HLMD_SW_SPEC      *spec           = HLM_NULL;
-    HLM_U08           *stream_buf     = 0;
-    HLM_S64            stream_len     = 0;
-    HLM_S32            start_code_len = 0;
-    HLM_U08           *nalu_buf       = HLM_NULL;
-    HLM_S32            nalu_len       = 0;
-    HLMD_NALU_HEADER   nalu_header    = { 0 };
-
-    // ≤Œ ˝ºÏ≤‚
-    sts = HLMD_INIT_CheckIo(handle, in_buf, in_size, out_buf, out_size);
-    HLM_CHECK_ERROR(sts != HLM_STS_OK, sts);
-
-    // ≤Œ ˝≥ı ºªØ
-    spec = (HLMD_SW_SPEC *)handle;
-    input = (HLMD_STREAM_IN *)in_buf;
-    output = (HLMD_PROCESS_OUT *)out_buf;
-    stream_buf = input->stream_buf;
-    stream_len = input->stream_len;
-
-    while (stream_len > 0 && HLM_STS_OK == HLMD_HLS_GetNalu(stream_buf, stream_len, &nalu_buf, &nalu_len, &start_code_len))
-    {
-        nalu_buf += start_code_len;  // Ã¯π˝∆ º¬Î
-        nalu_len -= start_code_len;
-        if (nalu_len > 0)
-        {
-            sts = HLMD_HLS_ProcessNalu(spec, nalu_buf, nalu_len, output);
-            HLM_CHECK_ERROR((sts != HLM_STS_OK), sts);
-        }
-        stream_len -= (nalu_buf - stream_buf) + nalu_len;
-        stream_buf = nalu_buf + nalu_len;
-    }
-
-    return HLM_STS_OK;
-}
+/***************************************************************************************************
+
+The copyright in this software is being made available under the License included below.
+This software may be subject to other third party and contributor rights, including patent
+rights, and no such rights are granted under this license.
+
+Copyright (C) 2025, Hangzhou Hikvision Digital Technology Co., Ltd. All rights reserved.
+
+Redistribution and use in source and binary forms, with or without modification, are permitted
+only for the purpose of developing standards within Audio and Video Coding Standard Workgroup of
+China (AVS) and for testing and promoting such standards. The following conditions are required
+to be met:
+
+* Redistributions of source code must retain the above copyright notice, this list of
+conditions and the following disclaimer.
+* Redistributions in binary form must reproduce the above copyright notice, this list of
+conditions and the following disclaimer in the documentation and/or other materials
+provided with the distribution.
+* The name of Hangzhou Hikvision Digital Technology Co., Ltd. may not be used to endorse or
+promote products derived from this software without specific prior written permission.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR
+IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND
+FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR
+CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+POSSIBILITY OF SUCH DAMAGE.
+
+***************************************************************************************************/
+#include "hlmd_lib.h"
+#include "hlmd_defs.h"
+#include "hlmd_init.h"
+#include "hlmd_hls.h"
+
+// Á†ÅÊµÅÂ°´ÂÖÖ
+HLM_VOID HLMD_LIB_bitstream_refill(HLMD_PRE_BITSTREAM *bs)
+{
+    HLM_S32 shift = 64 - bs->next_bits_cnt;  //ÂæÖÂ°´ÂÖÖÁöÑÊØîÁâπÊï∞
+    HLM_U64 val   = 0;
+
+    while ((shift >= 8) && (bs->bytes_remaining))
+    {
+        val = *bs->data++;      //Ëé∑Âèñ‰∏Ä‰∏™Â≠óËäÇ
+        bs->bytes_remaining--;  //Á†ÅÊµÅ‰∏≠Ââ©‰ΩôÂ≠óËäÇÊï∞
+        if (0 == val)
+        {
+            bs->zero_succession_cnt++;
+        }
+        else if ((3 == val) && (2 <= bs->zero_succession_cnt))  //ËÆ∞ÂΩï0x00Âá∫Áé∞Ê¨°Êï∞ÔºåÂΩì0x00Âá∫Áé∞‰∏§Ê¨°Êó∂ÔºåÈúÄË¶ÅËÄÉËôë0x03
+        {
+            bs->zero_succession_cnt = 0;
+            continue;
+        }
+        else
+        {
+            bs->zero_succession_cnt = 0;
+        }
+
+        shift -= 8;             //ÂÅèÁßªÂáè8
+        val <<= shift;          //Â∞ÜËØ•Â≠óËäÇÂÅèÁßªÂà∞ÈÄÇÂΩì‰ΩçÁΩÆ
+        bs->next_bits |= val;
+    }
+
+    bs->next_bits_cnt = 64 - shift;  //nextbits‰∏≠ÊúâÊïàÊØîÁâπÊï∞
+}
+
+/***************************************************************************************************
+* Âäü  ËÉΩÔºöÁ†ÅÊµÅÂàùÂßãÂåñ
+* ÂèÇ  Êï∞Ôºö
+*         bs_in     -IO     Á†ÅÊµÅÁªìÊûÑ‰Ωì
+*         buffer    -I      bufferÁºìÂÜ≤Âå∫
+*         len       -I      bufferÈïøÂ∫¶
+* ËøîÂõûÂÄºÔºöHLM_VOID
+* Â§á  Ê≥®Ôºö
+***************************************************************************************************/
+HLM_VOID HLMD_LIB_bitstream_Init(HLM_VOID               *bs_in,
+                                 HLM_U08                *buffer,
+                                 HLM_S32                 len)
+{
+    HLMD_PRE_BITSTREAM *bs = (HLMD_PRE_BITSTREAM *)bs_in;
+
+    bs->data                = buffer;     //Á†ÅÊµÅËµ∑ÂßãÂú∞ÂùÄ
+    bs->bytes_remaining     = len;        //ËØ•ÊÆµÁ†ÅÊµÅÂâ©‰ΩôÂ≠óËäÇÊï∞
+    bs->next_bits           = 0;          //Âç≥Â∞ÜÂ§ÑÁêÜÁöÑÁ†ÅÊµÅÔºåÂ≠òÊîæÂà∞ËØ•ÂèòÈáè‰∏≠„ÄÇ8Â≠óËäÇÂ§ßÂ∞è„ÄÇ
+    bs->next_bits_cnt       = 0;          //Â≠òÊîæÂú®nextbitsÈáåÁöÑÁ†ÅÊµÅÁöÑÂâ©‰ΩôÊØîÁâπÊï∞
+    bs->zero_succession_cnt = 0;          //ËøûÁª≠Âá∫Áé∞0x00ÁöÑÊ¨°Êï∞
+    HLMD_LIB_bitstream_refill(bs);  //Â°´ÂÖÖnext_bitsÂèòÈáè
+}
+
+// Ëé∑ÂèñÁ†ÅÊµÅ‰∏≠ÁöÑn‰∏™ÊØîÁâπ
+HLM_U32 HLMD_LIB_read_bits(HLM_VOID             *bs_in,
+                           HLM_S32               n)
+{
+    HLMD_PRE_BITSTREAM *bs = (HLMD_PRE_BITSTREAM *)bs_in;
+    HLM_U64 val            = 0;
+
+    if (bs->next_bits_cnt < n)  //ÂΩìnextbits‰∏≠Â≠óËäÇ‰∏çÂ§üÊó∂ÔºåÂ°´ÂÖÖ
+    {
+        HLMD_LIB_bitstream_refill(bs);
+    }
+
+    val                = bs->next_bits;
+    val              >>= 64 - n;  //Ëé∑Âèñn‰∏™ÊØîÁâπ
+    bs->next_bits    <<= n;       //Â∑¶ÁßªÊúÄÂ∑¶Á´Øn‰∏™ÊØîÁâπ
+    bs->next_bits_cnt -= n;       //nextbits‰∏≠ÊúâÊïàÊØîÁâπÊï∞ÂáèÂ∞ë
+
+    return (HLM_U32)val;
+}
+
+// È¢ÑËß£ÊûêÂ∫èÂàóÂ§¥
+HLM_STATUS HLMD_LIB_pre_parse_sps(HLMD_PRE_BITSTREAM      *bs,
+                                  HLM_PARAM_SPS           *sps)
+{
+    HLM_S32 i                   = 0;
+    HLM_S32 uniform_patch_split = 1;  // patchÂàíÂàÜÊòØÂê¶ÂùáÂåÄ
+    HLM_S32 seq_horizontal_size = 0;
+    HLM_S32 seq_vertical_size   = 0;
+    HLM_S32 padded_pic_width    = 0;
+    HLM_S32 padded_pic_height   = 0;
+
+    sps->profile                 = HLMD_LIB_read_bits(bs,  8);  // profile_id
+    seq_horizontal_size          = HLMD_LIB_read_bits(bs, 32);  // seq_horizontal_size
+    seq_vertical_size            = HLMD_LIB_read_bits(bs, 32);  // seq_vertical_size
+    sps->bit_depth_luma_minus8   = HLMD_LIB_read_bits(bs,  4);  // seq_bit_depth_luma_minus8
+    sps->bit_depth_chroma_minus8 = HLMD_LIB_read_bits(bs,  4);  // seq_bit_depth_chroma_minus8
+    sps->bpp_i                   = HLMD_LIB_read_bits(bs, 12);  // seq_bpp_i_picture
+    sps->bpp_p                   = HLMD_LIB_read_bits(bs, 12);  // seq_bpp_p_picture
+    sps->format                  = HLMD_LIB_read_bits(bs,  3);  // seq_picture_format
+    sps->i_frame_enable_ibc      = HLMD_LIB_read_bits(bs,  1);  // seq_i_picture_ibc_enable_flag
+    sps->p_frame_enable_ibc      = HLMD_LIB_read_bits(bs,  1);  // seq_p_picture_ibc_enable_flag
+    sps->mv_ref_cross_patch      = HLMD_LIB_read_bits(bs,  1);  // seq_mv_cross_patch_enable_flag
+    sps->intra_8x8_enable_flag   = HLMD_LIB_read_bits(bs,  1);  // seq_intra_8x8_enable_flag
+    sps->cu_delta_qp_enable_flag = HLMD_LIB_read_bits(bs,  1);  // seq_cu_delta_qp_enable_flag
+    sps->mv_limit_enable_flag    = HLMD_LIB_read_bits(bs,  1);  // seq_mv_search_range_limit_enable_flag
+    if (sps->mv_limit_enable_flag)
+    {
+        sps->mv_search_width  = HLMD_LIB_read_bits(bs, 8);  // seq_mv_search_range_width
+        sps->mv_search_height = HLMD_LIB_read_bits(bs, 8);  // seq_mv_search_range_height
+    }
+    else
+    {
+        sps->mv_search_width  = seq_horizontal_size << 1;
+        sps->mv_search_height = seq_vertical_size << 1;
+    }
+    sps->patch_info.patch_num = HLMD_LIB_read_bits(bs, 8) + 1;  // seq_patch_num_minus1
+    for (i = 0; i < (HLM_S32)sps->patch_info.patch_num; i++)
+    {
+        sps->patch_info.patch_param[i].patch_x               = HLMD_LIB_read_bits(bs, 32);  // seq_patch_x
+        sps->patch_info.patch_param[i].patch_y               = HLMD_LIB_read_bits(bs, 32);  // seq_patch_y
+        sps->patch_info.patch_param[i].patch_width[0]        = HLMD_LIB_read_bits(bs, 32);  // seq_patch_width
+        sps->patch_info.patch_param[i].patch_height[0]       = HLMD_LIB_read_bits(bs, 32);  // seq_patch_height
+        sps->patch_info.patch_param[i].patch_coded_width[0]  = HLM_SIZE_ALIGN_16(sps->patch_info.patch_param[i].patch_width[0]);
+        sps->patch_info.patch_param[i].patch_coded_height[0] = HLM_SIZE_ALIGN_8(sps->patch_info.patch_param[i].patch_height[0]);
+        switch (sps->format)
+        {
+        case HLM_IMG_YUV_444:
+        case HLM_IMG_RGB:
+            sps->patch_info.patch_param[i].patch_width[1]        = sps->patch_info.patch_param[i].patch_width[0];
+            sps->patch_info.patch_param[i].patch_height[1]       = sps->patch_info.patch_param[i].patch_height[0];
+            sps->patch_info.patch_param[i].patch_coded_width[1]  = sps->patch_info.patch_param[i].patch_coded_width[0];
+            sps->patch_info.patch_param[i].patch_coded_height[1] = sps->patch_info.patch_param[i].patch_coded_height[0];
+            break;
+        case HLM_IMG_YUV_420:
+            sps->patch_info.patch_param[i].patch_width[1]        = sps->patch_info.patch_param[i].patch_width[0] >> 1;
+            sps->patch_info.patch_param[i].patch_height[1]       = sps->patch_info.patch_param[i].patch_height[0] >> 1;
+            sps->patch_info.patch_param[i].patch_coded_width[1]  = sps->patch_info.patch_param[i].patch_coded_width[0] >> 1;
+            sps->patch_info.patch_param[i].patch_coded_height[1] = sps->patch_info.patch_param[i].patch_coded_height[0] >> 1;
+            break;
+        case HLM_IMG_YUV_422:
+            sps->patch_info.patch_param[i].patch_width[1]        = sps->patch_info.patch_param[i].patch_width[0] >> 1;
+            sps->patch_info.patch_param[i].patch_height[1]       = sps->patch_info.patch_param[i].patch_height[0];
+            sps->patch_info.patch_param[i].patch_coded_width[1]  = sps->patch_info.patch_param[i].patch_coded_width[0] >> 1;
+            sps->patch_info.patch_param[i].patch_coded_height[1] = sps->patch_info.patch_param[i].patch_coded_height[0];
+            break;
+        }
+    }
+
+    sps->pic_width_in_cus_minus1 = ((seq_horizontal_size + 15) >> 4) - 1;
+    sps->pic_height_in_map_units_minus1 = ((seq_vertical_size + 7) >> 3) - 1;
+    padded_pic_width = (sps->pic_width_in_cus_minus1 + 1) << 4;
+    padded_pic_height = (sps->pic_height_in_map_units_minus1 + 1) << 3;
+    if (seq_horizontal_size != padded_pic_width || seq_vertical_size != padded_pic_height)
+    {
+        sps->frame_cropping_flag      = 1;
+        sps->frame_crop_left_offset   = 0;
+        sps->frame_crop_right_offset  = padded_pic_width - seq_horizontal_size;
+        sps->frame_crop_top_offset    = 0;
+        sps->frame_crop_bottom_offset = padded_pic_height - seq_vertical_size;
+    }
+    else
+    {
+        sps->frame_cropping_flag      = 0;
+        sps->frame_crop_left_offset   = 0;
+        sps->frame_crop_right_offset  = 0;
+        sps->frame_crop_top_offset    = 0;
+        sps->frame_crop_bottom_offset = 0;
+    }
+
+    if (sps->format == HLM_IMG_YUV_420 || sps->format == HLM_IMG_YUV_422)
+    {
+        sps->intra_8x8_enable_flag = 1;  // 420Âíå422Âº∫Âà∂intra8x8
+    }
+
+    // Ê†°È™åpatchÂàíÂàÜÁöÑÂêàÁêÜÊÄß
+    assert(0 < sps->patch_info.patch_num && sps->patch_info.patch_num < HLM_MAX_PATCH_NUM);
+    for (i = 1; i < (HLM_S32)sps->patch_info.patch_num; i++)
+    {
+        if (sps->patch_info.patch_param[i].patch_width[0] != sps->patch_info.patch_param[0].patch_width[0] ||
+            sps->patch_info.patch_param[i].patch_height[0] != sps->patch_info.patch_param[0].patch_height[0])
+        {
+            uniform_patch_split = 0;
+            break;
+        }
+    }
+    if (uniform_patch_split == 0 && 0 == HLM_COM_CheckPatchSplit(
+        ((sps->pic_width_in_cus_minus1 + 1) << 4) - sps->frame_crop_left_offset - sps->frame_crop_right_offset,  // ÁúüÂÆûÁöÑÂõæÂÉèÂÆΩÈ´ò
+        ((sps->pic_height_in_map_units_minus1 + 1) << 3) - sps->frame_crop_top_offset - sps->frame_crop_bottom_offset,
+        &sps->patch_info))
+    {
+        printf("PatchÂàíÂàÜ‰ø°ÊÅØÊó†Ê≥ïÊãºÊàêÂÆåÊï¥ÂõæÂÉè!\n");
+        assert(0);
+    }
+
+    return HLM_STS_OK;
+}
+
+// RAMÁ©∫Èó¥ÂàÜÈÖç
+HLM_STATUS HLMD_LIB_alloc_ram(HLM_U32             code_height,
+                              HLM_U32             code_width,
+                              HLM_U32             component,
+                              HLM_RAM_BUF        *ram_buf,
+                              HLMD_CU_INFO       *cur_cu,
+                              HLM_NEIGHBOR_INFO  *nbi_info,
+                              HLMD_PATCH_CTX     *patch_ctx)
+{
+    HLM_U32 i        = 0;
+    HLM_U32 j        = 0;
+    HLM_U32 cu_width = code_width >> HLM_LOG2_WIDTH_SIZE;
+
+    for (i = 0; i < component; i++)
+    {
+        cur_cu->com_cu_info.cu_pred_info.pred[i] = (HLM_U16 *)HLM_MEM_Calloc(ram_buf, HLM_CU_SIZE * sizeof(HLM_U16), 16);
+        HLM_CHECK_ERROR(HLM_NULL == cur_cu->com_cu_info.cu_pred_info.pred[i], HLM_STS_ERR_MEM_LACK);
+        cur_cu->com_cu_info.cu_pred_info.res[i] = (HLM_COEFF *)HLM_MEM_Calloc(ram_buf, HLM_CU_SIZE * sizeof(HLM_COEFF), 16);
+        HLM_CHECK_ERROR(HLM_NULL == cur_cu->com_cu_info.cu_pred_info.res[i], HLM_STS_ERR_MEM_LACK);
+        cur_cu->com_cu_info.cu_pred_info.rec[i] = (HLM_U16 *)HLM_MEM_Calloc(ram_buf, HLM_CU_SIZE * sizeof(HLM_U16), 16);
+        HLM_CHECK_ERROR(HLM_NULL == cur_cu->com_cu_info.cu_pred_info.rec[i], HLM_STS_ERR_MEM_LACK);
+        cur_cu->com_cu_info.cu_pred_info.coeff[i] = (HLM_COEFF *)HLM_MEM_Calloc(ram_buf, HLM_CU_SIZE * sizeof(HLM_COEFF), 16);
+        HLM_CHECK_ERROR(HLM_NULL == cur_cu->com_cu_info.cu_pred_info.coeff[i], HLM_STS_ERR_MEM_LACK);
+    }
+
+    nbi_info->intra_rec_up_y = (HLM_U16 *)HLM_MEM_Calloc(ram_buf, (cu_width << 4) * sizeof(HLM_U16), 16);
+    HLM_CHECK_ERROR(HLM_NULL == nbi_info->intra_rec_up_y, HLM_STS_ERR_MEM_LACK);
+    nbi_info->intra_rec_up_u = (HLM_U16 *)HLM_MEM_Calloc(ram_buf, (cu_width << 4) * sizeof(HLM_U16), 16);
+    HLM_CHECK_ERROR(HLM_NULL == nbi_info->intra_rec_up_u, HLM_STS_ERR_MEM_LACK);
+    nbi_info->intra_rec_up_v = (HLM_U16 *)HLM_MEM_Calloc(ram_buf, (cu_width << 4) * sizeof(HLM_U16), 16);
+    HLM_CHECK_ERROR(HLM_NULL == nbi_info->intra_rec_up_v, HLM_STS_ERR_MEM_LACK);
+    nbi_info->intra_pred_mode_up = (HLM_U08 *)HLM_MEM_Calloc(ram_buf, cu_width << 2, 16);
+    HLM_CHECK_ERROR(HLM_NULL == nbi_info->intra_pred_mode_up, HLM_STS_ERR_MEM_LACK);
+    nbi_info->inter_mv_up = (HLM_MV *)HLM_MEM_Calloc(ram_buf, sizeof(HLM_MV)*(cu_width << 2), 16);
+    HLM_CHECK_ERROR(HLM_NULL == nbi_info->inter_mv_up, HLM_STS_ERR_MEM_LACK);
+    nbi_info->pred_type_up = (HLM_CU_TYPE *)HLM_MEM_Calloc(ram_buf, sizeof(HLM_CU_TYPE)* (cu_width << 2), 16);
+    HLM_CHECK_ERROR(HLM_NULL == nbi_info->pred_type_up, HLM_STS_ERR_MEM_LACK);
+
+    return HLM_STS_OK;
+}
+
+/***************************************************************************************************
+* Âäü  ËÉΩÔºöÈ¢ÑËß£ÊûêÂ∫èÂàóÂ§¥
+* ÂèÇ  Êï∞Ôºö*
+*         in_buf       -I       SPSÂåÖÊï∞ÊçÆÊåáÈíà
+*         in_size      -O       SPSÂåÖÁöÑÂ§ßÂ∞è
+*         video_info   -I       ÂõæÂÉèÂ∫èÂàó‰ø°ÊÅØÁªìÊûÑ‰Ωì
+* ËøîÂõûÂÄºÔºöÁä∂ÊÄÅÁ†Å
+* Â§á  Ê≥®ÔºöÂ¶ÇÊûúmtab[i].size‰∏∫0ÔºåÂàô‰∏çÈúÄË¶ÅÂàÜÈÖçËØ•ÂùóÂÜÖÂ≠ò
+***************************************************************************************************/
+HLM_STATUS HLMD_LIB_PreParseSeqHeader(HLM_VOID           *in_buf,
+                                      HLM_SZT             in_size,
+                                      HLMD_VIDEO_INFO    *video_info)
+{
+    HLM_STATUS         sts            = HLM_STS_ERR;
+    HLM_U08           *stream_buf     = in_buf;  // ÊåáÂêëÂΩìÂâçÂæÖËß£ÊûêÁöÑÁ†ÅÊµÅÂú∞ÂùÄ
+    HLM_SZT            stream_len     = in_size;
+    HLM_U08           *nalu_buf       = HLM_NULL;
+    HLM_S32            nalu_len       = 0;
+    HLM_S32            start_code_len = 0;
+    HLM_PARAM_SPS      tmp_sps        = { 0 };
+    HLMD_PRE_BITSTREAM ip_bs          = { 0 };
+    HLMD_NALU_HEADER   nalu_header    = { 0 };
+
+    HLM_CHECK_ERROR((HLM_NULL == in_buf), HLM_STS_ERR_NULL_PTR);
+    HLM_CHECK_ERROR((HLM_NULL == video_info), HLM_STS_ERR_NULL_PTR);
+
+    while (stream_len > 0 && HLM_STS_OK == HLMD_HLS_GetNalu(stream_buf, stream_len, &nalu_buf, &nalu_len, &start_code_len))
+    {
+        nalu_buf += start_code_len;
+        nalu_len -= start_code_len;
+        if (nalu_len > 0)
+        {
+            sts = HLMD_HLS_ProcessNaluHeader(nalu_buf, nalu_len, &nalu_header);
+
+            nalu_buf += HLMD_NALU_HEADER_LEN;  // Ë∑≥Ëøánalu_header(1Â≠óËäÇ)
+            nalu_len -= HLMD_NALU_HEADER_LEN;
+            HLMD_LIB_bitstream_Init(&ip_bs, nalu_buf, nalu_len);
+
+            if (nalu_header.nal_unit_type == HLM_SPS_NUT)
+            {
+                sts = HLMD_LIB_pre_parse_sps(&ip_bs, &tmp_sps);
+
+                video_info->code_width[0]    = (tmp_sps.pic_width_in_cus_minus1 + 1) * 16;
+                video_info->code_height[0]   = (tmp_sps.pic_height_in_map_units_minus1 + 1) * 8;
+                video_info->bit_depth_luma   = (tmp_sps.bit_depth_luma_minus8 + 8);
+                video_info->bit_depth_chroma = (tmp_sps.bit_depth_chroma_minus8 + 8);
+                video_info->format           = tmp_sps.format;
+                video_info->ref_frm_num      = 1;
+                video_info->profile_idc      = tmp_sps.profile;
+                video_info->mv_search_width  = tmp_sps.mv_search_width;
+                video_info->mv_search_height = tmp_sps.mv_search_height;
+                if (tmp_sps.frame_cropping_flag)
+                {
+                    video_info->crop_left    = tmp_sps.frame_crop_left_offset;
+                    video_info->crop_right   = tmp_sps.frame_crop_right_offset;
+                    video_info->crop_top     = tmp_sps.frame_crop_top_offset;
+                    video_info->crop_bottom  = tmp_sps.frame_crop_bottom_offset;
+                }
+                else
+                {
+                    video_info->crop_left    = 0;
+                    video_info->crop_right   = 0;
+                    video_info->crop_top     = 0;
+                    video_info->crop_bottom  = 0;
+                }
+            }
+            stream_len -= (nalu_buf - stream_buf) + nalu_len;
+            stream_buf = nalu_buf + nalu_len;
+        }
+    }
+
+    switch (video_info->format)
+    {
+    case HLM_IMG_YUV_444:
+    case HLM_IMG_RGB:
+        video_info->code_width[1]  = video_info->code_width[0];
+        video_info->code_height[1] = video_info->code_height[0];
+        video_info->code_width[2]  = video_info->code_width[0];
+        video_info->code_height[2] = video_info->code_height[0];
+        break;
+    case HLM_IMG_YUV_422:
+        video_info->code_width[1]  = video_info->code_width[0] >> 1;
+        video_info->code_height[1] = video_info->code_height[0];
+        video_info->code_width[2]  = video_info->code_width[0] >> 1;
+        video_info->code_height[2] = video_info->code_height[0];
+        break;
+    case HLM_IMG_YUV_420:
+        video_info->code_width[1]  = video_info->code_width[0] >> 1;
+        video_info->code_height[1] = video_info->code_height[0]>>1;
+        video_info->code_width[2]  = video_info->code_width[0] >> 1;
+        video_info->code_height[2] = video_info->code_height[0]>>1;
+        break;
+    }
+
+    return HLM_STS_OK;
+}
+
+/***************************************************************************************************
+* Âäü  ËÉΩÔºöËé∑ÂèñËß£Á†ÅÁÆóÊ≥ïÊ®°ÂûãÊâÄÈúÄÂ≠òÂÇ®‰ø°ÊÅØ
+* ÂèÇ  Êï∞Ôºö*
+*         ability         -I    ËÉΩÂäõÈõÜÂèÇÊï∞ÊåáÈíà
+*         mem_tab         -O    Â≠òÂÇ®Á©∫Èó¥ÂèÇÊï∞ÁªìÊûÑ‰Ωì
+*         video_info      -I    ËßÜÈ¢ë‰ø°ÊÅØ
+* ËøîÂõûÂÄºÔºöÁä∂ÊÄÅÁ†Å
+* Â§á  Ê≥®ÔºöÂ¶ÇÊûúmtab[i].size‰∏∫0ÔºåÂàô‰∏çÈúÄË¶ÅÂàÜÈÖçËØ•ÂùóÂÜÖÂ≠ò
+***************************************************************************************************/
+HLM_STATUS HLMD_LIB_GetMemSize(HLMD_ABILITY     *ability,
+                               HLM_MEM_TAB       mem_tab[HLM_MEM_TAB_NUM],
+                               HLMD_VIDEO_INFO  *video_info)
+{
+    HLM_STATUS   sts                       = HLM_STS_ERR;
+    HLMD_SW_SPEC spec                      = { 0 };
+    HLM_SZT      tmp_buf_size              = 0;
+    HLM_SZT      ddr_persist_size          = 0;
+    HLM_SZT      ddr_scratch_size          = 0;
+    HLM_SZT      ram_scratch_size          = 0;
+    HLM_SZT      modu_status_size          = 0;
+    HLM_SZT      modu_work_size            = 0;
+    HLM_MEM_TAB  mtab_tmp[HLM_MEM_TAB_NUM] = { 0 };
+    HLM_MEM_TAB *mtab_ddr_persist          = HLM_NULL;
+    HLM_MEM_TAB *mtab_ddr_scratch          = HLM_NULL;
+    HLM_MEM_TAB *mtab_ram_scratch          = HLM_NULL;
+
+    //ÂèÇÊï∞Ê£ÄÊµã
+    HLM_CHECK_ERROR((HLM_NULL == ability) || (HLM_NULL == mem_tab), HLM_STS_ERR_NULL_PTR);
+
+    sts = HLMD_INIT_CheckAbility(ability);
+    HLM_CHECK_ERROR((HLM_STS_OK != sts), sts);
+
+    // ÂàùÂßãÂåñÂ±ÄÈÉ®ÂèòÈáè
+    ddr_persist_size = 0;
+    ddr_scratch_size = 0;
+    ram_scratch_size = 0;
+    mtab_ddr_persist = &mtab_tmp[HLM_MEM_TAB_DDR_PERSIST];
+    mtab_ddr_scratch = &mtab_tmp[HLM_MEM_TAB_DDR_SCRATCH];
+    mtab_ram_scratch = &mtab_tmp[HLM_MEM_TAB_RAM_SCRATCH];
+
+    // ÂàùÂßãÂåñ‰∏¥Êó∂spec
+    memset(&spec, 0, sizeof(HLMD_SW_SPEC));
+    memcpy(&spec.ability, ability, sizeof(HLMD_ABILITY));
+    spec.sps.mv_search_width = video_info->mv_search_width;
+    spec.sps.mv_search_height = video_info->mv_search_height;
+
+    // Ëé∑ÂèñÊé•Âè£Ê®°ÂùóÊâÄÈúÄÂ§ñÈÉ®DDR‰∏çÂèØÂ§çÁî®ÁöÑÁºìÂ≠òÂ§ßÂ∞è
+    mtab_ddr_persist->size = HLM_MAX_MEM_SIZE;  // ËôöÊãüÂàÜÈÖçË∂≥Â§üÂ§ßÁ©∫Èó¥
+    mtab_ddr_persist->alignment = HLM_MEM_ALIGN_16BYTE;
+    mtab_ddr_persist->base = (HLM_VOID *)&spec;
+
+    sts = HLMD_INIT_AllocDdrPersistMem(&spec, mtab_ddr_persist, &tmp_buf_size);
+    HLM_CHECK_ERROR(sts != HLM_STS_OK, sts);
+    ddr_persist_size += tmp_buf_size;
+
+    // Ëé∑ÂèñÊé•Âè£Ê®°ÂùóÊâÄÈúÄÂ§ñÈÉ®DDRÂèØÂ§çÁî®ÁöÑÁºìÂ≠òÂ§ßÂ∞è
+    mtab_ddr_scratch->size = HLM_MAX_MEM_SIZE;  // ËôöÊãüÂàÜÈÖçË∂≥Â§üÂ§ßÁ©∫Èó¥
+    mtab_ddr_scratch->alignment = HLM_MEM_ALIGN_16BYTE;
+    mtab_ddr_scratch->base = (HLM_VOID *)&spec;
+
+    // Ëé∑ÂèñÊé•Âè£Ê®°ÂùóÊâÄÈúÄÂÜÖÈÉ®RAMÁºìÂ≠òÂ§ßÂ∞è
+    mtab_ram_scratch->size = HLM_MAX_MEM_SIZE;  // ËôöÊãüÂàÜÈÖçË∂≥Â§üÂ§ßÁ©∫Èó¥
+    mtab_ram_scratch->alignment = HLM_MEM_ALIGN_16BYTE;
+    mtab_ram_scratch->base = (HLM_VOID *)&spec;
+
+    sts = HLMD_INIT_AllocRamScratchMem(&spec, mtab_ram_scratch, &tmp_buf_size);
+    HLM_CHECK_ERROR(sts != HLM_STS_OK, sts);
+    ram_scratch_size += tmp_buf_size;
+
+    //ËÆ°ÁÆóÂêÑÊ®°ÂùóÊâÄÈúÄÁöÑÂÜÖÂ≠òÔºåÂåÖÊã¨Áä∂ÊÄÅÂÜÖÂ≠ò„ÄÅÂ∑•‰ΩúÂÜÖÂ≠ò
+    sts = HLMD_INIT_GetModuleBuf(&spec, &modu_status_size, &modu_work_size);
+    HLM_CHECK_ERROR(sts != HLM_STS_OK, sts);
+    ddr_persist_size += modu_status_size;
+    ddr_scratch_size += modu_work_size;
+
+    //ÊÄªÂ§ßÂ∞è
+    ddr_persist_size = HLM_SIZE_ALIGN(ddr_persist_size, HLM_MEM_ALIGN_16BYTE);
+    ddr_scratch_size = HLM_SIZE_ALIGN(ddr_scratch_size, HLM_MEM_ALIGN_16BYTE);
+    ram_scratch_size = HLM_SIZE_ALIGN(ram_scratch_size, HLM_MEM_ALIGN_16BYTE);
+    HLM_CHECK_ERROR((ddr_persist_size + ddr_scratch_size + ram_scratch_size) > HLM_MAX_MEM_SIZE, HLM_STS_ERR_OVER_MAX_MEM);
+
+    mtab_ddr_persist = &mem_tab[HLM_MEM_TAB_DDR_PERSIST];
+    mtab_ddr_persist->size = ddr_persist_size;
+    mtab_ddr_persist->alignment = HLM_MEM_ALIGN_16BYTE;
+    mtab_ddr_persist->space = HLM_MEM_EXTERNAL_DDR;
+    mtab_ddr_persist->attrs = HLM_MEM_PERSIST;
+    mtab_ddr_persist->base = HLM_NULL;
+
+    mtab_ddr_scratch = &mem_tab[HLM_MEM_TAB_DDR_SCRATCH];
+    mtab_ddr_scratch->size = ddr_scratch_size;
+    mtab_ddr_scratch->alignment = HLM_MEM_ALIGN_16BYTE;
+    mtab_ddr_scratch->space = HLM_MEM_INTERNAL_ROM;
+    mtab_ddr_scratch->attrs = HLM_MEM_PERSIST;
+    mtab_ddr_scratch->base = HLM_NULL;
+
+    mtab_ram_scratch = &mem_tab[HLM_MEM_TAB_RAM_SCRATCH];
+    mtab_ram_scratch->size = ram_scratch_size;
+    mtab_ram_scratch->alignment = HLM_MEM_ALIGN_16BYTE;
+    mtab_ram_scratch->space = HLM_MEM_EXTERNAL_DDR;
+    mtab_ram_scratch->attrs = HLM_MEM_PERSIST;
+    mtab_ram_scratch->base = HLM_NULL;
+
+    return HLM_STS_OK;
+}
+
+/***************************************************************************************************
+* Âäü  ËÉΩÔºöÂàõÂª∫Ëß£Á†ÅÁÆóÊ≥ïÊ®°ÂûãÂÆû‰æã,ÂÜÖÂ≠òÂàùÂßãÂåñ
+* ÂèÇ  Êï∞Ôºö*
+*         ability         -I    ËÉΩÂäõÈõÜÂèÇÊï∞ÊåáÈíà
+*         mem_tab         -O    Â≠òÂÇ®Á©∫Èó¥ÂèÇÊï∞ÁªìÊûÑ‰Ωì
+*         handle          -O    ÁºñÁ†ÅÂÆû‰æãÂè•ÊüÑÊåáÈíà
+*         video_info      -I    ËßÜÈ¢ë‰ø°ÊÅØ
+* ËøîÂõûÂÄºÔºöÁä∂ÊÄÅÁ†Å
+* Â§á  Ê≥®Ôºö
+***************************************************************************************************/
+HLM_STATUS HLMD_LIB_Create(HLMD_ABILITY     *ability,
+                           HLM_MEM_TAB       mem_tab[HLM_MEM_TAB_NUM],
+                           HLM_VOID        **handle,
+                           HLMD_VIDEO_INFO  *video_info)
+{
+    HLM_STATUS     sts                       = HLM_STS_ERR;
+    HLMD_SW_SPEC  *spec                      = HLM_NULL;
+    HLM_MEM_TAB    mtab_tmp[HLM_MEM_TAB_NUM] = { 0 };
+    HLM_MEM_TAB   *mtab_ddr_persist          = HLM_NULL;
+    HLM_MEM_TAB   *mtab_ddr_scratch          = HLM_NULL;
+    HLM_MEM_TAB   *mtab_ram_scratch          = HLM_NULL;
+    HLM_U08       *left_ddr_persist_buf      = HLM_NULL;
+    HLM_U08       *left_ddr_scratch_buf      = HLM_NULL;
+    HLM_U08       *left_ram_scratch_buf      = HLM_NULL;
+    HLM_SZT        left_ddr_persist_size     = 0;
+    HLM_SZT        left_ddr_scratch_size     = 0;
+    HLM_SZT        left_ram_scratch_size     = 0;
+    HLM_SZT        tmp_buf_size              = 0;
+    HLM_RAM_BUF    ram_buf                   = { 0 };
+
+    // ÂèÇÊï∞Ê£ÄÊµã
+    HLM_CHECK_ERROR((HLM_NULL == ability) || (HLM_NULL == mem_tab) || (HLM_NULL == handle), HLM_STS_ERR_NULL_PTR);
+
+    // Ê£ÄÊü•ÁºìÂ≠òË°®ÊòØÂê¶ÂêàÊ≥ï
+    sts = HLM_MEM_CheckMemTab(mem_tab, (HLM_S32)HLM_MEM_TAB_NUM, HLM_MEM_ALIGN_16BYTE);
+    HLM_CHECK_ERROR(sts != HLM_STS_OK, sts);
+
+    // Ê£ÄÊü•ÈÖçÁΩÆÂèÇÊï∞ÊòØÂê¶Âú®ÊúâÊïàËåÉÂõ¥
+    sts = HLMD_INIT_CheckAbility(ability);
+    HLM_CHECK_ERROR(sts != HLM_STS_OK, sts);
+
+    // ÂàùÂßãÂåñ
+    mtab_ddr_persist = &mem_tab[HLM_MEM_TAB_DDR_PERSIST];
+    mtab_ddr_persist->alignment = HLM_MEM_ALIGN_16BYTE;
+    left_ddr_persist_size = mtab_ddr_persist->size;
+    left_ddr_persist_buf = (HLM_U08 *)mtab_ddr_persist->base;
+
+    mtab_ddr_scratch = &mem_tab[HLM_MEM_TAB_DDR_SCRATCH];
+    mtab_ddr_scratch->alignment = HLM_MEM_ALIGN_16BYTE;
+    left_ddr_scratch_size = mtab_ddr_scratch->size;
+    left_ddr_scratch_buf = (HLM_U08 *)mtab_ddr_scratch->base;
+
+    mtab_ram_scratch = &mem_tab[HLM_MEM_TAB_RAM_SCRATCH];
+    mtab_ram_scratch->alignment = HLM_MEM_ALIGN_16BYTE;
+    left_ram_scratch_size = mtab_ram_scratch->size;
+    left_ram_scratch_buf = (HLM_U08 *)mtab_ram_scratch->base;
+
+    // ÂàÜÈÖçspecÂèÇÊï∞ÂÆû‰æã
+    tmp_buf_size = sizeof(HLMD_SW_SPEC);
+    tmp_buf_size = HLM_SIZE_ALIGN_16(tmp_buf_size);
+    HLM_CHECK_ERROR(left_ddr_persist_size < tmp_buf_size, HLM_STS_ERR_MEM_LACK);
+    spec = (HLMD_SW_SPEC *)(left_ddr_persist_buf);
+
+    // ÂàùÂßãÂåñspecÁªìÊûÑ‰ΩìÂèÇÊï∞
+    memset(spec, 0, sizeof(HLMD_SW_SPEC));
+    memcpy(&spec->ability, ability, sizeof(HLMD_ABILITY));
+    spec->sps.mv_search_width = video_info->mv_search_width;
+    spec->sps.mv_search_height = video_info->mv_search_height;
+
+    // ÂàÜÈÖçÊé•Âè£Ê®°ÂùóÊâÄÈúÄÂ§ñÈÉ®DDR‰∏çÂèØÂ§çÁî®ÁöÑÁºìÂ≠òÂ§ßÂ∞è
+    mtab_ddr_persist = &mtab_tmp[HLM_MEM_TAB_DDR_PERSIST];
+    mtab_ddr_persist->size = left_ddr_persist_size;
+    mtab_ddr_persist->alignment = HLM_MEM_ALIGN_16BYTE;
+    mtab_ddr_persist->base = left_ddr_persist_buf;
+
+    sts = HLMD_INIT_AllocDdrPersistMem(spec, mtab_ddr_persist, &tmp_buf_size);
+    HLM_CHECK_ERROR(sts != HLM_STS_OK, sts);
+    left_ddr_persist_size -= tmp_buf_size;
+    left_ddr_persist_buf += tmp_buf_size;
+
+    // ÂàÜÈÖçÊé•Âè£Ê®°ÂùóÊâÄÈúÄÂ§ñÈÉ®DDRÂèØÂ§çÁî®ÁöÑÁºìÂ≠òÂ§ßÂ∞è
+    mtab_ddr_scratch = &mtab_tmp[HLM_MEM_TAB_DDR_SCRATCH];
+    mtab_ddr_scratch->size = left_ddr_scratch_size;
+    mtab_ddr_scratch->alignment = HLM_MEM_ALIGN_16BYTE;
+    mtab_ddr_scratch->base = left_ddr_scratch_buf;
+
+    // ÂàÜÈÖçÊé•Âè£Ê®°ÂùóÊâÄÈúÄÂÜÖÈÉ®RAMÁºìÂ≠ò
+    mtab_ram_scratch = &mtab_tmp[HLM_MEM_TAB_RAM_SCRATCH];
+    mtab_ram_scratch->size = left_ram_scratch_size;
+    mtab_ram_scratch->alignment = HLM_MEM_ALIGN_16BYTE;
+    mtab_ram_scratch->base = left_ram_scratch_buf;
+
+    sts = HLMD_INIT_AllocRamScratchMem(spec, mtab_ram_scratch, &tmp_buf_size);
+    HLM_CHECK_ERROR(sts != HLM_STS_OK, sts);
+
+    // Â∞ÜRAMÁ©∫Èó¥ÂàÜÈÖçÁªôcur_cuÂíånbi_infoÔºåÈÅøÂÖçÊØè‰∏™patchÈáçÂ§çÂºÄËæü
+    ram_buf.start = spec->ram_buf;
+    ram_buf.end = spec->ram_buf + spec->ram_size;
+    ram_buf.cur_pos = spec->ram_buf;
+    sts = HLMD_LIB_alloc_ram(HLM_SIZE_ALIGN_8(spec->ability.code_height[0]), HLM_SIZE_ALIGN_16(spec->ability.code_width[0]),
+        spec->sps.format== HLM_IMG_YUV_400 ? 1 : 3, &ram_buf, &spec->cur_cu, &spec->nbi_info, &spec->patch_ctx);
+    HLM_CHECK_ERROR((HLM_STS_OK != sts), sts);
+
+    //ÂàÜÈÖçÂ≠êÊ®°ÂùóÊâÄÈúÄÂÜÖÂ≠òÔºåÂπ∂ÂàõÂª∫Â≠êÊ®°Âùó
+    sts = HLMD_INIT_AllocModuleBuf(spec, left_ddr_persist_buf, left_ddr_persist_size, left_ddr_scratch_buf, left_ddr_scratch_size);
+    HLM_CHECK_ERROR(sts != HLM_STS_OK, sts);
+
+    //ËæìÂá∫ÂÆû‰æãÂè•ÊüÑ
+    *handle = (HLM_VOID *)spec;
+
+    return HLM_STS_OK;
+}
+
+/***************************************************************************************************
+* Âäü  ËÉΩÔºöËß£Á†Å‰∏ÄÂ∏ßÁ†ÅÊµÅ
+* ÂèÇ  Êï∞Ôºö*
+*         handle    -I  Ëß£Á†ÅÂÆû‰æãÂè•ÊüÑÊåáÈíà
+*         in_buf    -I  Ëß£Á†ÅÊ®°ÂûãËæìÂÖ•ÂèÇÊï∞Âú∞ÂùÄ
+*         in_size   -I  Ëß£Á†ÅÊ®°ÂûãËæìÂÖ•ÂèÇÊï∞Â§ßÂ∞è
+*         out_buf   -O  Ëß£Á†ÅÊ®°ÂûãËæìÂá∫ÂèÇÊï∞Âú∞ÂùÄ
+*         out_size  -I  Ëß£Á†ÅÊ®°ÂûãËæìÂá∫ÂèÇÊï∞Â§ßÂ∞è
+* ËøîÂõûÂÄºÔºöÁä∂ÊÄÅÁ†Å
+* Â§á  Ê≥®Ôºö
+***************************************************************************************************/
+HLM_STATUS HLMD_LIB_DecodeFrame(HLM_VOID *handle,
+                                HLM_VOID *in_buf,
+                                HLM_SZT   in_size,
+                                HLM_VOID *out_buf,
+                                HLM_SZT   out_size)
+{
+    HLM_STATUS         sts            = HLM_STS_ERR;
+    HLMD_STREAM_IN    *input          = HLM_NULL;
+    HLMD_PROCESS_OUT  *output         = HLM_NULL;
+    HLMD_SW_SPEC      *spec           = HLM_NULL;
+    HLM_U08           *stream_buf     = 0;
+    HLM_S64            stream_len     = 0;
+    HLM_S32            start_code_len = 0;
+    HLM_U08           *nalu_buf       = HLM_NULL;
+    HLM_S32            nalu_len       = 0;
+    HLMD_NALU_HEADER   nalu_header    = { 0 };
+
+    // ÂèÇÊï∞Ê£ÄÊµã
+    sts = HLMD_INIT_CheckIo(handle, in_buf, in_size, out_buf, out_size);
+    HLM_CHECK_ERROR(sts != HLM_STS_OK, sts);
+
+    // ÂèÇÊï∞ÂàùÂßãÂåñ
+    spec = (HLMD_SW_SPEC *)handle;
+    input = (HLMD_STREAM_IN *)in_buf;
+    output = (HLMD_PROCESS_OUT *)out_buf;
+    stream_buf = input->stream_buf;
+    stream_len = input->stream_len;
+
+    while (stream_len > 0 && HLM_STS_OK == HLMD_HLS_GetNalu(stream_buf, stream_len, &nalu_buf, &nalu_len, &start_code_len))
+    {
+        nalu_buf += start_code_len;  // Ë∑≥ËøáËµ∑ÂßãÁ†Å
+        nalu_len -= start_code_len;
+        if (nalu_len > 0)
+        {
+            sts = HLMD_HLS_ProcessNalu(spec, nalu_buf, nalu_len, output);
+            HLM_CHECK_ERROR((sts != HLM_STS_OK), sts);
+        }
+        stream_len -= (nalu_buf - stream_buf) + nalu_len;
+        stream_buf = nalu_buf + nalu_len;
+    }
+
+    return HLM_STS_OK;
+}

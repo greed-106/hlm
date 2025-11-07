@@ -1,751 +1,751 @@
-/***************************************************************************************************
-
-The copyright in this software is being made available under the License included below.
-This software may be subject to other third party and contributor rights, including patent
-rights, and no such rights are granted under this license.
-
-Copyright (C) 2025, Hangzhou Hikvision Digital Technology Co., Ltd. All rights reserved.
-
-Redistribution and use in source and binary forms, with or without modification, are permitted
-only for the purpose of developing standards within Audio and Video Coding Standard Workgroup of
-China (AVS) and for testing and promoting such standards. The following conditions are required
-to be met:
-
-* Redistributions of source code must retain the above copyright notice, this list of
-conditions and the following disclaimer.
-* Redistributions in binary form must reproduce the above copyright notice, this list of
-conditions and the following disclaimer in the documentation and/or other materials
-provided with the distribution.
-* The name of Hangzhou Hikvision Digital Technology Co., Ltd. may not be used to endorse or
-promote products derived from this software without specific prior written permission.
-
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR
-IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND
-FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR
-CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
-CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
-SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
-OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-POSSIBILITY OF SUCH DAMAGE.
-
-***************************************************************************************************/
-#include <stdlib.h>
-#include "hlmd_lib.h"
-
-// »´æ÷±‰¡ø
-HLMD_ABILITY ability = { 0 };
-
-// ◊Ó¥Û÷ß≥÷ƒ⁄¥Ê∑÷øÈ ˝
-#define TMP_BUFFER_SIZE                 (2000)
-#define TMP_SIZE                        (51200)
-#define TMP_SHIFT                       (4)
-#define READ_4_BYTES(p)                 (*(HLM_S32 *)(p))
-#define MAX_UNIT_NUM                    (200)
-
-// ∂‘∆ÎNalu¿‡–Õ
-#define IS_FRM_START_CODE(marker)       (((marker & 0x001F) == 1 || (marker & 0x001F) == 2) && (marker & 0x8000))
-#define IS_FRM_END_CODE(marker)         ((marker & 0x001F) == 6 || (marker & 0x001F) == 7)
-#define IS_NO_FRM_CODE(marker)          ((marker & 0x001F) == 0 || (marker & 0x001F) > 2)
-
-// ”√ªß≤Œ ˝
-typedef struct _DEMO_USER_DATA
-{
-    HLM_S32  yuv_output_enable;
-    FILE    *fp_log;
-    FILE    *fp_dec;
-    int      crop_left;
-    int      crop_right;
-    int      crop_top;
-    int      crop_bottom;
-} DEMO_USER_DATA;
-
-// ªÒ»°¬Î¡˜÷–µƒ ”∆µ–≈œ¢
-HLM_S32 HLMD_DEMO_get_video_info(FILE             *hlm_file,
-                                 HLMD_VIDEO_INFO  *video_info,
-                                 FILE             *fp_log)
-{
-    HLM_U08 *buf = HLM_NULL;
-    HLM_SZT len  = 0;
-
-    buf = (HLM_U08 *)HLM_MEM_Malloc(TMP_BUFFER_SIZE, 16);
-    if (buf == HLM_NULL)
-    {
-        return -1;
-    }
-
-    //∑µªÿµΩ∆ ºŒª÷√
-    fseek(hlm_file, 0, SEEK_SET);
-    len = fread(buf, 1, TMP_BUFFER_SIZE, hlm_file);
-    if (HLMD_LIB_PreParseSeqHeader(buf, TMP_BUFFER_SIZE, video_info) != HLM_STS_OK)
-    {
-        len = -1;
-    }
-    if (buf != HLM_NULL)
-    {
-        HLM_MEM_Free(buf);
-        buf = HLM_NULL;
-    }
-
-    fseek(hlm_file, 0, SEEK_SET);
-
-    if (len < 0)
-    {
-        return -1;
-    }
-    else
-    {
-        return 0;
-    }
-}
-
-// ¥¥Ω®À„∑®ƒ£–Õæ‰±˙
-HLM_S32 HLMD_DEMO_create_handle(HLM_MEM_TAB       mem_tab[HLM_MEM_TAB_NUM],
-                                HLM_VOID        **handle,
-                                FILE             *fp_log,
-                                HLMD_VIDEO_INFO  *video_info)
-{
-    HLM_S32    i          = 0;
-    HLM_STATUS sts        = HLM_STS_ERR;
-    HLM_VOID  *lib_handle = HLM_NULL;
-
-    // ªÒ»°À˘–Ë◊ ‘¥ ˝¡ø
-    sts = HLMD_LIB_GetMemSize(&ability, mem_tab, video_info);
-    if (sts != HLM_STS_OK)
-    {
-        fprintf(stderr, "[LIB] get mem size failed: %d, in Func <%s>, Line <%d>.\n", sts, __FUNCTION__, __LINE__);
-        return -1;
-    }
-
-#ifdef _DEBUG
-    // ¥Ú”°ƒ⁄¥Ê¥Û–°
-    for (i = 0; i < HLM_MEM_TAB_NUM; i++)
-    {
-#if defined(_M_X64)
-        fprintf(stdout, "[LIB] memTab %d memory size = %lld\n", i, mem_tab[i].size);
-#else
-        fprintf(stdout, "[LIB] memTab %d memory size = %d\n", i, mem_tab[i].size);
-#endif
-    }
-#endif
-
-    // ∑÷≈‰À„∑®ƒ£–ÕÀ˘–Ë◊ ‘¥
-    sts = HLM_MEM_AllocMemTab(mem_tab, HLM_MEM_TAB_NUM);
-    if (sts != HLM_STS_OK)
-    {
-        fprintf(stderr, "[LIB] alloc lib mem failed in Func <%s>, Line <%d>.\n", __FUNCTION__, __LINE__);
-        return -1;
-    }
-
-    // ¥¥Ω®À„∑®ƒ£–Õ µ¿˝
-    sts = HLMD_LIB_Create(&ability, mem_tab, &lib_handle, video_info);
-    if (sts != HLM_STS_OK)
-    {
-        fprintf(stderr, "[LIB] create lib failed: %d, in Func <%s>, Line <%d>.\n", sts, __FUNCTION__, __LINE__);
-        return -1;
-    }
-
-    *handle = lib_handle;
-
-    return 0;
-}
-
-// œ˙ªŸÀ„∑®ƒ£–Õæ‰±˙
-HLM_S32 HLMD_DEMO_destroy_handle(HLM_MEM_TAB     mem_tab[HLM_MEM_TAB_NUM],
-                               HLM_VOID       *handle,
-                               FILE           *fp_log)
-{
-    HLM_STATUS sts = HLM_STS_ERR;
-
-    sts = HLM_MEM_FreeMemTab(mem_tab, HLM_MEM_TAB_NUM);
-
-    if (HLM_STS_OK != sts)
-    {
-        fprintf(stderr, "[DEMO] free lib mem failed: %d, in Func <%s>, Line <%d>.\n", sts, __FUNCTION__, __LINE__);
-        return -1;
-    }
-
-    return 0;
-}
-
-// ªÒ»°“ª∏ˆnaluµƒ¬Î¡˜
-HLM_S64 HLMD_DEMO_get_nalu(unsigned char *s,
-                           int            max_size,
-                           FILE          *f)
-{
-    HLM_SZT i             = 0;
-    char tmpbuf[TMP_SIZE] = { 0 };
-    int oldpos            = 0;
-    int prepos            = 0;
-    HLM_SZT read_len      = 0;
-    HLM_S32 tmp           = 0;
-    HLM_SZT size          = 0;
-
-    //—∞’“µ⁄“ª∏ˆ0x01000000
-    size = 0;
-    oldpos = ftell(f);
-    prepos = oldpos;
-    if (feof(f))
-    {
-        return -1;
-    }
-
-    do
-    {
-        if ((read_len = fread(tmpbuf, 1, TMP_SIZE, f)) == 0)
-        {
-            return -1;  // ¬Î¡˜Ω·Œ≤
-        }
-        for (i = 0; i < read_len - TMP_SHIFT; i++)
-        {
-            if (READ_4_BYTES(&tmpbuf[i]) == 0x01000000)
-            {
-                oldpos += (long)size;
-                goto search_next_start;
-            }
-            else if ((READ_4_BYTES(&tmpbuf[i]) & 0x0FFFFFF) == 0x00010000)
-            {
-                oldpos += (long)size;
-                goto search_next_start;
-            }
-            size++;
-        }
-        fseek(f, -TMP_SHIFT, SEEK_CUR);
-    } while (1);
-
-search_next_start:
-
-    fseek(f, oldpos, SEEK_SET);
-    size = fread(&tmp, 1, 4, f);
-
-    //—∞’“µ⁄2∏ˆ 0x01000000
-    while (1)
-    {
-        read_len = fread(tmpbuf, 1, TMP_SIZE, f);
-        for (i = 0; i < read_len - TMP_SHIFT; i++)
-        {
-            if (READ_4_BYTES(&tmpbuf[i]) == 0x01000000)
-            {
-                goto start_code_find;
-            }
-            else if ((READ_4_BYTES(&tmpbuf[i]) & 0x0FFFFFF) == 0x00010000)
-            {
-                goto start_code_find;
-            }
-            size++;
-        }
-        if (feof(f))
-        {
-            size += TMP_SHIFT;
-            break;
-        }
-        fseek(f, -TMP_SHIFT, SEEK_CUR);
-    }
-
-    fseek(f, oldpos, SEEK_SET);
-    fread(s, 1, size, f);
-    fseek(f, 0, SEEK_END);
-
-    return size;
-
-start_code_find:
-    fseek(f, oldpos, SEEK_SET);
-    fread(s, 1, size, f);
-
-    return size;
-}
-
-#define BSWAP(bitswap_t) {                                   \
-    unsigned int bitswap_tmp;                                \
-    signed char *bitswap_src = (signed char *)&bitswap_t;    \
-    signed char *bitswap_dst = (signed char *)&bitswap_tmp;  \
-    bitswap_dst[0] = bitswap_src[3];                         \
-    bitswap_dst[1] = bitswap_src[2];                         \
-    bitswap_dst[2] = bitswap_src[1];                         \
-    bitswap_dst[3] = bitswap_src[0];                         \
-    bitswap_t = bitswap_tmp;                                 \
-}
-
-#define LMBD(t, pos) {                                       \
-    unsigned int bitscan_tmp = t;                            \
-    int bitscan_pos = 31;                                    \
-    while (!(bitscan_tmp & 0x80000000) && bitscan_pos > -1)  \
-    {                                                        \
-        bitscan_tmp <<= 1;                                   \
-        bitscan_pos--;                                       \
-    }                                                        \
-    pos = 31 - bitscan_pos;                                  \
-}
-
-// ∂¡“ª∏ˆŒﬁ∑˚∫≈÷∏ ˝∏Á¬◊≤º ˝æ›
-unsigned int read_ue_golomb(unsigned char *bits,
-                            int           *idx)
-{
-    unsigned int tmp     = 0;
-    unsigned int len     = 0;
-    unsigned char *rdptr = bits + ((*idx) >> 3);
-
-    tmp = *(unsigned int*)rdptr;
-    BSWAP(tmp);
-    tmp <<= ((*idx) & 7);
-
-    LMBD(tmp, len);
-
-    *idx += len * 2 + 1;
-    tmp <<= (len + 1);
-
-    return (1 << len) + ((tmp >> (31 - len)) >> 1) - 1;
-}
-
-// ∂¡n∏ˆ±»Ãÿ
-unsigned int read_n_bits(unsigned char *bits,
-                         int           *idx,
-                         unsigned int   n)
-{
-    unsigned int tmp = *(unsigned int *)(bits + ((*idx) >> 3));
-
-    BSWAP(tmp);
-
-    tmp <<= (*idx) & 7;
-    tmp >>= (32 - n);
-    *idx += n;
-
-    return tmp;
-}
-
-// ∂¡“ª∏ˆ±»Ãÿ
-unsigned int read_bit(unsigned char *bits,
-                      int           *idx)
-{
-    unsigned int tmp = bits[(*idx) >> 3];
-
-    tmp <<= 24 + ((*idx) & 7);
-    *idx += 1;
-
-    return tmp >> 31;
-}
-
-// ∂¡“ª÷°µƒ¬Î¡˜
-HLM_S32 HLMD_DEMO_read_one_frame(unsigned char *streambuf,
-                                 int           *frm_len,
-                                 FILE          *inpf,
-                                 int            log2_max_frame_num,
-                                 int            frame_cus_only,
-                                 FILE          *fp_log)
-{
-    int i                = 0;
-    HLM_S64 len          = 0;
-    int size             = 0;
-    int start_code       = 0;
-    int bfields          = 0;
-    int oldpos           = 0;
-    short marker         = 0;
-    int key_filed_cnt    = 0;
-    unsigned char *bits  = 0;
-    int interlace        = 0;
-    int top_field        = 0;
-    int have_top         = 0;
-    int have_bottom      = 0;
-    int pre_frame_num    = -1;
-    int cur_frame_num    = -1;
-    int frame_strm_len   = 0;  //“ª÷°¬Î¡˜≥§∂»
-    int header_len       = 0;  //SPS PPSµ»◊‹≥§∂»
-    int nalu_prior_flag  = 0;
-    char is_patch_before = 1;  //0:±Ì æ…œ“ª∏ˆnalu «Õ∑–≈œ¢£ª1£∫±Ì æ…œ“ª∏ˆnalu «patch
-    unsigned int code    = 0;
-    int index            = 0;
-
-    *frm_len = 0;
-    for (i = 0; i < MAX_UNIT_NUM; i++)
-    {
-        oldpos = ftell(inpf);
-        len = HLMD_DEMO_get_nalu(streambuf, 0x7FFFFFFF, inpf); //¥”¬Î¡˜Œƒº˛÷–ªÒ»°“ª∏ˆNALU, ∞¸∫¨∆ º¬Î≤ø∑÷
-        if (len <= 0)
-        {
-            if (key_filed_cnt > 1) //»Áπ˚≥ˆœ÷π˝1∏ˆπÿº¸÷°ªÚ’ﬂ2∏ˆπÿº¸≥°
-            {
-                fseek(inpf, oldpos, SEEK_SET); //Œƒº˛÷∏’Îª÷∏¥µΩ‘≠¿¥Œª÷√
-                *frm_len = frame_strm_len;
-                return 1;
-            }
-            else
-            {
-                return 0;
-            }
-        }
-
-        start_code = *(int *)(streambuf);
-        if (start_code == 0x01000000)
-        {
-            bits = streambuf + 4; // π”√4◊÷Ω⁄µƒ∆ º¬Î
-        }
-        else if ((start_code & 0x00FFFFFF) == (0x01000000 >> 8))
-        {
-            bits = streambuf + 3; // π”√3◊÷Ω⁄µƒ∆ º¬Î
-        }
-        else
-        {
-            return 0;
-        }
-
-        marker = *(short *)(bits);
-        if (IS_FRM_END_CODE(marker)) //end_of_seq end_of_stream
-        {
-            if (nalu_prior_flag)
-            {
-                *frm_len = frame_strm_len;
-                return 1;
-            }
-            else
-            {
-                continue;
-            }
-        }
-
-        if (IS_FRM_START_CODE(marker)) //”ˆµΩ“ª÷°ªÚ“ª≥°µƒø™ º£¨first_cu_in_patch=0
-        {
-            nalu_prior_flag = 1;
-            if (is_patch_before)
-            {
-                header_len = 0;
-            }
-
-            index = 1;  //first_cu_in_patch
-            code = read_ue_golomb(bits + 1, &index);  //patch_type
-            code = read_ue_golomb(bits + 1, &index);  //pic_parameter_set_id
-            cur_frame_num = read_n_bits(bits + 1, &index, log2_max_frame_num); //frame_num
-            interlace = 0;  // ≤ª «≥°nalu
-
-            if (key_filed_cnt > 1) //»Áπ˚≥ˆœ÷π˝1∏ˆπÿº¸÷°ªÚ’ﬂ2∏ˆπÿº¸≥°
-            {
-                if (!interlace)
-                {
-                    fseek(inpf, (oldpos - header_len), SEEK_SET); //Œƒº˛÷∏’Îª÷∏¥µΩ‘≠¿¥Œª÷√
-                    *frm_len = frame_strm_len - header_len;
-                    return 1;
-                }
-                else
-                {
-                    if (have_top && have_bottom)
-                    {
-                        fseek(inpf, (oldpos - header_len), SEEK_SET); //Œƒº˛÷∏’Îª÷∏¥µΩ‘≠¿¥Œª÷√
-                        *frm_len = frame_strm_len - header_len;
-                        return 1;
-                    }
-                    else
-                    {
-                        return 0;
-                    }
-                }
-            }
-            else
-            {
-                if (!interlace)
-                {
-                    key_filed_cnt += 2;
-                }
-                else
-                {
-                    key_filed_cnt += 1;
-                    if (top_field)
-                    {
-                        have_top = 1;
-                    }
-                    else
-                    {
-                        have_bottom = 1;
-                    }
-                }
-            }
-        }
-
-        if (IS_NO_FRM_CODE(marker))
-        {
-            if (is_patch_before)
-            {
-                header_len = (HLM_S32)len;
-            }
-            else
-            {
-                header_len += (HLM_S32)len;
-            }
-        }
-
-        is_patch_before = !(IS_NO_FRM_CODE(marker));
-        pre_frame_num = cur_frame_num;
-        frame_strm_len += (HLM_S32)len;
-        streambuf += len;
-    }
-
-    return 0;
-}
-
-// ¥Ú”°help–≈œ¢
-HLM_VOID show_help()
-{
-    printf("    infile must be HLM bitstream \n");
-    printf("    outfile is raw AVC bitstream\n");
-    printf("\nExecutable Options:\n");
-    printf("   -h/-help                           show HLMD help info.\n");
-    printf("\nInput Parameters:\n");
-    printf("   -i <filename>                  sets HLM bitstream input file name.\n");
-    printf("   -y <integer>                   sets output yuv file enable flag.\n");
-}
-
-HLM_S32 main(HLM_S32 argc, char *argv[])
-{
-    HLM_S32           i                         = 0;
-    HLM_S32           luma_size                 = 0;
-    HLM_S32           chroma_size               = 0;
-    HLM_S32           cu_width                  = 0;
-    HLM_S32           cu_height                 = 0;
-    HLM_S32           blk_status_size           = 0;
-    HLM_S32           img_size                  = 0;
-    HLM_S32           frame_cus_only            = 1;    // ƒ¨»œŒ™1£¨≤ªøº¬«≥°
-    HLM_S32           log2_max_frame_num        = 0;
-    HLM_STATUS        sts                       = HLM_STS_OK;
-    HLM_STATUS        read_ret                  = HLM_STS_OK;
-    HLM_S32           yuv_out                   = 0;
-    HLM_S32           tmp_buf_size              = 0;
-    HLM_U16          *tmp_buf                   = HLM_NULL;
-    HLM_U08          *p_bsm                     = HLM_NULL;
-    HLM_S32           bsm_len                   = 0;
-    size_t            elem_len                  = 0;
-    char             *put                       = HLM_NULL;
-    char              tmp_file[256]             = { 0 };
-    FILE             *hlm_file                  = HLM_NULL;  // ¬Î¡˜Œƒº˛
-    HLM_VOID         *handle                    = HLM_NULL;
-    HLM_MEM_TAB       mem_tab[HLM_MEM_TAB_NUM]  = { 0 };
-    HLMD_VIDEO_INFO   hlm_video_info            = { 0 };
-    HLM_U16          *yuv[3]                    = { 0 };
-    DEMO_USER_DATA    user_data                 = { 0 };
-    HLMD_STREAM_IN    stream_in                 = { 0 };
-    HLM_S32           in_size                   = 0;
-    HLMD_PROCESS_OUT  decode_out                = { 0 };
-    HLM_S32           out_size                  = 0;
-    HLM_S32           luma_size1                = 0;
-    HLM_U32           chroma_offset_w           = 0;
-    HLM_U32           chroma_offset_h           = 0;
-    HLM_S32           chroma_size1              = 0;
-    HLM_U16           chroma_crop_top           = 0;
-    HLM_U16           chroma_crop_bottom        = 0;
-    HLM_U16           chroma_crop_left          = 0;
-    HLM_S32           j                         = 0;
-    HLM_U08           byte_size                 = 0;
-
-    // Ω‚Œˆ≤Œ ˝
-    if (argc <= 1)
-    {
-        show_help();
-        sts = HLM_STS_ERR;
-        fprintf(stderr, "Invalid input parameters!!!\n");
-    }
-
-    for (i = 1; i < argc; i += 2)
-    {
-        if ((0 == strncmp(argv[i], "-h", 2)) || (0 == strncmp(argv[i], "-help", 5)))
-        {
-            show_help();
-            return HLM_STS_ERR;
-        }
-        if (0 == strncmp(argv[i], "-i", 2))
-        {
-            strcpy(tmp_file, argv[i + 1]);
-            hlm_file = fopen(argv[i + 1], "rb");
-            if (HLM_NULL == hlm_file)
-            {
-                sts = HLM_STS_ERR;
-                fprintf(stderr, "Open HLM bitstream file <%s> failed!!!\n", argv[i + 1]);
-            }
-        }
-        if (0 == strncmp(argv[i], "-y", 2))
-        {
-            yuv_out = atoi(argv[i + 1]);
-        }
-    }
-
-    // ‘§Ω‚ŒˆªÒ»° ”∆µ–≈œ¢
-    put = strrchr(tmp_file, '.');
-    elem_len = strlen(tmp_file) - strlen(put);
-    sprintf(tmp_file + elem_len, ".log");
-    sts = HLMD_DEMO_get_video_info(hlm_file, &hlm_video_info, HLM_NULL);
-
-    // ∏¯»´æ÷±‰¡ø∏≥÷µ”√”⁄∫Û√Ê∑÷≈‰ƒ⁄¥Ê
-    ability.bit_depth_luma   = hlm_video_info.bit_depth_luma;
-    ability.bit_depth_chroma = hlm_video_info.bit_depth_chroma;
-    ability.code_width[0]    = hlm_video_info.code_width[0];
-    ability.code_height[0]   = hlm_video_info.code_height[0];
-    ability.code_width[1]    = hlm_video_info.code_width[1];
-    ability.code_height[1]   = hlm_video_info.code_height[2];
-    ability.code_width[2]    = hlm_video_info.code_width[2];
-    ability.code_height[2]   = hlm_video_info.code_height[2];
-    ability.ref_frm_num      = hlm_video_info.ref_frm_num;
-    user_data.crop_left      = hlm_video_info.crop_left;
-    user_data.crop_right     = hlm_video_info.crop_right;
-    user_data.crop_top       = hlm_video_info.crop_top;
-    user_data.crop_bottom    = hlm_video_info.crop_bottom;
-
-    // –ﬁ∏ƒΩ‚¬ÎÕºœÒŒƒº˛√˚£¨∏Ò ΩŒ™°∞¬Î¡˜Œƒº˛√˚_dec.yuv"
-    if (hlm_video_info.format == HLM_IMG_RGB)
-    {
-        sprintf(tmp_file + elem_len, "_dec.rgb");
-    }
-    else
-    {
-        sprintf(tmp_file + elem_len, "_dec.yuv");
-    }
-    user_data.fp_dec = fopen(tmp_file, "wb");
-    if (HLM_NULL == user_data.fp_dec)
-    {
-        goto MAIN_EXIT;
-    }
-    user_data.yuv_output_enable = yuv_out;
-
-    // ∑÷≈‰ƒ⁄¥Ê
-    sts = HLMD_DEMO_create_handle(mem_tab, &handle, user_data.fp_log, &hlm_video_info);
-
-    // ∑÷≈‰¬Î¡˜ª∫≥Â«¯°¢Ω‚¬Î ‰≥ˆyuvª∫≥Â«¯
-    luma_size    = HLM_SIZE_ALIGN_16(hlm_video_info.code_width[0]) * HLM_SIZE_ALIGN_16(hlm_video_info.code_height[0]);
-    luma_size   += 16;
-    chroma_size  = HLM_SIZE_ALIGN_16(hlm_video_info.code_width[1]) * HLM_SIZE_ALIGN_16(hlm_video_info.code_height[1]);
-    chroma_size += 16;
-    img_size     = luma_size + (chroma_size << 1);
-    cu_width     = (hlm_video_info.code_width[0] >> 4);
-    cu_height    = (hlm_video_info.code_height[0] >> 3);
-    switch (hlm_video_info.format)
-    {
-    case HLM_IMG_YUV_444:
-    case HLM_IMG_RGB:
-        chroma_offset_w = 0;
-        chroma_offset_h = 0;
-        break;
-    case HLM_IMG_YUV_420:
-        chroma_offset_w = 1;
-        chroma_offset_h = 1;
-        break;
-    case HLM_IMG_YUV_422:
-        chroma_offset_w = 1;
-        chroma_offset_h = 0;
-        break;
-    }
-
-    blk_status_size = HLM_SIZE_ALIGN_16(cu_height * cu_width);
-    tmp_buf_size    = (img_size << 1) + blk_status_size;
-    tmp_buf         = (HLM_U16 *)HLM_MEM_Malloc(tmp_buf_size*sizeof(HLM_U16), 16);
-    if (HLM_NULL == tmp_buf)
-    {
-        goto MAIN_EXIT;
-    }
-
-    // ≥ı ºªØ
-    p_bsm  = (HLM_U08*)tmp_buf;
-    yuv[0] = tmp_buf + img_size;
-    yuv[1] = yuv[0] + luma_size;
-    yuv[2] = yuv[1] + chroma_size;
-
-    decode_out.is_mismatch = 0;
-    decode_out.finish_one_frame = 0;
-    while (!feof(hlm_file))
-    {
-        read_ret = HLMD_DEMO_read_one_frame(p_bsm, &bsm_len, hlm_file, log2_max_frame_num, frame_cus_only, user_data.fp_log);
-        if (0 == read_ret)
-        {
-            break;
-        }
-
-        //  ‰»Î ‰≥ˆ◊™ªØ
-        stream_in.stream_buf = p_bsm;
-        stream_in.stream_len = bsm_len;
-        in_size = sizeof(HLMD_STREAM_IN);
-
-        decode_out.image_out.data[0] = yuv[0];
-        decode_out.image_out.data[1] = yuv[1];
-        decode_out.image_out.data[2] = yuv[2];
-        out_size = sizeof(HLMD_PROCESS_OUT);
-
-        // Ω‚¬Î“ª÷°
-        sts = HLMD_LIB_DecodeFrame(handle, (HLM_VOID *)&stream_in, in_size, (HLM_VOID *)&decode_out, out_size);
-        if (sts != HLM_STS_OK)
-        {
-            decode_out.is_mismatch = 1;
-            break;
-        }
-
-        // √ø¥ŒΩ‚¬Î“ª∏ˆpatch£¨‘⁄Ω‚ÕÍ“ª÷°µƒÀ˘”–patch÷Æ∫Û£¨–¥“ª¥Œ÷ÿΩ®
-        if (user_data.yuv_output_enable && decode_out.finish_one_frame)
-        {
-            decode_out.finish_one_frame = 0;  // ”√”⁄œ¬“ª÷°
-            if (hlm_video_info.format == HLM_IMG_RGB)
-            {
-                HLM_COM_YCbCr_To_Rgb(yuv[0], yuv[1], yuv[2],
-                    hlm_video_info.code_width[0], hlm_video_info.code_height[0], ability.bit_depth_luma);
-            }
-            luma_size1 = (ability.code_width[0] - user_data.crop_left - user_data.crop_right);
-            byte_size = ability.bit_depth_luma == 8 ? 1 : 2;
-            for (i = user_data.crop_top; i < (hlm_video_info.code_height[0] - user_data.crop_bottom); i++)
-            {
-                for (j = 0; j < luma_size1; j++)
-                {
-                    fwrite((HLM_U16*)decode_out.image_out.data[0] + (i * hlm_video_info.code_width[0]) + user_data.crop_left + j,
-                        byte_size, 1, user_data.fp_dec);
-                }
-            }
-
-            if (hlm_video_info.format != HLM_IMG_YUV_400)
-            {
-                chroma_size1       = luma_size1 >> chroma_offset_w;
-                chroma_crop_top    = user_data.crop_top >> chroma_offset_h;
-                chroma_crop_bottom = user_data.crop_bottom >> chroma_offset_h;
-                chroma_crop_left   = user_data.crop_left >> chroma_offset_w;
-                for (i = chroma_crop_top; i < (hlm_video_info.code_height[1] - chroma_crop_bottom); i++)
-                {
-                    for (j = 0; j < chroma_size1; j++)
-                    {
-                        fwrite((HLM_U16*)decode_out.image_out.data[1] + (i * hlm_video_info.code_width[1]) + (chroma_crop_left)+j,
-                            byte_size, 1, user_data.fp_dec);
-                    }
-                }
-                for (i = chroma_crop_top; i < (hlm_video_info.code_height[1] - chroma_crop_bottom); i++)
-                {
-                    for (j = 0; j < chroma_size1; j++)
-                    {
-                        fwrite((HLM_U16*)decode_out.image_out.data[2] + (i * hlm_video_info.code_width[1]) + (chroma_crop_left)+j,
-                            byte_size, 1, user_data.fp_dec);
-                    }
-                }
-            }
-        }
-    }
-
-    if (decode_out.is_mismatch == 1)
-    {
-        printf("[DEMO] Mismatch.\n");
-    }
-    else
-    {
-        printf("[DEMO] Matched.\n");
-    }
-
-MAIN_EXIT:
-
-    //  Õ∑≈ƒ⁄¥Ê
-    sts = HLMD_DEMO_destroy_handle(mem_tab, handle, user_data.fp_log);
-
-    if (tmp_buf != HLM_NULL)
-    {
-        HLM_MEM_Free(tmp_buf);
-        tmp_buf = HLM_NULL;
-    }
-    if (hlm_file != HLM_NULL)
-    {
-        fclose(hlm_file);
-        hlm_file = HLM_NULL;
-    }
-    if (user_data.fp_dec != HLM_NULL)
-    {
-        fclose(user_data.fp_dec);
-        user_data.fp_dec = HLM_NULL;
-    }
-
-    return sts;
-}
+/***************************************************************************************************
+
+The copyright in this software is being made available under the License included below.
+This software may be subject to other third party and contributor rights, including patent
+rights, and no such rights are granted under this license.
+
+Copyright (C) 2025, Hangzhou Hikvision Digital Technology Co., Ltd. All rights reserved.
+
+Redistribution and use in source and binary forms, with or without modification, are permitted
+only for the purpose of developing standards within Audio and Video Coding Standard Workgroup of
+China (AVS) and for testing and promoting such standards. The following conditions are required
+to be met:
+
+* Redistributions of source code must retain the above copyright notice, this list of
+conditions and the following disclaimer.
+* Redistributions in binary form must reproduce the above copyright notice, this list of
+conditions and the following disclaimer in the documentation and/or other materials
+provided with the distribution.
+* The name of Hangzhou Hikvision Digital Technology Co., Ltd. may not be used to endorse or
+promote products derived from this software without specific prior written permission.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR
+IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND
+FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR
+CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+POSSIBILITY OF SUCH DAMAGE.
+
+***************************************************************************************************/
+#include <stdlib.h>
+#include "hlmd_lib.h"
+
+// ÂÖ®Â±ÄÂèòÈáè
+HLMD_ABILITY ability = { 0 };
+
+// ÊúÄÂ§ßÊîØÊåÅÂÜÖÂ≠òÂàÜÂùóÊï∞
+#define TMP_BUFFER_SIZE                 (2000)
+#define TMP_SIZE                        (51200)
+#define TMP_SHIFT                       (4)
+#define READ_4_BYTES(p)                 (*(HLM_S32 *)(p))
+#define MAX_UNIT_NUM                    (200)
+
+// ÂØπÈΩêNaluÁ±ªÂûã
+#define IS_FRM_START_CODE(marker)       (((marker & 0x001F) == 1 || (marker & 0x001F) == 2) && (marker & 0x8000))
+#define IS_FRM_END_CODE(marker)         ((marker & 0x001F) == 6 || (marker & 0x001F) == 7)
+#define IS_NO_FRM_CODE(marker)          ((marker & 0x001F) == 0 || (marker & 0x001F) > 2)
+
+// Áî®Êà∑ÂèÇÊï∞
+typedef struct _DEMO_USER_DATA
+{
+    HLM_S32  yuv_output_enable;
+    FILE    *fp_log;
+    FILE    *fp_dec;
+    int      crop_left;
+    int      crop_right;
+    int      crop_top;
+    int      crop_bottom;
+} DEMO_USER_DATA;
+
+// Ëé∑ÂèñÁ†ÅÊµÅ‰∏≠ÁöÑËßÜÈ¢ë‰ø°ÊÅØ
+HLM_S32 HLMD_DEMO_get_video_info(FILE             *hlm_file,
+                                 HLMD_VIDEO_INFO  *video_info,
+                                 FILE             *fp_log)
+{
+    HLM_U08 *buf = HLM_NULL;
+    HLM_SZT len  = 0;
+
+    buf = (HLM_U08 *)HLM_MEM_Malloc(TMP_BUFFER_SIZE, 16);
+    if (buf == HLM_NULL)
+    {
+        return -1;
+    }
+
+    //ËøîÂõûÂà∞Ëµ∑Âßã‰ΩçÁΩÆ
+    fseek(hlm_file, 0, SEEK_SET);
+    len = fread(buf, 1, TMP_BUFFER_SIZE, hlm_file);
+    if (HLMD_LIB_PreParseSeqHeader(buf, TMP_BUFFER_SIZE, video_info) != HLM_STS_OK)
+    {
+        len = -1;
+    }
+    if (buf != HLM_NULL)
+    {
+        HLM_MEM_Free(buf);
+        buf = HLM_NULL;
+    }
+
+    fseek(hlm_file, 0, SEEK_SET);
+
+    if (len < 0)
+    {
+        return -1;
+    }
+    else
+    {
+        return 0;
+    }
+}
+
+// ÂàõÂª∫ÁÆóÊ≥ïÊ®°ÂûãÂè•ÊüÑ
+HLM_S32 HLMD_DEMO_create_handle(HLM_MEM_TAB       mem_tab[HLM_MEM_TAB_NUM],
+                                HLM_VOID        **handle,
+                                FILE             *fp_log,
+                                HLMD_VIDEO_INFO  *video_info)
+{
+    HLM_S32    i          = 0;
+    HLM_STATUS sts        = HLM_STS_ERR;
+    HLM_VOID  *lib_handle = HLM_NULL;
+
+    // Ëé∑ÂèñÊâÄÈúÄËµÑÊ∫êÊï∞Èáè
+    sts = HLMD_LIB_GetMemSize(&ability, mem_tab, video_info);
+    if (sts != HLM_STS_OK)
+    {
+        fprintf(stderr, "[LIB] get mem size failed: %d, in Func <%s>, Line <%d>.\n", sts, __FUNCTION__, __LINE__);
+        return -1;
+    }
+
+#ifdef _DEBUG
+    // ÊâìÂç∞ÂÜÖÂ≠òÂ§ßÂ∞è
+    for (i = 0; i < HLM_MEM_TAB_NUM; i++)
+    {
+#if defined(_M_X64)
+        fprintf(stdout, "[LIB] memTab %d memory size = %lld\n", i, mem_tab[i].size);
+#else
+        fprintf(stdout, "[LIB] memTab %d memory size = %d\n", i, mem_tab[i].size);
+#endif
+    }
+#endif
+
+    // ÂàÜÈÖçÁÆóÊ≥ïÊ®°ÂûãÊâÄÈúÄËµÑÊ∫ê
+    sts = HLM_MEM_AllocMemTab(mem_tab, HLM_MEM_TAB_NUM);
+    if (sts != HLM_STS_OK)
+    {
+        fprintf(stderr, "[LIB] alloc lib mem failed in Func <%s>, Line <%d>.\n", __FUNCTION__, __LINE__);
+        return -1;
+    }
+
+    // ÂàõÂª∫ÁÆóÊ≥ïÊ®°ÂûãÂÆû‰æã
+    sts = HLMD_LIB_Create(&ability, mem_tab, &lib_handle, video_info);
+    if (sts != HLM_STS_OK)
+    {
+        fprintf(stderr, "[LIB] create lib failed: %d, in Func <%s>, Line <%d>.\n", sts, __FUNCTION__, __LINE__);
+        return -1;
+    }
+
+    *handle = lib_handle;
+
+    return 0;
+}
+
+// ÈîÄÊØÅÁÆóÊ≥ïÊ®°ÂûãÂè•ÊüÑ
+HLM_S32 HLMD_DEMO_destroy_handle(HLM_MEM_TAB     mem_tab[HLM_MEM_TAB_NUM],
+                               HLM_VOID       *handle,
+                               FILE           *fp_log)
+{
+    HLM_STATUS sts = HLM_STS_ERR;
+
+    sts = HLM_MEM_FreeMemTab(mem_tab, HLM_MEM_TAB_NUM);
+
+    if (HLM_STS_OK != sts)
+    {
+        fprintf(stderr, "[DEMO] free lib mem failed: %d, in Func <%s>, Line <%d>.\n", sts, __FUNCTION__, __LINE__);
+        return -1;
+    }
+
+    return 0;
+}
+
+// Ëé∑Âèñ‰∏Ä‰∏™naluÁöÑÁ†ÅÊµÅ
+HLM_S64 HLMD_DEMO_get_nalu(unsigned char *s,
+                           int            max_size,
+                           FILE          *f)
+{
+    HLM_SZT i             = 0;
+    char tmpbuf[TMP_SIZE] = { 0 };
+    int oldpos            = 0;
+    int prepos            = 0;
+    HLM_SZT read_len      = 0;
+    HLM_S32 tmp           = 0;
+    HLM_SZT size          = 0;
+
+    //ÂØªÊâæÁ¨¨‰∏Ä‰∏™0x01000000
+    size = 0;
+    oldpos = ftell(f);
+    prepos = oldpos;
+    if (feof(f))
+    {
+        return -1;
+    }
+
+    do
+    {
+        if ((read_len = fread(tmpbuf, 1, TMP_SIZE, f)) == 0)
+        {
+            return -1;  // Á†ÅÊµÅÁªìÂ∞æ
+        }
+        for (i = 0; i < read_len - TMP_SHIFT; i++)
+        {
+            if (READ_4_BYTES(&tmpbuf[i]) == 0x01000000)
+            {
+                oldpos += (long)size;
+                goto search_next_start;
+            }
+            else if ((READ_4_BYTES(&tmpbuf[i]) & 0x0FFFFFF) == 0x00010000)
+            {
+                oldpos += (long)size;
+                goto search_next_start;
+            }
+            size++;
+        }
+        fseek(f, -TMP_SHIFT, SEEK_CUR);
+    } while (1);
+
+search_next_start:
+
+    fseek(f, oldpos, SEEK_SET);
+    size = fread(&tmp, 1, 4, f);
+
+    //ÂØªÊâæÁ¨¨2‰∏™ 0x01000000
+    while (1)
+    {
+        read_len = fread(tmpbuf, 1, TMP_SIZE, f);
+        for (i = 0; i < read_len - TMP_SHIFT; i++)
+        {
+            if (READ_4_BYTES(&tmpbuf[i]) == 0x01000000)
+            {
+                goto start_code_find;
+            }
+            else if ((READ_4_BYTES(&tmpbuf[i]) & 0x0FFFFFF) == 0x00010000)
+            {
+                goto start_code_find;
+            }
+            size++;
+        }
+        if (feof(f))
+        {
+            size += TMP_SHIFT;
+            break;
+        }
+        fseek(f, -TMP_SHIFT, SEEK_CUR);
+    }
+
+    fseek(f, oldpos, SEEK_SET);
+    fread(s, 1, size, f);
+    fseek(f, 0, SEEK_END);
+
+    return size;
+
+start_code_find:
+    fseek(f, oldpos, SEEK_SET);
+    fread(s, 1, size, f);
+
+    return size;
+}
+
+#define BSWAP(bitswap_t) {                                   \
+    unsigned int bitswap_tmp;                                \
+    signed char *bitswap_src = (signed char *)&bitswap_t;    \
+    signed char *bitswap_dst = (signed char *)&bitswap_tmp;  \
+    bitswap_dst[0] = bitswap_src[3];                         \
+    bitswap_dst[1] = bitswap_src[2];                         \
+    bitswap_dst[2] = bitswap_src[1];                         \
+    bitswap_dst[3] = bitswap_src[0];                         \
+    bitswap_t = bitswap_tmp;                                 \
+}
+
+#define LMBD(t, pos) {                                       \
+    unsigned int bitscan_tmp = t;                            \
+    int bitscan_pos = 31;                                    \
+    while (!(bitscan_tmp & 0x80000000) && bitscan_pos > -1)  \
+    {                                                        \
+        bitscan_tmp <<= 1;                                   \
+        bitscan_pos--;                                       \
+    }                                                        \
+    pos = 31 - bitscan_pos;                                  \
+}
+
+// ËØª‰∏Ä‰∏™Êó†Á¨¶Âè∑ÊåáÊï∞Âì•‰º¶Â∏ÉÊï∞ÊçÆ
+unsigned int read_ue_golomb(unsigned char *bits,
+                            int           *idx)
+{
+    unsigned int tmp     = 0;
+    unsigned int len     = 0;
+    unsigned char *rdptr = bits + ((*idx) >> 3);
+
+    tmp = *(unsigned int*)rdptr;
+    BSWAP(tmp);
+    tmp <<= ((*idx) & 7);
+
+    LMBD(tmp, len);
+
+    *idx += len * 2 + 1;
+    tmp <<= (len + 1);
+
+    return (1 << len) + ((tmp >> (31 - len)) >> 1) - 1;
+}
+
+// ËØªn‰∏™ÊØîÁâπ
+unsigned int read_n_bits(unsigned char *bits,
+                         int           *idx,
+                         unsigned int   n)
+{
+    unsigned int tmp = *(unsigned int *)(bits + ((*idx) >> 3));
+
+    BSWAP(tmp);
+
+    tmp <<= (*idx) & 7;
+    tmp >>= (32 - n);
+    *idx += n;
+
+    return tmp;
+}
+
+// ËØª‰∏Ä‰∏™ÊØîÁâπ
+unsigned int read_bit(unsigned char *bits,
+                      int           *idx)
+{
+    unsigned int tmp = bits[(*idx) >> 3];
+
+    tmp <<= 24 + ((*idx) & 7);
+    *idx += 1;
+
+    return tmp >> 31;
+}
+
+// ËØª‰∏ÄÂ∏ßÁöÑÁ†ÅÊµÅ
+HLM_S32 HLMD_DEMO_read_one_frame(unsigned char *streambuf,
+                                 int           *frm_len,
+                                 FILE          *inpf,
+                                 int            log2_max_frame_num,
+                                 int            frame_cus_only,
+                                 FILE          *fp_log)
+{
+    int i                = 0;
+    HLM_S64 len          = 0;
+    int size             = 0;
+    int start_code       = 0;
+    int bfields          = 0;
+    int oldpos           = 0;
+    short marker         = 0;
+    int key_filed_cnt    = 0;
+    unsigned char *bits  = 0;
+    int interlace        = 0;
+    int top_field        = 0;
+    int have_top         = 0;
+    int have_bottom      = 0;
+    int pre_frame_num    = -1;
+    int cur_frame_num    = -1;
+    int frame_strm_len   = 0;  //‰∏ÄÂ∏ßÁ†ÅÊµÅÈïøÂ∫¶
+    int header_len       = 0;  //SPS PPSÁ≠âÊÄªÈïøÂ∫¶
+    int nalu_prior_flag  = 0;
+    char is_patch_before = 1;  //0:Ë°®Á§∫‰∏ä‰∏Ä‰∏™naluÊòØÂ§¥‰ø°ÊÅØÔºõ1ÔºöË°®Á§∫‰∏ä‰∏Ä‰∏™naluÊòØpatch
+    unsigned int code    = 0;
+    int index            = 0;
+
+    *frm_len = 0;
+    for (i = 0; i < MAX_UNIT_NUM; i++)
+    {
+        oldpos = ftell(inpf);
+        len = HLMD_DEMO_get_nalu(streambuf, 0x7FFFFFFF, inpf); //‰ªéÁ†ÅÊµÅÊñá‰ª∂‰∏≠Ëé∑Âèñ‰∏Ä‰∏™NALU, ÂåÖÂê´Ëµ∑ÂßãÁ†ÅÈÉ®ÂàÜ
+        if (len <= 0)
+        {
+            if (key_filed_cnt > 1) //Â¶ÇÊûúÂá∫Áé∞Ëøá1‰∏™ÂÖ≥ÈîÆÂ∏ßÊàñËÄÖ2‰∏™ÂÖ≥ÈîÆÂú∫
+            {
+                fseek(inpf, oldpos, SEEK_SET); //Êñá‰ª∂ÊåáÈíàÊÅ¢Â§çÂà∞ÂéüÊù•‰ΩçÁΩÆ
+                *frm_len = frame_strm_len;
+                return 1;
+            }
+            else
+            {
+                return 0;
+            }
+        }
+
+        start_code = *(int *)(streambuf);
+        if (start_code == 0x01000000)
+        {
+            bits = streambuf + 4; //‰ΩøÁî®4Â≠óËäÇÁöÑËµ∑ÂßãÁ†Å
+        }
+        else if ((start_code & 0x00FFFFFF) == (0x01000000 >> 8))
+        {
+            bits = streambuf + 3; //‰ΩøÁî®3Â≠óËäÇÁöÑËµ∑ÂßãÁ†Å
+        }
+        else
+        {
+            return 0;
+        }
+
+        marker = *(short *)(bits);
+        if (IS_FRM_END_CODE(marker)) //end_of_seq end_of_stream
+        {
+            if (nalu_prior_flag)
+            {
+                *frm_len = frame_strm_len;
+                return 1;
+            }
+            else
+            {
+                continue;
+            }
+        }
+
+        if (IS_FRM_START_CODE(marker)) //ÈÅáÂà∞‰∏ÄÂ∏ßÊàñ‰∏ÄÂú∫ÁöÑÂºÄÂßãÔºåfirst_cu_in_patch=0
+        {
+            nalu_prior_flag = 1;
+            if (is_patch_before)
+            {
+                header_len = 0;
+            }
+
+            index = 1;  //first_cu_in_patch
+            code = read_ue_golomb(bits + 1, &index);  //patch_type
+            code = read_ue_golomb(bits + 1, &index);  //pic_parameter_set_id
+            cur_frame_num = read_n_bits(bits + 1, &index, log2_max_frame_num); //frame_num
+            interlace = 0;  // ‰∏çÊòØÂú∫nalu
+
+            if (key_filed_cnt > 1) //Â¶ÇÊûúÂá∫Áé∞Ëøá1‰∏™ÂÖ≥ÈîÆÂ∏ßÊàñËÄÖ2‰∏™ÂÖ≥ÈîÆÂú∫
+            {
+                if (!interlace)
+                {
+                    fseek(inpf, (oldpos - header_len), SEEK_SET); //Êñá‰ª∂ÊåáÈíàÊÅ¢Â§çÂà∞ÂéüÊù•‰ΩçÁΩÆ
+                    *frm_len = frame_strm_len - header_len;
+                    return 1;
+                }
+                else
+                {
+                    if (have_top && have_bottom)
+                    {
+                        fseek(inpf, (oldpos - header_len), SEEK_SET); //Êñá‰ª∂ÊåáÈíàÊÅ¢Â§çÂà∞ÂéüÊù•‰ΩçÁΩÆ
+                        *frm_len = frame_strm_len - header_len;
+                        return 1;
+                    }
+                    else
+                    {
+                        return 0;
+                    }
+                }
+            }
+            else
+            {
+                if (!interlace)
+                {
+                    key_filed_cnt += 2;
+                }
+                else
+                {
+                    key_filed_cnt += 1;
+                    if (top_field)
+                    {
+                        have_top = 1;
+                    }
+                    else
+                    {
+                        have_bottom = 1;
+                    }
+                }
+            }
+        }
+
+        if (IS_NO_FRM_CODE(marker))
+        {
+            if (is_patch_before)
+            {
+                header_len = (HLM_S32)len;
+            }
+            else
+            {
+                header_len += (HLM_S32)len;
+            }
+        }
+
+        is_patch_before = !(IS_NO_FRM_CODE(marker));
+        pre_frame_num = cur_frame_num;
+        frame_strm_len += (HLM_S32)len;
+        streambuf += len;
+    }
+
+    return 0;
+}
+
+// ÊâìÂç∞help‰ø°ÊÅØ
+HLM_VOID show_help()
+{
+    printf("    infile must be HLM bitstream \n");
+    printf("    outfile is raw AVC bitstream\n");
+    printf("\nExecutable Options:\n");
+    printf("   -h/-help                           show HLMD help info.\n");
+    printf("\nInput Parameters:\n");
+    printf("   -i <filename>                  sets HLM bitstream input file name.\n");
+    printf("   -y <integer>                   sets output yuv file enable flag.\n");
+}
+
+HLM_S32 main(HLM_S32 argc, char *argv[])
+{
+    HLM_S32           i                         = 0;
+    HLM_S32           luma_size                 = 0;
+    HLM_S32           chroma_size               = 0;
+    HLM_S32           cu_width                  = 0;
+    HLM_S32           cu_height                 = 0;
+    HLM_S32           blk_status_size           = 0;
+    HLM_S32           img_size                  = 0;
+    HLM_S32           frame_cus_only            = 1;    // ÈªòËÆ§‰∏∫1Ôºå‰∏çËÄÉËôëÂú∫
+    HLM_S32           log2_max_frame_num        = 0;
+    HLM_STATUS        sts                       = HLM_STS_OK;
+    HLM_STATUS        read_ret                  = HLM_STS_OK;
+    HLM_S32           yuv_out                   = 0;
+    HLM_S32           tmp_buf_size              = 0;
+    HLM_U16          *tmp_buf                   = HLM_NULL;
+    HLM_U08          *p_bsm                     = HLM_NULL;
+    HLM_S32           bsm_len                   = 0;
+    size_t            elem_len                  = 0;
+    char             *put                       = HLM_NULL;
+    char              tmp_file[256]             = { 0 };
+    FILE             *hlm_file                  = HLM_NULL;  // Á†ÅÊµÅÊñá‰ª∂
+    HLM_VOID         *handle                    = HLM_NULL;
+    HLM_MEM_TAB       mem_tab[HLM_MEM_TAB_NUM]  = { 0 };
+    HLMD_VIDEO_INFO   hlm_video_info            = { 0 };
+    HLM_U16          *yuv[3]                    = { 0 };
+    DEMO_USER_DATA    user_data                 = { 0 };
+    HLMD_STREAM_IN    stream_in                 = { 0 };
+    HLM_S32           in_size                   = 0;
+    HLMD_PROCESS_OUT  decode_out                = { 0 };
+    HLM_S32           out_size                  = 0;
+    HLM_S32           luma_size1                = 0;
+    HLM_U32           chroma_offset_w           = 0;
+    HLM_U32           chroma_offset_h           = 0;
+    HLM_S32           chroma_size1              = 0;
+    HLM_U16           chroma_crop_top           = 0;
+    HLM_U16           chroma_crop_bottom        = 0;
+    HLM_U16           chroma_crop_left          = 0;
+    HLM_S32           j                         = 0;
+    HLM_U08           byte_size                 = 0;
+
+    // Ëß£ÊûêÂèÇÊï∞
+    if (argc <= 1)
+    {
+        show_help();
+        sts = HLM_STS_ERR;
+        fprintf(stderr, "Invalid input parameters!!!\n");
+    }
+
+    for (i = 1; i < argc; i += 2)
+    {
+        if ((0 == strncmp(argv[i], "-h", 2)) || (0 == strncmp(argv[i], "-help", 5)))
+        {
+            show_help();
+            return HLM_STS_ERR;
+        }
+        if (0 == strncmp(argv[i], "-i", 2))
+        {
+            strcpy(tmp_file, argv[i + 1]);
+            hlm_file = fopen(argv[i + 1], "rb");
+            if (HLM_NULL == hlm_file)
+            {
+                sts = HLM_STS_ERR;
+                fprintf(stderr, "Open HLM bitstream file <%s> failed!!!\n", argv[i + 1]);
+            }
+        }
+        if (0 == strncmp(argv[i], "-y", 2))
+        {
+            yuv_out = atoi(argv[i + 1]);
+        }
+    }
+
+    // È¢ÑËß£ÊûêËé∑ÂèñËßÜÈ¢ë‰ø°ÊÅØ
+    put = strrchr(tmp_file, '.');
+    elem_len = strlen(tmp_file) - strlen(put);
+    sprintf(tmp_file + elem_len, ".log");
+    sts = HLMD_DEMO_get_video_info(hlm_file, &hlm_video_info, HLM_NULL);
+
+    // ÁªôÂÖ®Â±ÄÂèòÈáèËµãÂÄºÁî®‰∫éÂêéÈù¢ÂàÜÈÖçÂÜÖÂ≠ò
+    ability.bit_depth_luma   = hlm_video_info.bit_depth_luma;
+    ability.bit_depth_chroma = hlm_video_info.bit_depth_chroma;
+    ability.code_width[0]    = hlm_video_info.code_width[0];
+    ability.code_height[0]   = hlm_video_info.code_height[0];
+    ability.code_width[1]    = hlm_video_info.code_width[1];
+    ability.code_height[1]   = hlm_video_info.code_height[2];
+    ability.code_width[2]    = hlm_video_info.code_width[2];
+    ability.code_height[2]   = hlm_video_info.code_height[2];
+    ability.ref_frm_num      = hlm_video_info.ref_frm_num;
+    user_data.crop_left      = hlm_video_info.crop_left;
+    user_data.crop_right     = hlm_video_info.crop_right;
+    user_data.crop_top       = hlm_video_info.crop_top;
+    user_data.crop_bottom    = hlm_video_info.crop_bottom;
+
+    // ‰øÆÊîπËß£Á†ÅÂõæÂÉèÊñá‰ª∂ÂêçÔºåÊ†ºÂºè‰∏∫‚ÄúÁ†ÅÊµÅÊñá‰ª∂Âêç_dec.yuv"
+    if (hlm_video_info.format == HLM_IMG_RGB)
+    {
+        sprintf(tmp_file + elem_len, "_dec.rgb");
+    }
+    else
+    {
+        sprintf(tmp_file + elem_len, "_dec.yuv");
+    }
+    user_data.fp_dec = fopen(tmp_file, "wb");
+    if (HLM_NULL == user_data.fp_dec)
+    {
+        goto MAIN_EXIT;
+    }
+    user_data.yuv_output_enable = yuv_out;
+
+    // ÂàÜÈÖçÂÜÖÂ≠ò
+    sts = HLMD_DEMO_create_handle(mem_tab, &handle, user_data.fp_log, &hlm_video_info);
+
+    // ÂàÜÈÖçÁ†ÅÊµÅÁºìÂÜ≤Âå∫„ÄÅËß£Á†ÅËæìÂá∫yuvÁºìÂÜ≤Âå∫
+    luma_size    = HLM_SIZE_ALIGN_16(hlm_video_info.code_width[0]) * HLM_SIZE_ALIGN_16(hlm_video_info.code_height[0]);
+    luma_size   += 16;
+    chroma_size  = HLM_SIZE_ALIGN_16(hlm_video_info.code_width[1]) * HLM_SIZE_ALIGN_16(hlm_video_info.code_height[1]);
+    chroma_size += 16;
+    img_size     = luma_size + (chroma_size << 1);
+    cu_width     = (hlm_video_info.code_width[0] >> 4);
+    cu_height    = (hlm_video_info.code_height[0] >> 3);
+    switch (hlm_video_info.format)
+    {
+    case HLM_IMG_YUV_444:
+    case HLM_IMG_RGB:
+        chroma_offset_w = 0;
+        chroma_offset_h = 0;
+        break;
+    case HLM_IMG_YUV_420:
+        chroma_offset_w = 1;
+        chroma_offset_h = 1;
+        break;
+    case HLM_IMG_YUV_422:
+        chroma_offset_w = 1;
+        chroma_offset_h = 0;
+        break;
+    }
+
+    blk_status_size = HLM_SIZE_ALIGN_16(cu_height * cu_width);
+    tmp_buf_size    = (img_size << 1) + blk_status_size;
+    tmp_buf         = (HLM_U16 *)HLM_MEM_Malloc(tmp_buf_size*sizeof(HLM_U16), 16);
+    if (HLM_NULL == tmp_buf)
+    {
+        goto MAIN_EXIT;
+    }
+
+    // ÂàùÂßãÂåñ
+    p_bsm  = (HLM_U08*)tmp_buf;
+    yuv[0] = tmp_buf + img_size;
+    yuv[1] = yuv[0] + luma_size;
+    yuv[2] = yuv[1] + chroma_size;
+
+    decode_out.is_mismatch = 0;
+    decode_out.finish_one_frame = 0;
+    while (!feof(hlm_file))
+    {
+        read_ret = HLMD_DEMO_read_one_frame(p_bsm, &bsm_len, hlm_file, log2_max_frame_num, frame_cus_only, user_data.fp_log);
+        if (0 == read_ret)
+        {
+            break;
+        }
+
+        // ËæìÂÖ•ËæìÂá∫ËΩ¨Âåñ
+        stream_in.stream_buf = p_bsm;
+        stream_in.stream_len = bsm_len;
+        in_size = sizeof(HLMD_STREAM_IN);
+
+        decode_out.image_out.data[0] = yuv[0];
+        decode_out.image_out.data[1] = yuv[1];
+        decode_out.image_out.data[2] = yuv[2];
+        out_size = sizeof(HLMD_PROCESS_OUT);
+
+        // Ëß£Á†Å‰∏ÄÂ∏ß
+        sts = HLMD_LIB_DecodeFrame(handle, (HLM_VOID *)&stream_in, in_size, (HLM_VOID *)&decode_out, out_size);
+        if (sts != HLM_STS_OK)
+        {
+            decode_out.is_mismatch = 1;
+            break;
+        }
+
+        // ÊØèÊ¨°Ëß£Á†Å‰∏Ä‰∏™patchÔºåÂú®Ëß£ÂÆå‰∏ÄÂ∏ßÁöÑÊâÄÊúâpatch‰πãÂêéÔºåÂÜô‰∏ÄÊ¨°ÈáçÂª∫
+        if (user_data.yuv_output_enable && decode_out.finish_one_frame)
+        {
+            decode_out.finish_one_frame = 0;  // Áî®‰∫é‰∏ã‰∏ÄÂ∏ß
+            if (hlm_video_info.format == HLM_IMG_RGB)
+            {
+                HLM_COM_YCbCr_To_Rgb(yuv[0], yuv[1], yuv[2],
+                    hlm_video_info.code_width[0], hlm_video_info.code_height[0], ability.bit_depth_luma);
+            }
+            luma_size1 = (ability.code_width[0] - user_data.crop_left - user_data.crop_right);
+            byte_size = ability.bit_depth_luma == 8 ? 1 : 2;
+            for (i = user_data.crop_top; i < (hlm_video_info.code_height[0] - user_data.crop_bottom); i++)
+            {
+                for (j = 0; j < luma_size1; j++)
+                {
+                    fwrite((HLM_U16*)decode_out.image_out.data[0] + (i * hlm_video_info.code_width[0]) + user_data.crop_left + j,
+                        byte_size, 1, user_data.fp_dec);
+                }
+            }
+
+            if (hlm_video_info.format != HLM_IMG_YUV_400)
+            {
+                chroma_size1       = luma_size1 >> chroma_offset_w;
+                chroma_crop_top    = user_data.crop_top >> chroma_offset_h;
+                chroma_crop_bottom = user_data.crop_bottom >> chroma_offset_h;
+                chroma_crop_left   = user_data.crop_left >> chroma_offset_w;
+                for (i = chroma_crop_top; i < (hlm_video_info.code_height[1] - chroma_crop_bottom); i++)
+                {
+                    for (j = 0; j < chroma_size1; j++)
+                    {
+                        fwrite((HLM_U16*)decode_out.image_out.data[1] + (i * hlm_video_info.code_width[1]) + (chroma_crop_left)+j,
+                            byte_size, 1, user_data.fp_dec);
+                    }
+                }
+                for (i = chroma_crop_top; i < (hlm_video_info.code_height[1] - chroma_crop_bottom); i++)
+                {
+                    for (j = 0; j < chroma_size1; j++)
+                    {
+                        fwrite((HLM_U16*)decode_out.image_out.data[2] + (i * hlm_video_info.code_width[1]) + (chroma_crop_left)+j,
+                            byte_size, 1, user_data.fp_dec);
+                    }
+                }
+            }
+        }
+    }
+
+    if (decode_out.is_mismatch == 1)
+    {
+        printf("[DEMO] Mismatch.\n");
+    }
+    else
+    {
+        printf("[DEMO] Matched.\n");
+    }
+
+MAIN_EXIT:
+
+    // ÈáäÊîæÂÜÖÂ≠ò
+    sts = HLMD_DEMO_destroy_handle(mem_tab, handle, user_data.fp_log);
+
+    if (tmp_buf != HLM_NULL)
+    {
+        HLM_MEM_Free(tmp_buf);
+        tmp_buf = HLM_NULL;
+    }
+    if (hlm_file != HLM_NULL)
+    {
+        fclose(hlm_file);
+        hlm_file = HLM_NULL;
+    }
+    if (user_data.fp_dec != HLM_NULL)
+    {
+        fclose(user_data.fp_dec);
+        user_data.fp_dec = HLM_NULL;
+    }
+
+    return sts;
+}

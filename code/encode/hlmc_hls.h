@@ -1,175 +1,175 @@
-/***************************************************************************************************
-
-The copyright in this software is being made available under the License included below.
-This software may be subject to other third party and contributor rights, including patent
-rights, and no such rights are granted under this license.
-
-Copyright (C) 2025, Hangzhou Hikvision Digital Technology Co., Ltd. All rights reserved.
-
-Redistribution and use in source and binary forms, with or without modification, are permitted
-only for the purpose of developing standards within Audio and Video Coding Standard Workgroup of
-China (AVS) and for testing and promoting such standards. The following conditions are required
-to be met:
-
-* Redistributions of source code must retain the above copyright notice, this list of
-conditions and the following disclaimer.
-* Redistributions in binary form must reproduce the above copyright notice, this list of
-conditions and the following disclaimer in the documentation and/or other materials
-provided with the distribution.
-* The name of Hangzhou Hikvision Digital Technology Co., Ltd. may not be used to endorse or
-promote products derived from this software without specific prior written permission.
-
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR
-IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND
-FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR
-CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
-CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
-SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
-OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-POSSIBILITY OF SUCH DAMAGE.
-
-***************************************************************************************************/
-#ifndef _HLMC_HLS_H_
-#define _HLMC_HLS_H_
-
-#include "hlmc_defs.h"
-
-#ifdef __cplusplus
-extern "C" {
-#endif
-
-/***************************************************************************************************
-* ¹¦  ÄÜ£ºĞ´¼Ä´æÆ÷
-* ²Î  Êı£º*
-*         spec            -I    Ëã·¨Ä£ĞÍ¾ä±ú
-*         input           -I    Ëã·¨Ä£ĞÍÊäÈë²ÎÊı½á¹¹Ìå
-*         rec_dpb_idx     -I    ÖØ¹¹Í¼Ïñid
-*         ref_dpb_idx     -I    ²Î¿¼Í¼Ïñid
-*         patch_type      -I    µ±Ç°Ö¡Ö¡ÀàĞÍ
-*         regs            -O    ¼Ä´æÆ÷²ÎÊı½á¹¹Ìå
-*         rc_regs         -I    Âë¿ØĞÅÏ¢
-* ·µ»ØÖµ£ºÎŞ
-* ±¸  ×¢£º
-***************************************************************************************************/
-HLM_STATUS HLMC_HLS_WriteReg(HLM_SPEC                     *spec,
-                             HLMC_PROCESS_IN              *input,
-                             HLM_S32                       rec_dpb_idx,
-                             HLM_S32                       ref_dpb_idx,
-                             HLMC_PATCH_REF_TYPE           patch_type,
-                             HLMC_REGS                    *regs,
-                             VENC_RATE_CTRL_OUT_REGS      *rc_regs);
-
-/***************************************************************************************************
-* ¹¦  ÄÜ£º¶Á¼Ä´æÆ÷
-* ²Î  Êı£º*
-*         spec            -O    Ëã·¨Ä£ĞÍ¾ä±ú
-*         output          -O    Ëã·¨Ä£ĞÍÊä³ö²ÎÊı½á¹¹Ìå
-*         regs            -I    ¼Ä´æÆ÷²ÎÊı½á¹¹Ìå
-*         sps_pps_bits    -I    ¸ß²ãÓï·¨±ÈÌØÊı
-* ·µ»ØÖµ£ºÎŞ
-* ±¸  ×¢£º
-***************************************************************************************************/
-HLM_VOID HLMC_HLS_ReadReg(HLM_SPEC         *spec,
-                          HLMC_PROCESS_OUT *output,
-                          HLMC_REGS        *regs,
-                          HLM_U32           sps_pps_bits);
-
-/***************************************************************************************************
-* ¹¦  ÄÜ£º³õÊ¼»¯±àÂë¿âspec
-* ²Î  Êı£º*
-*         regs         -I    ¼Ä´æÆ÷²ÎÊı½á¹¹Ìå
-*         spec         -O    Ó²¼ş³éÏó²ã¹¤×÷²ÎÊı¼¯
-* ·µ»ØÖµ£ºÎŞ
-* ±¸  ×¢£º
-***************************************************************************************************/
-HLM_VOID HLMC_HLS_InitSpec(HLMC_REGS *regs,
-                           HLM_SPEC  *spec);
-
-/***************************************************************************************************
-* ¹¦  ÄÜ£ºRAM¿Õ¼ä·ÖÅä
-* ²Î  Êı£º*
-*        ram_buf                -I    ÉÏ²ã¿ª±ÙµÄ±àÂëÄÚ´æ
-*        cur_cu                 -O    µ±Ç°cu¸÷²ãPUĞÅÏ¢
-*        best_cu                -O    µ±Ç°cu×îÓÅPUĞÅÏ¢
-*        nbi_info               -O    µ±Ç°cuÉÏÏàÁÚºÍ×óÏàÁÚ²Î¿¼Êı¾İ
-*        regs                   -O    ¼Ä´æÆ÷
-* ·µ»ØÖµ£º×´Ì¬Âë
-* ±¸  ×¢£º
-***************************************************************************************************/
-HLM_STATUS HLMC_HLS_AllocRam(HLM_RAM_BUF         *ram_buf,
-                             HLMC_CU_INFO        *cur_cu,
-                             HLMC_CU_INFO        *best_cu,
-                             HLM_NEIGHBOR_INFO   *nbi_info,
-                             HLMC_REGS           *regs);
-
-/***************************************************************************************************
-* ¹¦  ÄÜ£º³õÊ¼»¯ SPS²ÎÊı¼¯
-* ²Î  Êı£º*
-*         coding_ctrl       -I         ±àÂëÄ£ĞÍÅäÖÃ²ÎÊı
-*         sps               -O         SPS½á¹¹Ìå
-*         rate_ctrl         -I         Âë¿Ø²ÎÊı
-* ·µ»ØÖµ£ºÎŞ
-* ±¸  ×¢£º
-***************************************************************************************************/
-HLM_VOID HLMC_HLS_InitSeqHeader(HLMC_CODING_CTRL *coding_ctrl,
-                                HLM_PARAM_SPS    *sps,
-                                HLMC_RATE_CTRL   *rate_ctrl);
-
-/***************************************************************************************************
-* ¹¦  ÄÜ£º³õÊ¼»¯PPS²ÎÊı¼¯
-* ²Î  Êı£º*
-*         coding_ctrl                   -I         ±àÂëÄ£ĞÍÅäÖÃ²ÎÊı
-*         frame_type                    -I         Ö¡ÀàĞÍ
-*         poc                           -I         Ö¡ºÅ
-*         pic_luma_qp                   -I         Í¼ÏñµÄ³õÊ¼qp
-*         pps                           -O         PPS½á¹¹Ìå
-* ·µ»ØÖµ£ºÎŞ
-* ±¸  ×¢£º
-***************************************************************************************************/
-HLM_VOID HLMC_HLS_InitPicHeader(HLMC_CODING_CTRL     *coding_ctrl,
-                                HLMC_PATCH_REF_TYPE   frame_type,
-                                HLM_S32               poc,
-                                HLM_S32               pic_luma_qp,
-                                HLM_PARAM_PPS        *pps);
-
-/***************************************************************************************************
-* ¹¦  ÄÜ£ºÉú³ÉSPS²ÎÊı¼¯
-* ²Î  Êı£º*
-*         sps              -I         SPS½á¹¹Ìå
-*         bs               -I         ÂëÁ÷ĞÅÏ¢½á¹¹Ìå
-* ·µ»ØÖµ£ºÎŞ
-* ±¸  ×¢£º
-***************************************************************************************************/
-HLM_VOID HLMC_HLS_GeneratSeqHeader(HLM_PARAM_SPS       *sps,
-                                   HLMC_BITSTREAM      *bs);
-
-/***************************************************************************************************
-* ¹¦  ÄÜ£ºÉú³ÉÍ¼ÏñÍ·
-* ²Î  Êı£º*
-*         pps              -I         PPS½á¹¹Ìå
-*         sps              -I         SPS½á¹¹Ìå
-*         bs               -IO        ÂëÁ÷ĞÅÏ¢½á¹¹Ìå
-* ·µ»ØÖµ£ºÎŞ
-* ±¸  ×¢£º
-***************************************************************************************************/
-HLM_VOID HLMC_HLS_GeneratPicHeader(HLM_PARAM_PPS       *pps,
-                                   HLM_PARAM_SPS       *sps,
-                                   HLMC_BITSTREAM      *bs);
-
-/***************************************************************************************************
-* ¹¦  ÄÜ£ºÉú³ÉSEI²ÎÊı¼¯
-* ²Î  Êı£º*
-*         regs             -I         ¼Ä´æÆ÷
-*         bs               -IO        ÂëÁ÷ĞÅÏ¢½á¹¹Ìå
-* ·µ»ØÖµ£ºÎŞ
-* ±¸  ×¢£º
-***************************************************************************************************/
-HLM_VOID HLMC_HLS_GeneratSEI(HLMC_REGS        *regs,
-                             HLMC_BITSTREAM   *bs);
-
-#ifdef __cplusplus
-}
-#endif
-
-#endif // _HLMC_HLS_H_
+/***************************************************************************************************
+
+The copyright in this software is being made available under the License included below.
+This software may be subject to other third party and contributor rights, including patent
+rights, and no such rights are granted under this license.
+
+Copyright (C) 2025, Hangzhou Hikvision Digital Technology Co., Ltd. All rights reserved.
+
+Redistribution and use in source and binary forms, with or without modification, are permitted
+only for the purpose of developing standards within Audio and Video Coding Standard Workgroup of
+China (AVS) and for testing and promoting such standards. The following conditions are required
+to be met:
+
+* Redistributions of source code must retain the above copyright notice, this list of
+conditions and the following disclaimer.
+* Redistributions in binary form must reproduce the above copyright notice, this list of
+conditions and the following disclaimer in the documentation and/or other materials
+provided with the distribution.
+* The name of Hangzhou Hikvision Digital Technology Co., Ltd. may not be used to endorse or
+promote products derived from this software without specific prior written permission.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR
+IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND
+FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR
+CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+POSSIBILITY OF SUCH DAMAGE.
+
+***************************************************************************************************/
+#ifndef _HLMC_HLS_H_
+#define _HLMC_HLS_H_
+
+#include "hlmc_defs.h"
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+/***************************************************************************************************
+* åŠŸ  èƒ½ï¼šå†™å¯„å­˜å™¨
+* å‚  æ•°ï¼š*
+*         spec            -I    ç®—æ³•æ¨¡å‹å¥æŸ„
+*         input           -I    ç®—æ³•æ¨¡å‹è¾“å…¥å‚æ•°ç»“æ„ä½“
+*         rec_dpb_idx     -I    é‡æ„å›¾åƒid
+*         ref_dpb_idx     -I    å‚è€ƒå›¾åƒid
+*         patch_type      -I    å½“å‰å¸§å¸§ç±»å‹
+*         regs            -O    å¯„å­˜å™¨å‚æ•°ç»“æ„ä½“
+*         rc_regs         -I    ç æ§ä¿¡æ¯
+* è¿”å›å€¼ï¼šæ— 
+* å¤‡  æ³¨ï¼š
+***************************************************************************************************/
+HLM_STATUS HLMC_HLS_WriteReg(HLM_SPEC                     *spec,
+                             HLMC_PROCESS_IN              *input,
+                             HLM_S32                       rec_dpb_idx,
+                             HLM_S32                       ref_dpb_idx,
+                             HLMC_PATCH_REF_TYPE           patch_type,
+                             HLMC_REGS                    *regs,
+                             VENC_RATE_CTRL_OUT_REGS      *rc_regs);
+
+/***************************************************************************************************
+* åŠŸ  èƒ½ï¼šè¯»å¯„å­˜å™¨
+* å‚  æ•°ï¼š*
+*         spec            -O    ç®—æ³•æ¨¡å‹å¥æŸ„
+*         output          -O    ç®—æ³•æ¨¡å‹è¾“å‡ºå‚æ•°ç»“æ„ä½“
+*         regs            -I    å¯„å­˜å™¨å‚æ•°ç»“æ„ä½“
+*         sps_pps_bits    -I    é«˜å±‚è¯­æ³•æ¯”ç‰¹æ•°
+* è¿”å›å€¼ï¼šæ— 
+* å¤‡  æ³¨ï¼š
+***************************************************************************************************/
+HLM_VOID HLMC_HLS_ReadReg(HLM_SPEC         *spec,
+                          HLMC_PROCESS_OUT *output,
+                          HLMC_REGS        *regs,
+                          HLM_U32           sps_pps_bits);
+
+/***************************************************************************************************
+* åŠŸ  èƒ½ï¼šåˆå§‹åŒ–ç¼–ç åº“spec
+* å‚  æ•°ï¼š*
+*         regs         -I    å¯„å­˜å™¨å‚æ•°ç»“æ„ä½“
+*         spec         -O    ç¡¬ä»¶æŠ½è±¡å±‚å·¥ä½œå‚æ•°é›†
+* è¿”å›å€¼ï¼šæ— 
+* å¤‡  æ³¨ï¼š
+***************************************************************************************************/
+HLM_VOID HLMC_HLS_InitSpec(HLMC_REGS *regs,
+                           HLM_SPEC  *spec);
+
+/***************************************************************************************************
+* åŠŸ  èƒ½ï¼šRAMç©ºé—´åˆ†é…
+* å‚  æ•°ï¼š*
+*        ram_buf                -I    ä¸Šå±‚å¼€è¾Ÿçš„ç¼–ç å†…å­˜
+*        cur_cu                 -O    å½“å‰cuå„å±‚PUä¿¡æ¯
+*        best_cu                -O    å½“å‰cuæœ€ä¼˜PUä¿¡æ¯
+*        nbi_info               -O    å½“å‰cuä¸Šç›¸é‚»å’Œå·¦ç›¸é‚»å‚è€ƒæ•°æ®
+*        regs                   -O    å¯„å­˜å™¨
+* è¿”å›å€¼ï¼šçŠ¶æ€ç 
+* å¤‡  æ³¨ï¼š
+***************************************************************************************************/
+HLM_STATUS HLMC_HLS_AllocRam(HLM_RAM_BUF         *ram_buf,
+                             HLMC_CU_INFO        *cur_cu,
+                             HLMC_CU_INFO        *best_cu,
+                             HLM_NEIGHBOR_INFO   *nbi_info,
+                             HLMC_REGS           *regs);
+
+/***************************************************************************************************
+* åŠŸ  èƒ½ï¼šåˆå§‹åŒ– SPSå‚æ•°é›†
+* å‚  æ•°ï¼š*
+*         coding_ctrl       -I         ç¼–ç æ¨¡å‹é…ç½®å‚æ•°
+*         sps               -O         SPSç»“æ„ä½“
+*         rate_ctrl         -I         ç æ§å‚æ•°
+* è¿”å›å€¼ï¼šæ— 
+* å¤‡  æ³¨ï¼š
+***************************************************************************************************/
+HLM_VOID HLMC_HLS_InitSeqHeader(HLMC_CODING_CTRL *coding_ctrl,
+                                HLM_PARAM_SPS    *sps,
+                                HLMC_RATE_CTRL   *rate_ctrl);
+
+/***************************************************************************************************
+* åŠŸ  èƒ½ï¼šåˆå§‹åŒ–PPSå‚æ•°é›†
+* å‚  æ•°ï¼š*
+*         coding_ctrl                   -I         ç¼–ç æ¨¡å‹é…ç½®å‚æ•°
+*         frame_type                    -I         å¸§ç±»å‹
+*         poc                           -I         å¸§å·
+*         pic_luma_qp                   -I         å›¾åƒçš„åˆå§‹qp
+*         pps                           -O         PPSç»“æ„ä½“
+* è¿”å›å€¼ï¼šæ— 
+* å¤‡  æ³¨ï¼š
+***************************************************************************************************/
+HLM_VOID HLMC_HLS_InitPicHeader(HLMC_CODING_CTRL     *coding_ctrl,
+                                HLMC_PATCH_REF_TYPE   frame_type,
+                                HLM_S32               poc,
+                                HLM_S32               pic_luma_qp,
+                                HLM_PARAM_PPS        *pps);
+
+/***************************************************************************************************
+* åŠŸ  èƒ½ï¼šç”ŸæˆSPSå‚æ•°é›†
+* å‚  æ•°ï¼š*
+*         sps              -I         SPSç»“æ„ä½“
+*         bs               -I         ç æµä¿¡æ¯ç»“æ„ä½“
+* è¿”å›å€¼ï¼šæ— 
+* å¤‡  æ³¨ï¼š
+***************************************************************************************************/
+HLM_VOID HLMC_HLS_GeneratSeqHeader(HLM_PARAM_SPS       *sps,
+                                   HLMC_BITSTREAM      *bs);
+
+/***************************************************************************************************
+* åŠŸ  èƒ½ï¼šç”Ÿæˆå›¾åƒå¤´
+* å‚  æ•°ï¼š*
+*         pps              -I         PPSç»“æ„ä½“
+*         sps              -I         SPSç»“æ„ä½“
+*         bs               -IO        ç æµä¿¡æ¯ç»“æ„ä½“
+* è¿”å›å€¼ï¼šæ— 
+* å¤‡  æ³¨ï¼š
+***************************************************************************************************/
+HLM_VOID HLMC_HLS_GeneratPicHeader(HLM_PARAM_PPS       *pps,
+                                   HLM_PARAM_SPS       *sps,
+                                   HLMC_BITSTREAM      *bs);
+
+/***************************************************************************************************
+* åŠŸ  èƒ½ï¼šç”ŸæˆSEIå‚æ•°é›†
+* å‚  æ•°ï¼š*
+*         regs             -I         å¯„å­˜å™¨
+*         bs               -IO        ç æµä¿¡æ¯ç»“æ„ä½“
+* è¿”å›å€¼ï¼šæ— 
+* å¤‡  æ³¨ï¼š
+***************************************************************************************************/
+HLM_VOID HLMC_HLS_GeneratSEI(HLMC_REGS        *regs,
+                             HLMC_BITSTREAM   *bs);
+
+#ifdef __cplusplus
+}
+#endif
+
+#endif // _HLMC_HLS_H_

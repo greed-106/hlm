@@ -1,215 +1,215 @@
-/***************************************************************************************************
-
-The copyright in this software is being made available under the License included below.
-This software may be subject to other third party and contributor rights, including patent
-rights, and no such rights are granted under this license.
-
-Copyright (C) 2025, Hangzhou Hikvision Digital Technology Co., Ltd. All rights reserved.
-
-Redistribution and use in source and binary forms, with or without modification, are permitted
-only for the purpose of developing standards within Audio and Video Coding Standard Workgroup of
-China (AVS) and for testing and promoting such standards. The following conditions are required
-to be met:
-
-* Redistributions of source code must retain the above copyright notice, this list of
-conditions and the following disclaimer.
-* Redistributions in binary form must reproduce the above copyright notice, this list of
-conditions and the following disclaimer in the documentation and/or other materials
-provided with the distribution.
-* The name of Hangzhou Hikvision Digital Technology Co., Ltd. may not be used to endorse or
-promote products derived from this software without specific prior written permission.
-
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR
-IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND
-FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR
-CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
-CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
-SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
-OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-POSSIBILITY OF SUCH DAMAGE.
-
-***************************************************************************************************/
-#ifndef _HLMC_INTRA_H_
-#define _HLMC_INTRA_H_
-
-#include "hlmc_defs.h"
-
-#ifdef __cplusplus
-extern "C" {
-#endif
-
-typedef struct _HLMC_INTRA_MODE_COST
-{
-    HLM_U32 total_cost;
-    HLM_U32 bits;
-    HLM_U32 satd;
-    HLM_U32 satd_comp[3];  // µ¥¶ÀÃ¿¸ö·ÖÁ¿µÄsatd
-} HLMC_INTRA_MODE_COST;
-
-static const HLM_U32 HLMC_INTRA_MODE_BIT_COST_16x8[HLM_INTRA_PRED_MODE_NUM_16x8] = { 3,3,5,5 };
-
-/***************************************************************************************************
-* ¹¦  ÄÜ£ºÖ¡ÄÚÄ£Ê½Ñ¡ÔñÖ÷º¯Êı
-* ²Î  Êı£º*
-*        regs                  -I    Ó²¼ş¼Ä´æÆ÷
-*        nbi_info              -I    µ±Ç°cuÏàÁÚ¿éĞÅÏ¢
-*        cur_cu                -IO   µ±Ç°cuĞÅÏ¢
-* ±¸  ×¢£º
-***************************************************************************************************/
-HLM_VOID HLMC_INTRA_MODE(HLMC_REGS            *regs,
-                         HLM_NEIGHBOR_INFO    *nbi_info,
-                         HLMC_CU_INFO         *cur_cu);
-
-#if LINE_BY_LINE
-/***************************************************************************************************
-* ¹¦  ÄÜ£ºÖğĞĞÖğÁĞÄ£Ê½³õÉ¸Ö÷º¯Êı
-* ²Î  Êı£º*
-*        regs               -I        Ó²¼ş¼Ä´æÆ÷
-*        nbi_info           -I        µ±Ç°ctuÏàÁÚ¿éĞÅÏ¢
-*        cur_cu             -IO       µ±Ç°ctuĞÅÏ¢
-* ±¸  ×¢£º
-***************************************************************************************************/
-HLM_VOID HLMC_LINE_BY_LINE_MODE(HLMC_REGS            *regs,
-                                HLM_NEIGHBOR_INFO   *nbi_info,
-                                HLMC_CU_INFO         *cur_cu);
-
-/***************************************************************************************************
-* ¹¦  ÄÜ£º»ñÈ¡16x1µÄ²Î¿¼ÏñËØ
-* ²Î  Êı£º*
-*        regs                    -I       Ó²¼ş¼Ä´æÆ÷
-*        *cur_mb                 -I       µ±Ç°ctuĞÅÏ¢
-*        *ref_pixel               -O       ²Î¿¼ÏñËØ
-*        line_index               -I       Ô¤²âĞĞ
-*        org_pixel_flag           -I       Ô­Ê¼Öµ×ö²Î¿¼±êÖ¾
-*        pred_mode                -I       Ô¤²âĞĞ
-* ·µ»ØÖµ£º
-* ±¸  ×¢£º
-***************************************************************************************************/
-HLM_VOID HLMC_INTRA_MODE_get_ref_pixel_16x1(HLMC_REGS      *regs,
-                                            HLMC_CU_INFO   *cur_mb,
-                                            HLM_U16        *ref_pixel,
-                                            HLM_U08         line_index,
-                                            HLM_U08         org_pixel_flag,
-#if  LINE_BY_LINE_4x1
-                                            HLM_U08          pred_lenght,
-#endif
-                                            HLM_U08         *pred_mode);
-/***************************************************************************************************
-* ¹¦  ÄÜ£º»ñÈ¡1x8µÄ²Î¿¼ÏñËØ
-* ²Î  Êı£º*
-*        regs                    -I       Ó²¼ş¼Ä´æÆ÷
-*        *cur_mb                 -I       µ±Ç°ctuĞÅÏ¢
-*        *ref_pixel               -O       ²Î¿¼ÏñËØ
-*        line_index               -I       Ô¤²âĞĞ
-*        org_pixel_flag           -I       Ô­Ê¼Öµ×ö²Î¿¼±êÖ¾
-*        pred_mode                -I       Ô¤²âÄ£Ê½
-* ·µ»ØÖµ£º
-* ±¸  ×¢£º
-***************************************************************************************************/
-HLM_VOID HLMC_INTRA_MODE_get_ref_pixel_1x8(HLMC_REGS      *regs,
-                                           HLMC_CU_INFO   *cur_mb,
-                                           HLM_U16        *ref_pixel,
-                                           HLM_U08         line_index,
-                                           HLM_U08         org_pixel_flag,
-#if  LINE_BY_LINE_4x1
-                                           HLM_U08         pred_lenght,
-                                           HLM_U08        *pred_mode);
-#else
-                                           HLM_U08         *pred_mode);
-#endif
-
-/***************************************************************************************************
-* ¹¦  ÄÜ£ºÖğĞĞÔ¤²â RDOÄ£¿é
-* ²Î  Êı£º*
-*        regs                 -I    µ±Ç°Êı¾İÓ²¼ş¼Ä´æÆ÷
-*        nbi_info             -I    ÏàÁÚ¿éĞÅÏ¢
-*        best_mb              -IO   ×îÓÅctu
-*        cur_mb               -IO   µ±Ç°ctu
-* ·µ»ØÖµ£ºÎŞ
-***************************************************************************************************/
-HLM_VOID HLMC_LINE_BY_LINE_RDO(HLMC_REGS              *regs,
-                               HLM_NEIGHBOR_INFO     *nbi_info,
-                               HLMC_CU_INFO           *best_mb,
-                               HLMC_CU_INFO           *cur_mb);
-/***************************************************************************************************
-* ¹¦  ÄÜ£ºÖğĞĞÔ¤²â RD¼ÆËãÄ£¿é
-* ²Î  Êı£º*
-*        regs                 -I    µ±Ç°Êı¾İÓ²¼ş¼Ä´æÆ÷
-*        distortion            -I   µ±Ç°Ä£Ê½ËğÊ§
-*        best_mb              -IO   ×îÓÅctu
-*        cur_mb               -IO   µ±Ç°ctu
-* ·µ»ØÖµ£ºÎŞ
-***************************************************************************************************/
-HLM_VOID LINE_BY_LINE_RD_CAL(HLMC_REGS              *regs,
-                             HLM_U32                 distortion,
-                             HLMC_CU_INFO           *best_cu,
-                             HLMC_CU_INFO           *cur_cu);
-
-#endif
-
-/***************************************************************************************************
-* ¹¦  ÄÜ£ºSCCÄ£Ê½³õÉ¸Ö÷º¯Êı
-* ²Î  Êı£º*
-*        regs               -I        Ó²¼ş¼Ä´æÆ÷
-*        nbi_info           -I        µ±Ç°cuÏàÁÚ¿éĞÅÏ¢
-*        cur_cu             -IO       µ±Ç°cuĞÅÏ¢
-* ±¸  ×¢£º
-***************************************************************************************************/
-HLM_U32 HLMC_SCC_MODE(HLMC_REGS            *regs,
-                      HLM_NEIGHBOR_INFO    *nbi_info,
-                      HLMC_CU_INFO         *cur_cu);
-
-/***************************************************************************************************
-* ¹¦  ÄÜ£ºÖ¡ÄÚÔ¤²âÖ÷º¯Êı
-* ²Î  Êı£º*
-*        raster_idx               -I    µ±Ç°PUµÄ¹âÕ¤É¨ÃèË÷Òı
-*        channel_size             -I    Í¨µÀ´óĞ¡
-*        regs                     -I    Ó²¼ş¼Ä´æÆ÷
-*        nbi_info                 -I    µ±Ç°cuÏàÁÚ¿éĞÅÏ¢
-*        cur_cu                   -O    µ±Ç°cuĞÅÏ¢
-* ±¸  ×¢£º
-***************************************************************************************************/
-HLM_VOID HLMC_INTRA_PRED(HLM_U32                raster_idx,
-                         HLM_U32                channel_size,
-                         HLMC_REGS             *regs,
-                         HLM_NEIGHBOR_INFO     *nbi_info,
-                         HLMC_CU_INFO          *cur_cu);
-
-/***************************************************************************************************
-* ¹¦  ÄÜ£ºÖ¡ÄÚRDOÄ£¿é
-* ²Î  Êı£º*
-*        raster_idx               -I    µ±Ç°PUµÄ¹âÕ¤É¨ÃèË÷Òı
-*        channel_size             -I    µ±Ç°Í¨µÀµÄ´óĞ¡
-*        regs                     -I    µ±Ç°Êı¾İÓ²¼ş¼Ä´æÆ÷
-*        nbi_info                 -I    ÏàÁÚ¿éĞÅÏ¢
-*        best_cu                  -O    ×îÓÅcu
-*        cur_cu                   -I    µ±Ç°cu
-* ·µ»ØÖµ£ºÎŞ
-***************************************************************************************************/
-HLM_VOID HLMC_INTRA_RDO(HLM_U32                raster_idx,
-                        HLM_U32                channel_size,
-                        HLMC_REGS             *regs,
-                        HLM_NEIGHBOR_INFO     *nbi_info,
-                        HLMC_CU_INFO          *best_cu,
-                        HLMC_CU_INFO          *cur_cu);
-
-/***************************************************************************************************
-* ¹¦  ÄÜ£ºSCC RDOÄ£¿é
-* ²Î  Êı£º*
-*        regs                 -I    µ±Ç°Êı¾İÓ²¼ş¼Ä´æÆ÷
-*        nbi_info             -I    ÏàÁÚ¿éĞÅÏ¢
-*        best_cu              -O    ×îÓÅcu
-*        cur_cu               -I    µ±Ç°cu
-* ·µ»ØÖµ£ºÎŞ
-***************************************************************************************************/
-HLM_VOID HLMC_SCC_RDO(HLMC_REGS              *regs,
-                      HLM_NEIGHBOR_INFO      *nbi_info,
-                      HLMC_CU_INFO           *best_cu,
-                      HLMC_CU_INFO           *cur_cu);
-
-#ifdef __cplusplus
-}
-#endif
-
-#endif // _HLMC_INTRA_H_
+/***************************************************************************************************
+
+The copyright in this software is being made available under the License included below.
+This software may be subject to other third party and contributor rights, including patent
+rights, and no such rights are granted under this license.
+
+Copyright (C) 2025, Hangzhou Hikvision Digital Technology Co., Ltd. All rights reserved.
+
+Redistribution and use in source and binary forms, with or without modification, are permitted
+only for the purpose of developing standards within Audio and Video Coding Standard Workgroup of
+China (AVS) and for testing and promoting such standards. The following conditions are required
+to be met:
+
+* Redistributions of source code must retain the above copyright notice, this list of
+conditions and the following disclaimer.
+* Redistributions in binary form must reproduce the above copyright notice, this list of
+conditions and the following disclaimer in the documentation and/or other materials
+provided with the distribution.
+* The name of Hangzhou Hikvision Digital Technology Co., Ltd. may not be used to endorse or
+promote products derived from this software without specific prior written permission.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR
+IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND
+FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR
+CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+POSSIBILITY OF SUCH DAMAGE.
+
+***************************************************************************************************/
+#ifndef _HLMC_INTRA_H_
+#define _HLMC_INTRA_H_
+
+#include "hlmc_defs.h"
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+typedef struct _HLMC_INTRA_MODE_COST
+{
+    HLM_U32 total_cost;
+    HLM_U32 bits;
+    HLM_U32 satd;
+    HLM_U32 satd_comp[3];  // å•ç‹¬æ¯ä¸ªåˆ†é‡çš„satd
+} HLMC_INTRA_MODE_COST;
+
+static const HLM_U32 HLMC_INTRA_MODE_BIT_COST_16x8[HLM_INTRA_PRED_MODE_NUM_16x8] = { 3,3,5,5 };
+
+/***************************************************************************************************
+* åŠŸ  èƒ½ï¼šå¸§å†…æ¨¡å¼é€‰æ‹©ä¸»å‡½æ•°
+* å‚  æ•°ï¼š*
+*        regs                  -I    ç¡¬ä»¶å¯„å­˜å™¨
+*        nbi_info              -I    å½“å‰cuç›¸é‚»å—ä¿¡æ¯
+*        cur_cu                -IO   å½“å‰cuä¿¡æ¯
+* å¤‡  æ³¨ï¼š
+***************************************************************************************************/
+HLM_VOID HLMC_INTRA_MODE(HLMC_REGS            *regs,
+                         HLM_NEIGHBOR_INFO    *nbi_info,
+                         HLMC_CU_INFO         *cur_cu);
+
+#if LINE_BY_LINE
+/***************************************************************************************************
+* åŠŸ  èƒ½ï¼šé€è¡Œé€åˆ—æ¨¡å¼åˆç­›ä¸»å‡½æ•°
+* å‚  æ•°ï¼š*
+*        regs               -I        ç¡¬ä»¶å¯„å­˜å™¨
+*        nbi_info           -I        å½“å‰ctuç›¸é‚»å—ä¿¡æ¯
+*        cur_cu             -IO       å½“å‰ctuä¿¡æ¯
+* å¤‡  æ³¨ï¼š
+***************************************************************************************************/
+HLM_VOID HLMC_LINE_BY_LINE_MODE(HLMC_REGS            *regs,
+                                HLM_NEIGHBOR_INFO   *nbi_info,
+                                HLMC_CU_INFO         *cur_cu);
+
+/***************************************************************************************************
+* åŠŸ  èƒ½ï¼šè·å–16x1çš„å‚è€ƒåƒç´ 
+* å‚  æ•°ï¼š*
+*        regs                    -I       ç¡¬ä»¶å¯„å­˜å™¨
+*        *cur_mb                 -I       å½“å‰ctuä¿¡æ¯
+*        *ref_pixel               -O       å‚è€ƒåƒç´ 
+*        line_index               -I       é¢„æµ‹è¡Œ
+*        org_pixel_flag           -I       åŸå§‹å€¼åšå‚è€ƒæ ‡å¿—
+*        pred_mode                -I       é¢„æµ‹è¡Œ
+* è¿”å›å€¼ï¼š
+* å¤‡  æ³¨ï¼š
+***************************************************************************************************/
+HLM_VOID HLMC_INTRA_MODE_get_ref_pixel_16x1(HLMC_REGS      *regs,
+                                            HLMC_CU_INFO   *cur_mb,
+                                            HLM_U16        *ref_pixel,
+                                            HLM_U08         line_index,
+                                            HLM_U08         org_pixel_flag,
+#if  LINE_BY_LINE_4x1
+                                            HLM_U08          pred_lenght,
+#endif
+                                            HLM_U08         *pred_mode);
+/***************************************************************************************************
+* åŠŸ  èƒ½ï¼šè·å–1x8çš„å‚è€ƒåƒç´ 
+* å‚  æ•°ï¼š*
+*        regs                    -I       ç¡¬ä»¶å¯„å­˜å™¨
+*        *cur_mb                 -I       å½“å‰ctuä¿¡æ¯
+*        *ref_pixel               -O       å‚è€ƒåƒç´ 
+*        line_index               -I       é¢„æµ‹è¡Œ
+*        org_pixel_flag           -I       åŸå§‹å€¼åšå‚è€ƒæ ‡å¿—
+*        pred_mode                -I       é¢„æµ‹æ¨¡å¼
+* è¿”å›å€¼ï¼š
+* å¤‡  æ³¨ï¼š
+***************************************************************************************************/
+HLM_VOID HLMC_INTRA_MODE_get_ref_pixel_1x8(HLMC_REGS      *regs,
+                                           HLMC_CU_INFO   *cur_mb,
+                                           HLM_U16        *ref_pixel,
+                                           HLM_U08         line_index,
+                                           HLM_U08         org_pixel_flag,
+#if  LINE_BY_LINE_4x1
+                                           HLM_U08         pred_lenght,
+                                           HLM_U08        *pred_mode);
+#else
+                                           HLM_U08         *pred_mode);
+#endif
+
+/***************************************************************************************************
+* åŠŸ  èƒ½ï¼šé€è¡Œé¢„æµ‹ RDOæ¨¡å—
+* å‚  æ•°ï¼š*
+*        regs                 -I    å½“å‰æ•°æ®ç¡¬ä»¶å¯„å­˜å™¨
+*        nbi_info             -I    ç›¸é‚»å—ä¿¡æ¯
+*        best_mb              -IO   æœ€ä¼˜ctu
+*        cur_mb               -IO   å½“å‰ctu
+* è¿”å›å€¼ï¼šæ— 
+***************************************************************************************************/
+HLM_VOID HLMC_LINE_BY_LINE_RDO(HLMC_REGS              *regs,
+                               HLM_NEIGHBOR_INFO     *nbi_info,
+                               HLMC_CU_INFO           *best_mb,
+                               HLMC_CU_INFO           *cur_mb);
+/***************************************************************************************************
+* åŠŸ  èƒ½ï¼šé€è¡Œé¢„æµ‹ RDè®¡ç®—æ¨¡å—
+* å‚  æ•°ï¼š*
+*        regs                 -I    å½“å‰æ•°æ®ç¡¬ä»¶å¯„å­˜å™¨
+*        distortion            -I   å½“å‰æ¨¡å¼æŸå¤±
+*        best_mb              -IO   æœ€ä¼˜ctu
+*        cur_mb               -IO   å½“å‰ctu
+* è¿”å›å€¼ï¼šæ— 
+***************************************************************************************************/
+HLM_VOID LINE_BY_LINE_RD_CAL(HLMC_REGS              *regs,
+                             HLM_U32                 distortion,
+                             HLMC_CU_INFO           *best_cu,
+                             HLMC_CU_INFO           *cur_cu);
+
+#endif
+
+/***************************************************************************************************
+* åŠŸ  èƒ½ï¼šSCCæ¨¡å¼åˆç­›ä¸»å‡½æ•°
+* å‚  æ•°ï¼š*
+*        regs               -I        ç¡¬ä»¶å¯„å­˜å™¨
+*        nbi_info           -I        å½“å‰cuç›¸é‚»å—ä¿¡æ¯
+*        cur_cu             -IO       å½“å‰cuä¿¡æ¯
+* å¤‡  æ³¨ï¼š
+***************************************************************************************************/
+HLM_U32 HLMC_SCC_MODE(HLMC_REGS            *regs,
+                      HLM_NEIGHBOR_INFO    *nbi_info,
+                      HLMC_CU_INFO         *cur_cu);
+
+/***************************************************************************************************
+* åŠŸ  èƒ½ï¼šå¸§å†…é¢„æµ‹ä¸»å‡½æ•°
+* å‚  æ•°ï¼š*
+*        raster_idx               -I    å½“å‰PUçš„å…‰æ …æ‰«æç´¢å¼•
+*        channel_size             -I    é€šé“å¤§å°
+*        regs                     -I    ç¡¬ä»¶å¯„å­˜å™¨
+*        nbi_info                 -I    å½“å‰cuç›¸é‚»å—ä¿¡æ¯
+*        cur_cu                   -O    å½“å‰cuä¿¡æ¯
+* å¤‡  æ³¨ï¼š
+***************************************************************************************************/
+HLM_VOID HLMC_INTRA_PRED(HLM_U32                raster_idx,
+                         HLM_U32                channel_size,
+                         HLMC_REGS             *regs,
+                         HLM_NEIGHBOR_INFO     *nbi_info,
+                         HLMC_CU_INFO          *cur_cu);
+
+/***************************************************************************************************
+* åŠŸ  èƒ½ï¼šå¸§å†…RDOæ¨¡å—
+* å‚  æ•°ï¼š*
+*        raster_idx               -I    å½“å‰PUçš„å…‰æ …æ‰«æç´¢å¼•
+*        channel_size             -I    å½“å‰é€šé“çš„å¤§å°
+*        regs                     -I    å½“å‰æ•°æ®ç¡¬ä»¶å¯„å­˜å™¨
+*        nbi_info                 -I    ç›¸é‚»å—ä¿¡æ¯
+*        best_cu                  -O    æœ€ä¼˜cu
+*        cur_cu                   -I    å½“å‰cu
+* è¿”å›å€¼ï¼šæ— 
+***************************************************************************************************/
+HLM_VOID HLMC_INTRA_RDO(HLM_U32                raster_idx,
+                        HLM_U32                channel_size,
+                        HLMC_REGS             *regs,
+                        HLM_NEIGHBOR_INFO     *nbi_info,
+                        HLMC_CU_INFO          *best_cu,
+                        HLMC_CU_INFO          *cur_cu);
+
+/***************************************************************************************************
+* åŠŸ  èƒ½ï¼šSCC RDOæ¨¡å—
+* å‚  æ•°ï¼š*
+*        regs                 -I    å½“å‰æ•°æ®ç¡¬ä»¶å¯„å­˜å™¨
+*        nbi_info             -I    ç›¸é‚»å—ä¿¡æ¯
+*        best_cu              -O    æœ€ä¼˜cu
+*        cur_cu               -I    å½“å‰cu
+* è¿”å›å€¼ï¼šæ— 
+***************************************************************************************************/
+HLM_VOID HLMC_SCC_RDO(HLMC_REGS              *regs,
+                      HLM_NEIGHBOR_INFO      *nbi_info,
+                      HLMC_CU_INFO           *best_cu,
+                      HLMC_CU_INFO           *cur_cu);
+
+#ifdef __cplusplus
+}
+#endif
+
+#endif // _HLMC_INTRA_H_

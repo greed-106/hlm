@@ -1,205 +1,205 @@
-/***************************************************************************************************
-
-The copyright in this software is being made available under the License included below.
-This software may be subject to other third party and contributor rights, including patent
-rights, and no such rights are granted under this license.
-
-Copyright (C) 2025, Hangzhou Hikvision Digital Technology Co., Ltd. All rights reserved.
-
-Redistribution and use in source and binary forms, with or without modification, are permitted
-only for the purpose of developing standards within Audio and Video Coding Standard Workgroup of
-China (AVS) and for testing and promoting such standards. The following conditions are required
-to be met:
-
-* Redistributions of source code must retain the above copyright notice, this list of
-conditions and the following disclaimer.
-* Redistributions in binary form must reproduce the above copyright notice, this list of
-conditions and the following disclaimer in the documentation and/or other materials
-provided with the distribution.
-* The name of Hangzhou Hikvision Digital Technology Co., Ltd. may not be used to endorse or
-promote products derived from this software without specific prior written permission.
-
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR
-IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND
-FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR
-CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
-CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
-SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
-OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-POSSIBILITY OF SUCH DAMAGE.
-
-***************************************************************************************************/
-#ifndef _HLMC_CASE_LIB_H_
-#define _HLMC_CASE_LIB_H_
-
-#include "hlmc_lib.h"
-
-#ifdef __cplusplus
-extern "C" {
-#endif
-
-#define HLMC_CFG_MAX_ITEMS     (512)           // ◊Ó∂‡ø…Ω‚Œˆµƒ≈‰÷√œÓ ˝¡ø
-#define HLMC_FILE_PATH_SIZE    (256)           // À„∑®ƒ£–Õ ‰»Î ‰≥ˆŒƒº˛√˚£®∫¨¬∑æ∂£©µƒ◊Ó¥Û≥ﬂ¥Á
-
-// ”√ªß≈‰÷√µƒ≤‚ ‘”√¿˝≤Œ ˝
-typedef struct _HLMC_CASE_CFG_PARAM
-{
-    char input_file[HLMC_FILE_PATH_SIZE];
-    char output_file[HLMC_FILE_PATH_SIZE];
-    char rec_file[HLMC_FILE_PATH_SIZE];
-#if WRITE_PARAMETERS
-    char param_file[HLMC_FILE_PATH_SIZE];
-#endif
-    HLM_U32 rec_flag;
-    HLM_S32 total_frames;
-    char patch_x[HLMC_FILE_PATH_SIZE << 2];    // ◊Ó∂‡256∏ˆpatch£¨√ø∏ˆ–≈œ¢”√4∏ˆ∑˚∫≈
-    char patch_y[HLMC_FILE_PATH_SIZE << 2];
-    char patch_width[HLMC_FILE_PATH_SIZE << 2];
-    char patch_height[HLMC_FILE_PATH_SIZE << 2];
-} HLMC_CASE_CFG_PARAM;
-
-// øÿ÷∆√¸¡Ó––Ω·ππÃÂ
-typedef struct _HLMC_DEMO_CMD
-{
-    char *file_cfg;                     // ≈‰÷√Œƒº˛√˚         -c
-    char *file_log;                     // ‘À––»’÷æŒƒº˛√˚     -l
-    FILE *fp_cfg;                       // ≈‰÷√Œƒº˛÷∏’Î
-    FILE *fp_log;                       // ‘À––»’÷æŒƒº˛÷∏’Î
-    char *file_input;                   // ¥˝±‡¬ÎyuvŒƒº˛√˚    -i
-    char *file_output;                  // ±‡¬Î¬Î¡˜Œƒº˛√˚     -o
-    char *file_rec;                     // ±‡¬Î÷ÿππŒƒº˛√˚     -rec
-    int rec_on;                         // ÷ÿππyuv ‰≥ˆø™πÿ    -recon
-
-    // –Ú¡–≤Œ ˝
-    int frame_num;                      // ¥˝±‡¬Î÷° ˝        -fn
-    int width;                          //  ‰»ÎyuvµƒøÌ       -wdt
-    int height;                         //  ‰»Îyuvµƒ∏ﬂ       -hgt
-    int uniform_patch_split;            //  «∑Òæ˘‘»ªÆ∑÷patch
-    char *patch_x;                      // patch∫·◊¯±Í
-    char *patch_y;                      // patch◊›◊¯±Í
-    char *patch_width;                  // patchøÌ∂»
-    char *patch_height;                 // patch∏ﬂ∂»
-    int i_frame_enable_ibc;             // I÷° «∑Òø™∆ÙIBCºº ı
-    int p_frame_enable_ibc;             // P÷° «∑Òø™∆ÙIBCºº ı
-    int mv_ref_cross_patch;             // MV≤Œøº «∑Ò‘ –ÌøÁPatch
-    int mv_search_width;                // MVÀ—À˜«¯”ÚµƒøÌ∂»
-    int mv_search_height;               // MVÀ—À˜«¯”Úµƒ∏ﬂ∂»
-    int frame_rate_num;                 // ÷°¬ ∑÷◊”≤ø∑÷      -fr
-    int frame_rate_den;                 // ÷°¬ ∑÷ƒ∏≤ø∑÷      -fd
-    int intra_period;                   // I÷°º‰∏Ù           -I
-    int bitdepth;                       // ±»Ãÿ…Ó∂»
-    int intra_8x8_enable_flag;          //  «∑Òintra8x8
-    int img_format;                     // ÕºœÒ∏Ò Ω£¨0£∫yuv444, 1: rgb
-
-    //¬Îøÿ≤Œ ˝
-    int rc_mode;                        // rcƒ£ Ω£¨0Œ™πÿ±’    -rc
-    int bpp_i;                          // I÷°BPP * 16
-    int bpp_p;                          // P÷°BPP * 16
-    int rc_buffer_size_log2;            // ÷µŒ™0±Ì æ≤…”√ƒ¨»œ≤Œ ˝
-    int minqp;                          // minqp             -minqp
-    int maxqp;                          // maxqp             -maxqp
-    int iminqp;                         // I÷°minqp          -iminqp
-    int imaxqp;                         // I÷°maxqp          -imaxqp
-    int initqp;                         // rcø™∆Ù ±Œ™ ◊÷°qp£¨rcπÿ±’ ±Œ™∂®qpµƒ÷µ   -q
-    int qp_i;                           //I÷°∂®QP…Ë÷√
-    int qp_p;                           //P÷°∂®QP…Ë÷√
-} HLMC_DEMO_CMD;
-
-typedef struct _HLMC_CFG_TOKEN_MAPPING
-{
-  HLM_S08  *token_name;
-  HLM_VOID *place;
-  HLM_S32   type;
-} HLMC_CFG_TOKEN_MAPPING;
-
-typedef struct _HLM_MSE_INFO
-{
-    HLM_F64 frame_mse[3];      // »˝∑÷¡øµƒ÷°º∂MSE
-    HLM_F64 max_block_mse[3];  // »˝∑÷¡øµƒ◊Ó¥ÛøÈº∂MSE
-    HLM_S32 bmse_cu_x[3];      // »˝∑÷¡øµƒ◊Ó¥ÛøÈº∂MSE∂‘”¶µƒ∫ÍøÈ◊¯±Í
-    HLM_S32 bmse_cu_y[3];
-} HLM_MSE_INFO;
-
-extern HLMC_CASE_CFG_PARAM  case_cfg_param;    // ”√ªßø…≈‰÷√µƒ≤‚ ‘”√¿˝≤Œ ˝
-extern HLMC_ABILITY         ability;           // ƒ‹¡¶ºØ≤Œ ˝
-extern HLMC_CODING_CTRL     coding_ctrl;       // –Ú¡–º∂±‡¬Îøÿ÷∆≤Œ ˝
-extern HLMC_RATE_CTRL       rate_ctrl;         // ¬Î¬ øÿ÷∆≤Œ ˝
-extern HLMC_DPB_REF_CTRL    dpb_ref_ctrl;      // ≤Œøº≈‰÷√≤Œ ˝
-extern HLMC_PROCESS_IN      prc_in;            //  ‰»Î–≈œ¢Ω·ππÃÂ
-extern HLMC_PROCESS_OUT     prc_out;           //  ‰≥ˆ–≈œ¢Ω·ππÃÂ
-
-/***************************************************************************************************
-* π¶  ƒ‹£∫∂¡»°≤‚ ‘”√¿˝≈‰÷√Œƒº˛ƒ⁄»›
-* ≤Œ   ˝£∫*
-*         fp_cfg               -I         ≤‚ ‘”√¿˝≈‰÷√Œƒº˛÷∏’Î
-*         fp_log               -O         ‘À––»’÷æŒƒº˛÷∏’Î
-* ∑µªÿ÷µ£∫0£∫≥…π¶£ª-1£∫ ß∞‹
-* ±∏  ◊¢£∫
-***************************************************************************************************/
-HLM_S32 HLMC_CASE_ReadCfgFile(FILE *fp_cfg,
-                              FILE *fp_log);
-
-/***************************************************************************************************
-* π¶  ƒ‹£∫¥¥Ω®À„∑®ƒ£–Õæ‰±˙
-* ≤Œ   ˝£∫*
-*         mem_tab              -I         ƒ⁄¥Ê÷∏’Î£¨”…Õ‚ΩÁÕ≥“ªπ‹¿Ì
-*         handle               -O         À„∑®ƒ£–Õæ‰±˙
-*         fp_log               -O         logŒƒº˛÷∏’Î
-* ∑µªÿ÷µ£∫0£∫≥…π¶£¨∆‰À˚£∫ ß∞‹
-* ±∏  ◊¢£∫
-***************************************************************************************************/
-HLM_S32 HLMC_CASE_CreateHandle(HLM_MEM_TAB     mem_tab[HLM_MEM_TAB_NUM],
-                               HLM_VOID      **handle,
-                               FILE           *fp_log);
-
-/***************************************************************************************************
-* π¶  ƒ‹£∫œ˙ªŸÀ„∑®ƒ£–Õæ‰±˙
-* ≤Œ   ˝£∫*
-*         mem_tab              -I         ƒ⁄¥Ê÷∏’Î£¨”…Õ‚ΩÁÕ≥“ªπ‹¿Ì
-*         handle               -O         À„∑®ƒ£–Õæ‰±˙
-*         fp_log               -O         logŒƒº˛÷∏’Î
-* ∑µªÿ÷µ£∫0£∫≥…π¶£¨∆‰À˚£∫ ß∞‹
-* ±∏  ◊¢£∫
-***************************************************************************************************/
-HLM_S32 HLMC_CASE_DestroyHandle(HLM_MEM_TAB     mem_tab[HLM_MEM_TAB_NUM],
-                                HLM_VOID       *handle,
-                                FILE           *fp_log);
-
-/***************************************************************************************************
-* π¶  ƒ‹£∫ªÒ»°±‡¬ÎÀ„∑®ƒ£–Õµƒ∞Ê±æ∫Õ ±º‰
-* ≤Œ   ˝£∫Œﬁ
-* ∑µªÿ÷µ£∫±‡¬ÎÀ„∑®ƒ£–Õ∞Ê±æ∫Õ ±º‰
-* ±∏  ◊¢£∫∞Ê±æ–≈œ¢∏Ò ΩŒ™£∫÷˜∞Ê±æ∫≈£®6Œª£©£´◊”∞Ê±æ∫≈£®5Œª£©£´–ﬁ’˝∞Ê±æ∫≈£®5Œª£©
-***************************************************************************************************/
-HLM_U32 HLMC_CASE_GetVersion();
-
-/***************************************************************************************************
-* π¶  ƒ‹£∫¥¶¿Ì“ª∏ˆ≤‚ ‘”√¿˝
-* ≤Œ   ˝£∫*
-*         handle               -I         À„∑®ƒ£–Õæ‰±˙
-*         fp_log               -O         logŒƒº˛÷∏’Î
-* ∑µªÿ÷µ£∫0£∫≥…π¶£¨∆‰À˚£∫ ß∞‹
-* ±∏  ◊¢£∫
-***************************************************************************************************/
-HLM_S32 HLMC_CASE_ProcessSequence(HLM_VOID *handle,
-                                  FILE     *fp_log);
-
-/***************************************************************************************************
-* π¶  ƒ‹£∫¥¶¿Ì“ª∏ˆ≤‚ ‘”√¿˝
-* ≤Œ   ˝£∫*
-*         fp_cfg               -I         ≤‚ ‘”√¿˝≈‰÷√Œƒº˛√˚
-*         fp_log               -O         logŒƒº˛÷∏’Î
-*         cmd                  -I         √¸¡Ó––≤Œ ˝
-* ∑µªÿ÷µ£∫0£∫≥…π¶£ª-1£∫ ß∞‹
-* ±∏  ◊¢£∫
-***************************************************************************************************/
-HLM_S32 HLMC_CASE_Process(FILE           *fp_cfg,
-                          FILE           *fp_log,
-                          HLMC_DEMO_CMD  *cmd);
-
-#ifdef __cplusplus
-}
-#endif
-
-#endif // _HLMC_CASE_LIB_H_
+/***************************************************************************************************
+
+The copyright in this software is being made available under the License included below.
+This software may be subject to other third party and contributor rights, including patent
+rights, and no such rights are granted under this license.
+
+Copyright (C) 2025, Hangzhou Hikvision Digital Technology Co., Ltd. All rights reserved.
+
+Redistribution and use in source and binary forms, with or without modification, are permitted
+only for the purpose of developing standards within Audio and Video Coding Standard Workgroup of
+China (AVS) and for testing and promoting such standards. The following conditions are required
+to be met:
+
+* Redistributions of source code must retain the above copyright notice, this list of
+conditions and the following disclaimer.
+* Redistributions in binary form must reproduce the above copyright notice, this list of
+conditions and the following disclaimer in the documentation and/or other materials
+provided with the distribution.
+* The name of Hangzhou Hikvision Digital Technology Co., Ltd. may not be used to endorse or
+promote products derived from this software without specific prior written permission.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR
+IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND
+FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR
+CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+POSSIBILITY OF SUCH DAMAGE.
+
+***************************************************************************************************/
+#ifndef _HLMC_CASE_LIB_H_
+#define _HLMC_CASE_LIB_H_
+
+#include "hlmc_lib.h"
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+#define HLMC_CFG_MAX_ITEMS     (512)           // ÊúÄÂ§öÂèØËß£ÊûêÁöÑÈÖçÁΩÆÈ°πÊï∞Èáè
+#define HLMC_FILE_PATH_SIZE    (256)           // ÁÆóÊ≥ïÊ®°ÂûãËæìÂÖ•ËæìÂá∫Êñá‰ª∂ÂêçÔºàÂê´Ë∑ØÂæÑÔºâÁöÑÊúÄÂ§ßÂ∞∫ÂØ∏
+
+// Áî®Êà∑ÈÖçÁΩÆÁöÑÊµãËØïÁî®‰æãÂèÇÊï∞
+typedef struct _HLMC_CASE_CFG_PARAM
+{
+    char input_file[HLMC_FILE_PATH_SIZE];
+    char output_file[HLMC_FILE_PATH_SIZE];
+    char rec_file[HLMC_FILE_PATH_SIZE];
+#if WRITE_PARAMETERS
+    char param_file[HLMC_FILE_PATH_SIZE];
+#endif
+    HLM_U32 rec_flag;
+    HLM_S32 total_frames;
+    char patch_x[HLMC_FILE_PATH_SIZE << 2];    // ÊúÄÂ§ö256‰∏™patchÔºåÊØè‰∏™‰ø°ÊÅØÁî®4‰∏™Á¨¶Âè∑
+    char patch_y[HLMC_FILE_PATH_SIZE << 2];
+    char patch_width[HLMC_FILE_PATH_SIZE << 2];
+    char patch_height[HLMC_FILE_PATH_SIZE << 2];
+} HLMC_CASE_CFG_PARAM;
+
+// ÊéßÂà∂ÂëΩ‰ª§Ë°åÁªìÊûÑ‰Ωì
+typedef struct _HLMC_DEMO_CMD
+{
+    char *file_cfg;                     // ÈÖçÁΩÆÊñá‰ª∂Âêç         -c
+    char *file_log;                     // ËøêË°åÊó•ÂøóÊñá‰ª∂Âêç     -l
+    FILE *fp_cfg;                       // ÈÖçÁΩÆÊñá‰ª∂ÊåáÈíà
+    FILE *fp_log;                       // ËøêË°åÊó•ÂøóÊñá‰ª∂ÊåáÈíà
+    char *file_input;                   // ÂæÖÁºñÁ†ÅyuvÊñá‰ª∂Âêç    -i
+    char *file_output;                  // ÁºñÁ†ÅÁ†ÅÊµÅÊñá‰ª∂Âêç     -o
+    char *file_rec;                     // ÁºñÁ†ÅÈáçÊûÑÊñá‰ª∂Âêç     -rec
+    int rec_on;                         // ÈáçÊûÑyuvËæìÂá∫ÂºÄÂÖ≥    -recon
+
+    // Â∫èÂàóÂèÇÊï∞
+    int frame_num;                      // ÂæÖÁºñÁ†ÅÂ∏ßÊï∞        -fn
+    int width;                          // ËæìÂÖ•yuvÁöÑÂÆΩ       -wdt
+    int height;                         // ËæìÂÖ•yuvÁöÑÈ´ò       -hgt
+    int uniform_patch_split;            // ÊòØÂê¶ÂùáÂåÄÂàíÂàÜpatch
+    char *patch_x;                      // patchÊ®™ÂùêÊ†á
+    char *patch_y;                      // patchÁ∫µÂùêÊ†á
+    char *patch_width;                  // patchÂÆΩÂ∫¶
+    char *patch_height;                 // patchÈ´òÂ∫¶
+    int i_frame_enable_ibc;             // IÂ∏ßÊòØÂê¶ÂºÄÂêØIBCÊäÄÊúØ
+    int p_frame_enable_ibc;             // PÂ∏ßÊòØÂê¶ÂºÄÂêØIBCÊäÄÊúØ
+    int mv_ref_cross_patch;             // MVÂèÇËÄÉÊòØÂê¶ÂÖÅËÆ∏Ë∑®Patch
+    int mv_search_width;                // MVÊêúÁ¥¢Âå∫ÂüüÁöÑÂÆΩÂ∫¶
+    int mv_search_height;               // MVÊêúÁ¥¢Âå∫ÂüüÁöÑÈ´òÂ∫¶
+    int frame_rate_num;                 // Â∏ßÁéáÂàÜÂ≠êÈÉ®ÂàÜ      -fr
+    int frame_rate_den;                 // Â∏ßÁéáÂàÜÊØçÈÉ®ÂàÜ      -fd
+    int intra_period;                   // IÂ∏ßÈó¥Èöî           -I
+    int bitdepth;                       // ÊØîÁâπÊ∑±Â∫¶
+    int intra_8x8_enable_flag;          // ÊòØÂê¶intra8x8
+    int img_format;                     // ÂõæÂÉèÊ†ºÂºèÔºå0Ôºöyuv444, 1: rgb
+
+    //Á†ÅÊéßÂèÇÊï∞
+    int rc_mode;                        // rcÊ®°ÂºèÔºå0‰∏∫ÂÖ≥Èó≠    -rc
+    int bpp_i;                          // IÂ∏ßBPP * 16
+    int bpp_p;                          // PÂ∏ßBPP * 16
+    int rc_buffer_size_log2;            // ÂÄº‰∏∫0Ë°®Á§∫ÈááÁî®ÈªòËÆ§ÂèÇÊï∞
+    int minqp;                          // minqp             -minqp
+    int maxqp;                          // maxqp             -maxqp
+    int iminqp;                         // IÂ∏ßminqp          -iminqp
+    int imaxqp;                         // IÂ∏ßmaxqp          -imaxqp
+    int initqp;                         // rcÂºÄÂêØÊó∂‰∏∫È¶ñÂ∏ßqpÔºårcÂÖ≥Èó≠Êó∂‰∏∫ÂÆöqpÁöÑÂÄº   -q
+    int qp_i;                           //IÂ∏ßÂÆöQPËÆæÁΩÆ
+    int qp_p;                           //PÂ∏ßÂÆöQPËÆæÁΩÆ
+} HLMC_DEMO_CMD;
+
+typedef struct _HLMC_CFG_TOKEN_MAPPING
+{
+  HLM_S08  *token_name;
+  HLM_VOID *place;
+  HLM_S32   type;
+} HLMC_CFG_TOKEN_MAPPING;
+
+typedef struct _HLM_MSE_INFO
+{
+    HLM_F64 frame_mse[3];      // ‰∏âÂàÜÈáèÁöÑÂ∏ßÁ∫ßMSE
+    HLM_F64 max_block_mse[3];  // ‰∏âÂàÜÈáèÁöÑÊúÄÂ§ßÂùóÁ∫ßMSE
+    HLM_S32 bmse_cu_x[3];      // ‰∏âÂàÜÈáèÁöÑÊúÄÂ§ßÂùóÁ∫ßMSEÂØπÂ∫îÁöÑÂÆèÂùóÂùêÊ†á
+    HLM_S32 bmse_cu_y[3];
+} HLM_MSE_INFO;
+
+extern HLMC_CASE_CFG_PARAM  case_cfg_param;    // Áî®Êà∑ÂèØÈÖçÁΩÆÁöÑÊµãËØïÁî®‰æãÂèÇÊï∞
+extern HLMC_ABILITY         ability;           // ËÉΩÂäõÈõÜÂèÇÊï∞
+extern HLMC_CODING_CTRL     coding_ctrl;       // Â∫èÂàóÁ∫ßÁºñÁ†ÅÊéßÂà∂ÂèÇÊï∞
+extern HLMC_RATE_CTRL       rate_ctrl;         // Á†ÅÁéáÊéßÂà∂ÂèÇÊï∞
+extern HLMC_DPB_REF_CTRL    dpb_ref_ctrl;      // ÂèÇËÄÉÈÖçÁΩÆÂèÇÊï∞
+extern HLMC_PROCESS_IN      prc_in;            // ËæìÂÖ•‰ø°ÊÅØÁªìÊûÑ‰Ωì
+extern HLMC_PROCESS_OUT     prc_out;           // ËæìÂá∫‰ø°ÊÅØÁªìÊûÑ‰Ωì
+
+/***************************************************************************************************
+* Âäü  ËÉΩÔºöËØªÂèñÊµãËØïÁî®‰æãÈÖçÁΩÆÊñá‰ª∂ÂÜÖÂÆπ
+* ÂèÇ  Êï∞Ôºö*
+*         fp_cfg               -I         ÊµãËØïÁî®‰æãÈÖçÁΩÆÊñá‰ª∂ÊåáÈíà
+*         fp_log               -O         ËøêË°åÊó•ÂøóÊñá‰ª∂ÊåáÈíà
+* ËøîÂõûÂÄºÔºö0ÔºöÊàêÂäüÔºõ-1ÔºöÂ§±Ë¥•
+* Â§á  Ê≥®Ôºö
+***************************************************************************************************/
+HLM_S32 HLMC_CASE_ReadCfgFile(FILE *fp_cfg,
+                              FILE *fp_log);
+
+/***************************************************************************************************
+* Âäü  ËÉΩÔºöÂàõÂª∫ÁÆóÊ≥ïÊ®°ÂûãÂè•ÊüÑ
+* ÂèÇ  Êï∞Ôºö*
+*         mem_tab              -I         ÂÜÖÂ≠òÊåáÈíàÔºåÁî±Â§ñÁïåÁªü‰∏ÄÁÆ°ÁêÜ
+*         handle               -O         ÁÆóÊ≥ïÊ®°ÂûãÂè•ÊüÑ
+*         fp_log               -O         logÊñá‰ª∂ÊåáÈíà
+* ËøîÂõûÂÄºÔºö0ÔºöÊàêÂäüÔºåÂÖ∂‰ªñÔºöÂ§±Ë¥•
+* Â§á  Ê≥®Ôºö
+***************************************************************************************************/
+HLM_S32 HLMC_CASE_CreateHandle(HLM_MEM_TAB     mem_tab[HLM_MEM_TAB_NUM],
+                               HLM_VOID      **handle,
+                               FILE           *fp_log);
+
+/***************************************************************************************************
+* Âäü  ËÉΩÔºöÈîÄÊØÅÁÆóÊ≥ïÊ®°ÂûãÂè•ÊüÑ
+* ÂèÇ  Êï∞Ôºö*
+*         mem_tab              -I         ÂÜÖÂ≠òÊåáÈíàÔºåÁî±Â§ñÁïåÁªü‰∏ÄÁÆ°ÁêÜ
+*         handle               -O         ÁÆóÊ≥ïÊ®°ÂûãÂè•ÊüÑ
+*         fp_log               -O         logÊñá‰ª∂ÊåáÈíà
+* ËøîÂõûÂÄºÔºö0ÔºöÊàêÂäüÔºåÂÖ∂‰ªñÔºöÂ§±Ë¥•
+* Â§á  Ê≥®Ôºö
+***************************************************************************************************/
+HLM_S32 HLMC_CASE_DestroyHandle(HLM_MEM_TAB     mem_tab[HLM_MEM_TAB_NUM],
+                                HLM_VOID       *handle,
+                                FILE           *fp_log);
+
+/***************************************************************************************************
+* Âäü  ËÉΩÔºöËé∑ÂèñÁºñÁ†ÅÁÆóÊ≥ïÊ®°ÂûãÁöÑÁâàÊú¨ÂíåÊó∂Èó¥
+* ÂèÇ  Êï∞ÔºöÊó†
+* ËøîÂõûÂÄºÔºöÁºñÁ†ÅÁÆóÊ≥ïÊ®°ÂûãÁâàÊú¨ÂíåÊó∂Èó¥
+* Â§á  Ê≥®ÔºöÁâàÊú¨‰ø°ÊÅØÊ†ºÂºè‰∏∫Ôºö‰∏ªÁâàÊú¨Âè∑Ôºà6‰ΩçÔºâÔºãÂ≠êÁâàÊú¨Âè∑Ôºà5‰ΩçÔºâÔºã‰øÆÊ≠£ÁâàÊú¨Âè∑Ôºà5‰ΩçÔºâ
+***************************************************************************************************/
+HLM_U32 HLMC_CASE_GetVersion();
+
+/***************************************************************************************************
+* Âäü  ËÉΩÔºöÂ§ÑÁêÜ‰∏Ä‰∏™ÊµãËØïÁî®‰æã
+* ÂèÇ  Êï∞Ôºö*
+*         handle               -I         ÁÆóÊ≥ïÊ®°ÂûãÂè•ÊüÑ
+*         fp_log               -O         logÊñá‰ª∂ÊåáÈíà
+* ËøîÂõûÂÄºÔºö0ÔºöÊàêÂäüÔºåÂÖ∂‰ªñÔºöÂ§±Ë¥•
+* Â§á  Ê≥®Ôºö
+***************************************************************************************************/
+HLM_S32 HLMC_CASE_ProcessSequence(HLM_VOID *handle,
+                                  FILE     *fp_log);
+
+/***************************************************************************************************
+* Âäü  ËÉΩÔºöÂ§ÑÁêÜ‰∏Ä‰∏™ÊµãËØïÁî®‰æã
+* ÂèÇ  Êï∞Ôºö*
+*         fp_cfg               -I         ÊµãËØïÁî®‰æãÈÖçÁΩÆÊñá‰ª∂Âêç
+*         fp_log               -O         logÊñá‰ª∂ÊåáÈíà
+*         cmd                  -I         ÂëΩ‰ª§Ë°åÂèÇÊï∞
+* ËøîÂõûÂÄºÔºö0ÔºöÊàêÂäüÔºõ-1ÔºöÂ§±Ë¥•
+* Â§á  Ê≥®Ôºö
+***************************************************************************************************/
+HLM_S32 HLMC_CASE_Process(FILE           *fp_cfg,
+                          FILE           *fp_log,
+                          HLMC_DEMO_CMD  *cmd);
+
+#ifdef __cplusplus
+}
+#endif
+
+#endif // _HLMC_CASE_LIB_H_

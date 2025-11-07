@@ -1,131 +1,131 @@
-/***************************************************************************************************
-
-The copyright in this software is being made available under the License included below.
-This software may be subject to other third party and contributor rights, including patent
-rights, and no such rights are granted under this license.
-
-Copyright (C) 2025, Hangzhou Hikvision Digital Technology Co., Ltd. All rights reserved.
-
-Redistribution and use in source and binary forms, with or without modification, are permitted
-only for the purpose of developing standards within Audio and Video Coding Standard Workgroup of
-China (AVS) and for testing and promoting such standards. The following conditions are required
-to be met:
-
-* Redistributions of source code must retain the above copyright notice, this list of
-conditions and the following disclaimer.
-* Redistributions in binary form must reproduce the above copyright notice, this list of
-conditions and the following disclaimer in the documentation and/or other materials
-provided with the distribution.
-* The name of Hangzhou Hikvision Digital Technology Co., Ltd. may not be used to endorse or
-promote products derived from this software without specific prior written permission.
-
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR
-IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND
-FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR
-CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
-CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
-SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
-OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-POSSIBILITY OF SUCH DAMAGE.
-
-***************************************************************************************************/
-#ifndef _HLMC_DBP_H_
-#define _HLMC_DBP_H_
-
-#include "hlmc_defs.h"
-
-#ifdef __cplusplus
-extern "C" {
-#endif
-
-/***************************************************************************************************
-* ¹¦  ÄÜ£º»ñÈ¡DPBÄ£¿éĞèÒªµÄbuffer size
-* ²Î  Êı£º*
-*        width                   -I    ½âÂëÍ¼Ïñ¿í¶È
-*        height                  -I    ½âÂëÍ¼Ïñ¸ß¶È
-*        status_size             -O    ËùĞè×´Ì¬ÄÚ´æ´óĞ¡
-*        work_size               -O    ËùĞè¹¤×÷ÄÚ´æ´óĞ¡
-*        mv_search_width         -I    MVËÑË÷ÇøÓòµÄ¿í¶È
-*        mv_search_height        -I    MVËÑË÷ÇøÓòµÄ¸ß¶È
-* ·µ»ØÖµ£ºÎŞ
-* ±¸  ×¢£º
-***************************************************************************************************/
-HLM_STATUS HLMC_DPB_GetMemSize(HLM_S32    width,
-                               HLM_S32    height,
-                               HLM_SZT   *status_size,
-                               HLM_SZT   *work_size,
-                               HLM_S32    mv_search_width,
-                               HLM_S32    mv_search_height);
-
-/***************************************************************************************************
-* ¹¦  ÄÜ£ºDPBÄ£¿é³õÊ¼»¯£¬ÔÚ½âÂë¿â´´½¨µÄÊ±ºòµ÷ÓÃ´Ëº¯Êı³õÊ¼»¯
-* ²Î  Êı£º*
-*        width                   -I    ½âÂëÍ¼Ïñ¿í¶È
-*        height                  -I    ½âÂëÍ¼Ïñ¸ß¶È
-*        status_buf              -I    ×´Ì¬ÄÚ´æµØÖ·
-*        work_buf                -I    ¹¤×÷ÄÚ´æµØÖ·
-*        handle                  -IO   DPBÄ£¿é¾ä±ú
-*        mv_search_width         -I    MVËÑË÷ÇøÓòµÄ¿í¶È
-*        mv_search_height        -I    MVËÑË÷ÇøÓòµÄ¸ß¶È
-* ·µ»ØÖµ£º×´Ì¬Âë
-* ±¸  ×¢£º
-***************************************************************************************************/
-HLM_STATUS HLMC_DPB_Create(HLM_S32    width,
-                           HLM_S32    height,
-                           HLM_U08   *status_buf,
-                           HLM_U08   *work_buf,
-                           HLM_VOID **handle,
-                           HLM_S32    mv_search_width,
-                           HLM_S32    mv_search_height);
-
-/****************************************************************************************
-* ¹¦  ÄÜ£ºÉèÖÃDPB²ÎÊı
-* ²Î  Êı£º
-*         handle            -IO         DPBÄ£¿é¾ä±ú
-*         dpb_params        -I          DPB½á¹¹ºÍ²Î¿¼¹ØÏµ¿ØÖÆ²ÎÊı
-*         dpb_num           -O          µ±Ç°DPBÏÂĞèÒªDPBÖĞÖ¡Êı
-* ·µ»ØÖµ£º×´Ì¬Âë£¬³É¹¦·µ»ØHLM_STS_OK£¬´´½¨Ê§°Ü·µ»ØHLM_STS_ERR
-* ±¸  ×¢£º
-***************************************************************************************/
-HLM_STATUS HLMC_DPB_SetDpbRefCtrl(HLM_VOID             *handle,
-                                  HLMC_DPB_REF_CTRL    *dpb_params,
-                                  HLM_U32              *dpb_num);
-
-/****************************************************************************************
-* ¹¦  ÄÜ£º»ñÈ¡²Î¿¼Ö¡ÓĞ¹ØĞÅÏ¢
-* ²Î  Êı£º
-*           handle              -IO     DPBÄ£¿é¾ä±ú
-*           poc_in              -I      ÊäÈëpoc
-*           force_idr           -I      Ç¿ÖÆIDRÖ¡±êÖ¾
-*           poc_out             -O      Êä³öpoc
-*           ref_idx             -O      µ±Ç°Ö¡²Î¿¼Ö¡ÔÚDPBµÄĞòºÅ
-*           rec_idx             -O      ÖØ¹¹Ö¡ÔÚDPBµÄĞòºÅ
-*           patch_type          -O      Ö¡ÀàĞÍ
-* ·µ»ØÖµ£º×´Ì¬Âë£¬³É¹¦·µ»ØHLM_STS_OK£¬´´½¨Ê§°Ü·µ»ØHLM_STS_ERR
-* ±¸  ×¢£º
-***************************************************************************************/
-HLM_STATUS HLMC_DPB_Get(HLM_VOID               *handle,
-                        HLM_S32                 poc_in,
-                        HLM_S32                 force_idr,
-                        HLM_S32                *poc_out,
-                        HLM_S32                *ref_idx,
-                        HLM_S32                *rec_idx,
-                        HLMC_PATCH_REF_TYPE    *patch_type);
-
-/***************************************************************************************************
-* ¹¦  ÄÜ£º»ñÈ¡DPB²Î¿¼¹ØÏµ¿ØÖÆ²ÎÊı
-* ²Î  Êı£º*
-*         handle        -I     DPBÄ£¿é¾ä±úÖ¸Õë
-*         dpb_params    -O     DPB½á¹¹ºÍ²Î¿¼¹ØÏµ¿ØÖÆ²ÎÊı
-* ·µ»ØÖµ£º×´Ì¬Âë
-* ±¸  ×¢£º
-***************************************************************************************************/
-HLM_STATUS HLMC_DPB_GetDpbRefCtrl(HLM_VOID              *handle,
-                                  HLMC_DPB_REF_CTRL     *dpb_params);
-
-#ifdef __cplusplus
-}
-#endif
-
-#endif // _HLMC_DBP_H_
+/***************************************************************************************************
+
+The copyright in this software is being made available under the License included below.
+This software may be subject to other third party and contributor rights, including patent
+rights, and no such rights are granted under this license.
+
+Copyright (C) 2025, Hangzhou Hikvision Digital Technology Co., Ltd. All rights reserved.
+
+Redistribution and use in source and binary forms, with or without modification, are permitted
+only for the purpose of developing standards within Audio and Video Coding Standard Workgroup of
+China (AVS) and for testing and promoting such standards. The following conditions are required
+to be met:
+
+* Redistributions of source code must retain the above copyright notice, this list of
+conditions and the following disclaimer.
+* Redistributions in binary form must reproduce the above copyright notice, this list of
+conditions and the following disclaimer in the documentation and/or other materials
+provided with the distribution.
+* The name of Hangzhou Hikvision Digital Technology Co., Ltd. may not be used to endorse or
+promote products derived from this software without specific prior written permission.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR
+IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND
+FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR
+CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+POSSIBILITY OF SUCH DAMAGE.
+
+***************************************************************************************************/
+#ifndef _HLMC_DBP_H_
+#define _HLMC_DBP_H_
+
+#include "hlmc_defs.h"
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+/***************************************************************************************************
+* åŠŸ  èƒ½ï¼šè·å–DPBæ¨¡å—éœ€è¦çš„buffer size
+* å‚  æ•°ï¼š*
+*        width                   -I    è§£ç å›¾åƒå®½åº¦
+*        height                  -I    è§£ç å›¾åƒé«˜åº¦
+*        status_size             -O    æ‰€éœ€çŠ¶æ€å†…å­˜å¤§å°
+*        work_size               -O    æ‰€éœ€å·¥ä½œå†…å­˜å¤§å°
+*        mv_search_width         -I    MVæœç´¢åŒºåŸŸçš„å®½åº¦
+*        mv_search_height        -I    MVæœç´¢åŒºåŸŸçš„é«˜åº¦
+* è¿”å›å€¼ï¼šæ— 
+* å¤‡  æ³¨ï¼š
+***************************************************************************************************/
+HLM_STATUS HLMC_DPB_GetMemSize(HLM_S32    width,
+                               HLM_S32    height,
+                               HLM_SZT   *status_size,
+                               HLM_SZT   *work_size,
+                               HLM_S32    mv_search_width,
+                               HLM_S32    mv_search_height);
+
+/***************************************************************************************************
+* åŠŸ  èƒ½ï¼šDPBæ¨¡å—åˆå§‹åŒ–ï¼Œåœ¨è§£ç åº“åˆ›å»ºçš„æ—¶å€™è°ƒç”¨æ­¤å‡½æ•°åˆå§‹åŒ–
+* å‚  æ•°ï¼š*
+*        width                   -I    è§£ç å›¾åƒå®½åº¦
+*        height                  -I    è§£ç å›¾åƒé«˜åº¦
+*        status_buf              -I    çŠ¶æ€å†…å­˜åœ°å€
+*        work_buf                -I    å·¥ä½œå†…å­˜åœ°å€
+*        handle                  -IO   DPBæ¨¡å—å¥æŸ„
+*        mv_search_width         -I    MVæœç´¢åŒºåŸŸçš„å®½åº¦
+*        mv_search_height        -I    MVæœç´¢åŒºåŸŸçš„é«˜åº¦
+* è¿”å›å€¼ï¼šçŠ¶æ€ç 
+* å¤‡  æ³¨ï¼š
+***************************************************************************************************/
+HLM_STATUS HLMC_DPB_Create(HLM_S32    width,
+                           HLM_S32    height,
+                           HLM_U08   *status_buf,
+                           HLM_U08   *work_buf,
+                           HLM_VOID **handle,
+                           HLM_S32    mv_search_width,
+                           HLM_S32    mv_search_height);
+
+/****************************************************************************************
+* åŠŸ  èƒ½ï¼šè®¾ç½®DPBå‚æ•°
+* å‚  æ•°ï¼š
+*         handle            -IO         DPBæ¨¡å—å¥æŸ„
+*         dpb_params        -I          DPBç»“æ„å’Œå‚è€ƒå…³ç³»æ§åˆ¶å‚æ•°
+*         dpb_num           -O          å½“å‰DPBä¸‹éœ€è¦DPBä¸­å¸§æ•°
+* è¿”å›å€¼ï¼šçŠ¶æ€ç ï¼ŒæˆåŠŸè¿”å›HLM_STS_OKï¼Œåˆ›å»ºå¤±è´¥è¿”å›HLM_STS_ERR
+* å¤‡  æ³¨ï¼š
+***************************************************************************************/
+HLM_STATUS HLMC_DPB_SetDpbRefCtrl(HLM_VOID             *handle,
+                                  HLMC_DPB_REF_CTRL    *dpb_params,
+                                  HLM_U32              *dpb_num);
+
+/****************************************************************************************
+* åŠŸ  èƒ½ï¼šè·å–å‚è€ƒå¸§æœ‰å…³ä¿¡æ¯
+* å‚  æ•°ï¼š
+*           handle              -IO     DPBæ¨¡å—å¥æŸ„
+*           poc_in              -I      è¾“å…¥poc
+*           force_idr           -I      å¼ºåˆ¶IDRå¸§æ ‡å¿—
+*           poc_out             -O      è¾“å‡ºpoc
+*           ref_idx             -O      å½“å‰å¸§å‚è€ƒå¸§åœ¨DPBçš„åºå·
+*           rec_idx             -O      é‡æ„å¸§åœ¨DPBçš„åºå·
+*           patch_type          -O      å¸§ç±»å‹
+* è¿”å›å€¼ï¼šçŠ¶æ€ç ï¼ŒæˆåŠŸè¿”å›HLM_STS_OKï¼Œåˆ›å»ºå¤±è´¥è¿”å›HLM_STS_ERR
+* å¤‡  æ³¨ï¼š
+***************************************************************************************/
+HLM_STATUS HLMC_DPB_Get(HLM_VOID               *handle,
+                        HLM_S32                 poc_in,
+                        HLM_S32                 force_idr,
+                        HLM_S32                *poc_out,
+                        HLM_S32                *ref_idx,
+                        HLM_S32                *rec_idx,
+                        HLMC_PATCH_REF_TYPE    *patch_type);
+
+/***************************************************************************************************
+* åŠŸ  èƒ½ï¼šè·å–DPBå‚è€ƒå…³ç³»æ§åˆ¶å‚æ•°
+* å‚  æ•°ï¼š*
+*         handle        -I     DPBæ¨¡å—å¥æŸ„æŒ‡é’ˆ
+*         dpb_params    -O     DPBç»“æ„å’Œå‚è€ƒå…³ç³»æ§åˆ¶å‚æ•°
+* è¿”å›å€¼ï¼šçŠ¶æ€ç 
+* å¤‡  æ³¨ï¼š
+***************************************************************************************************/
+HLM_STATUS HLMC_DPB_GetDpbRefCtrl(HLM_VOID              *handle,
+                                  HLMC_DPB_REF_CTRL     *dpb_params);
+
+#ifdef __cplusplus
+}
+#endif
+
+#endif // _HLMC_DBP_H_

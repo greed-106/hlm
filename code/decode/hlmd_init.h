@@ -1,128 +1,128 @@
-/***************************************************************************************************
-
-The copyright in this software is being made available under the License included below.
-This software may be subject to other third party and contributor rights, including patent
-rights, and no such rights are granted under this license.
-
-Copyright (C) 2025, Hangzhou Hikvision Digital Technology Co., Ltd. All rights reserved.
-
-Redistribution and use in source and binary forms, with or without modification, are permitted
-only for the purpose of developing standards within Audio and Video Coding Standard Workgroup of
-China (AVS) and for testing and promoting such standards. The following conditions are required
-to be met:
-
-* Redistributions of source code must retain the above copyright notice, this list of
-conditions and the following disclaimer.
-* Redistributions in binary form must reproduce the above copyright notice, this list of
-conditions and the following disclaimer in the documentation and/or other materials
-provided with the distribution.
-* The name of Hangzhou Hikvision Digital Technology Co., Ltd. may not be used to endorse or
-promote products derived from this software without specific prior written permission.
-
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR
-IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND
-FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR
-CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
-CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
-SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
-OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-POSSIBILITY OF SUCH DAMAGE.
-
-***************************************************************************************************/
-#ifndef _HLMD_INIT_H_
-#define _HLMD_INIT_H_
-
-#include "hlmd_defs.h"
-
-#ifdef __cplusplus
-extern "C" {
-#endif
-
-/***************************************************************************************************
-* ¹¦  ÄÜ£º¼ì²éËã·¨¿âÖ÷´¦Àíº¯ÊıÊäÈëÊä³ö²ÎÊıÊÇ·ñÓĞĞ§
-* ²Î  Êı£º
-*         handle         -I          ¿âÊµÀı¾ä±ú
-*         in_buf         -I          ´¦ÀíÊäÈë²ÎÊıµØÖ·
-*         in_size        -I          ´¦ÀíÊäÈë²ÎÊı´óĞ¡
-*         out_buf        -O          ´¦ÀíÊä³ö²ÎÊıµØÖ·
-*         out_size       -I          ´¦ÀíÊä³ö²ÎÊı´óĞ¡
-* ·µ»ØÖµ£º×´Ì¬Âë
-* ±¸  ×¢£º
-***************************************************************************************************/
-HLM_STATUS HLMD_INIT_CheckIo(HLM_VOID *handle,
-                             HLM_VOID *in_buf,
-                             HLM_SZT   in_size,
-                             HLM_VOID *out_buf,
-                             HLM_SZT   out_size);
-
-/***************************************************************************************************
-* ¹¦  ÄÜ£º¼ì²âÄÜÁ¦¼¯²ÎÊı
-* ²Î  Êı£º*
-*         ability       -I            ÄÜÁ¦¼¯²ÎÊı
-* ·µ»ØÖµ£º×´Ì¬Âë
-* ±¸  ×¢£º
-***************************************************************************************************/
-HLM_STATUS HLMD_INIT_CheckAbility(HLMD_ABILITY *ability);
-
-/***************************************************************************************************
-* ¹¦  ÄÜ£º·ÖÅäÍâ²¿DDR²»¿É¸´ÓÃµÄ»º´æ£¬²¢¼ÆËãËùĞè´óĞ¡
-* ²Î  Êı£º*
-*         spec          -I/O        Ä£¿é²ÎÊı½á¹¹ÌåÖ¸Õë
-*         mem_tab       -I          »º´æ±í½á¹¹ÌåÖ¸Õë
-*         alloc_size    -O          ËùĞèDDR»º´æ´óĞ¡ 
-* ·µ»ØÖµ£º×´Ì¬Âë
-* ±¸  ×¢£ºÖ÷ÒªÊÇ¹«¹²»º´æ²¿·Ö
-***************************************************************************************************/
-HLM_STATUS HLMD_INIT_AllocDdrPersistMem(HLMD_SW_SPEC   *spec,
-                                        HLM_MEM_TAB    *mem_tab,
-                                        HLM_SZT        *alloc_size);
-
-/***************************************************************************************************
-* ¹¦  ÄÜ£º·ÖÅäÄÚ²¿RAM»º´æ£¬²¢¼ÆËãËùĞèRAM»º´æ´óĞ¡
-* ²Î  Êı£º*
-*         spec          -I/O        Ä£¿é²ÎÊı½á¹¹ÌåÖ¸Õë
-*         mem_tab       -I          »º´æ±í½á¹¹ÌåÖ¸Õë
-*         alloc_size    -O          ËùĞèRAM»º´æ´óĞ¡ 
-* ·µ»ØÖµ£º×´Ì¬Âë
-* ±¸  ×¢£ºRAM»º´æÊµ¼ÊÎªÓ²¼şÄ£¿éÊ¹ÓÃ£¬µ«ÊÇÒòÎªÓ²¼şÄ£¿éÃ»ÓĞGetMemSizeºÍCreate½Ó¿Ú£¬Òò´ËÔÚÉÏ²ã½øĞĞ·ÖÅä
-***************************************************************************************************/
-HLM_STATUS HLMD_INIT_AllocRamScratchMem(HLMD_SW_SPEC   *spec,
-                                        HLM_MEM_TAB    *mem_tab,
-                                        HLM_SZT        *alloc_size);
-
-/***************************************************************************************************
-* ¹¦  ÄÜ£º¼ÆËã¸÷×ÓÄ£¿éËùĞè×´Ì¬ÄÚ´æ´óĞ¡
-* ²Î  Êı£º*
-*         spec          -I/O  Ä£¿é²ÎÊı½á¹¹ÌåÖ¸Õë
-*         status_size   -O    ËùĞè×´Ì¬ÄÚ´æ´óĞ¡
-*         work_size     -O    ËùĞè¹¤×÷ÄÚ´æ´óĞ¡
-* ·µ»ØÖµ£º×´Ì¬Âë
-* ±¸  ×¢£º
-***************************************************************************************************/
-HLM_STATUS HLMD_INIT_GetModuleBuf(HLMD_SW_SPEC  *spec,
-                                  HLM_SZT       *status_size,
-                                  HLM_SZT       *work_size);
-
-/***************************************************************************************************
-* ¹¦  ÄÜ£º·ÖÅä¸÷×ÓÄ£¿éËùĞè×´Ì¬ÄÚ´æ´óĞ¡£¬´´½¨×ÓÄ£¿é
-* ²Î  Êı£º*
-*         spec          -I/O  Ä£¿é²ÎÊı½á¹¹ÌåÖ¸Õë
-*         status_buf    -I    ×´Ì¬ÄÚ´æµØÖ·
-*         status_size   -I    Ëù·ÖÅä×´Ì¬ÄÚ´æ´óĞ¡
-*         work_buf      -I    ¹¤×÷ÄÚ´æµØÖ·
-*         work_size     -I    Ëù·ÖÅä¹¤×÷ÄÚ´æ´óĞ¡
-* ·µ»ØÖµ£º×´Ì¬Âë
-* ±¸  ×¢£º
-***************************************************************************************************/
-HLM_STATUS HLMD_INIT_AllocModuleBuf(HLMD_SW_SPEC  *spec,
-                                    HLM_U08       *status_buf,
-                                    HLM_SZT        status_size,
-                                    HLM_U08       *work_buf,
-                                    HLM_SZT        work_size);
-
-#ifdef __cplusplus
-}
-#endif
-
-#endif // _HLMD_INIT_H_
+/***************************************************************************************************
+
+The copyright in this software is being made available under the License included below.
+This software may be subject to other third party and contributor rights, including patent
+rights, and no such rights are granted under this license.
+
+Copyright (C) 2025, Hangzhou Hikvision Digital Technology Co., Ltd. All rights reserved.
+
+Redistribution and use in source and binary forms, with or without modification, are permitted
+only for the purpose of developing standards within Audio and Video Coding Standard Workgroup of
+China (AVS) and for testing and promoting such standards. The following conditions are required
+to be met:
+
+* Redistributions of source code must retain the above copyright notice, this list of
+conditions and the following disclaimer.
+* Redistributions in binary form must reproduce the above copyright notice, this list of
+conditions and the following disclaimer in the documentation and/or other materials
+provided with the distribution.
+* The name of Hangzhou Hikvision Digital Technology Co., Ltd. may not be used to endorse or
+promote products derived from this software without specific prior written permission.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR
+IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND
+FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR
+CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+POSSIBILITY OF SUCH DAMAGE.
+
+***************************************************************************************************/
+#ifndef _HLMD_INIT_H_
+#define _HLMD_INIT_H_
+
+#include "hlmd_defs.h"
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+/***************************************************************************************************
+* åŠŸ  èƒ½ï¼šæ£€æŸ¥ç®—æ³•åº“ä¸»å¤„ç†å‡½æ•°è¾“å…¥è¾“å‡ºå‚æ•°æ˜¯å¦æœ‰æ•ˆ
+* å‚  æ•°ï¼š
+*         handle         -I          åº“å®ä¾‹å¥æŸ„
+*         in_buf         -I          å¤„ç†è¾“å…¥å‚æ•°åœ°å€
+*         in_size        -I          å¤„ç†è¾“å…¥å‚æ•°å¤§å°
+*         out_buf        -O          å¤„ç†è¾“å‡ºå‚æ•°åœ°å€
+*         out_size       -I          å¤„ç†è¾“å‡ºå‚æ•°å¤§å°
+* è¿”å›å€¼ï¼šçŠ¶æ€ç 
+* å¤‡  æ³¨ï¼š
+***************************************************************************************************/
+HLM_STATUS HLMD_INIT_CheckIo(HLM_VOID *handle,
+                             HLM_VOID *in_buf,
+                             HLM_SZT   in_size,
+                             HLM_VOID *out_buf,
+                             HLM_SZT   out_size);
+
+/***************************************************************************************************
+* åŠŸ  èƒ½ï¼šæ£€æµ‹èƒ½åŠ›é›†å‚æ•°
+* å‚  æ•°ï¼š*
+*         ability       -I            èƒ½åŠ›é›†å‚æ•°
+* è¿”å›å€¼ï¼šçŠ¶æ€ç 
+* å¤‡  æ³¨ï¼š
+***************************************************************************************************/
+HLM_STATUS HLMD_INIT_CheckAbility(HLMD_ABILITY *ability);
+
+/***************************************************************************************************
+* åŠŸ  èƒ½ï¼šåˆ†é…å¤–éƒ¨DDRä¸å¯å¤ç”¨çš„ç¼“å­˜ï¼Œå¹¶è®¡ç®—æ‰€éœ€å¤§å°
+* å‚  æ•°ï¼š*
+*         spec          -I/O        æ¨¡å—å‚æ•°ç»“æ„ä½“æŒ‡é’ˆ
+*         mem_tab       -I          ç¼“å­˜è¡¨ç»“æ„ä½“æŒ‡é’ˆ
+*         alloc_size    -O          æ‰€éœ€DDRç¼“å­˜å¤§å° 
+* è¿”å›å€¼ï¼šçŠ¶æ€ç 
+* å¤‡  æ³¨ï¼šä¸»è¦æ˜¯å…¬å…±ç¼“å­˜éƒ¨åˆ†
+***************************************************************************************************/
+HLM_STATUS HLMD_INIT_AllocDdrPersistMem(HLMD_SW_SPEC   *spec,
+                                        HLM_MEM_TAB    *mem_tab,
+                                        HLM_SZT        *alloc_size);
+
+/***************************************************************************************************
+* åŠŸ  èƒ½ï¼šåˆ†é…å†…éƒ¨RAMç¼“å­˜ï¼Œå¹¶è®¡ç®—æ‰€éœ€RAMç¼“å­˜å¤§å°
+* å‚  æ•°ï¼š*
+*         spec          -I/O        æ¨¡å—å‚æ•°ç»“æ„ä½“æŒ‡é’ˆ
+*         mem_tab       -I          ç¼“å­˜è¡¨ç»“æ„ä½“æŒ‡é’ˆ
+*         alloc_size    -O          æ‰€éœ€RAMç¼“å­˜å¤§å° 
+* è¿”å›å€¼ï¼šçŠ¶æ€ç 
+* å¤‡  æ³¨ï¼šRAMç¼“å­˜å®é™…ä¸ºç¡¬ä»¶æ¨¡å—ä½¿ç”¨ï¼Œä½†æ˜¯å› ä¸ºç¡¬ä»¶æ¨¡å—æ²¡æœ‰GetMemSizeå’ŒCreateæ¥å£ï¼Œå› æ­¤åœ¨ä¸Šå±‚è¿›è¡Œåˆ†é…
+***************************************************************************************************/
+HLM_STATUS HLMD_INIT_AllocRamScratchMem(HLMD_SW_SPEC   *spec,
+                                        HLM_MEM_TAB    *mem_tab,
+                                        HLM_SZT        *alloc_size);
+
+/***************************************************************************************************
+* åŠŸ  èƒ½ï¼šè®¡ç®—å„å­æ¨¡å—æ‰€éœ€çŠ¶æ€å†…å­˜å¤§å°
+* å‚  æ•°ï¼š*
+*         spec          -I/O  æ¨¡å—å‚æ•°ç»“æ„ä½“æŒ‡é’ˆ
+*         status_size   -O    æ‰€éœ€çŠ¶æ€å†…å­˜å¤§å°
+*         work_size     -O    æ‰€éœ€å·¥ä½œå†…å­˜å¤§å°
+* è¿”å›å€¼ï¼šçŠ¶æ€ç 
+* å¤‡  æ³¨ï¼š
+***************************************************************************************************/
+HLM_STATUS HLMD_INIT_GetModuleBuf(HLMD_SW_SPEC  *spec,
+                                  HLM_SZT       *status_size,
+                                  HLM_SZT       *work_size);
+
+/***************************************************************************************************
+* åŠŸ  èƒ½ï¼šåˆ†é…å„å­æ¨¡å—æ‰€éœ€çŠ¶æ€å†…å­˜å¤§å°ï¼Œåˆ›å»ºå­æ¨¡å—
+* å‚  æ•°ï¼š*
+*         spec          -I/O  æ¨¡å—å‚æ•°ç»“æ„ä½“æŒ‡é’ˆ
+*         status_buf    -I    çŠ¶æ€å†…å­˜åœ°å€
+*         status_size   -I    æ‰€åˆ†é…çŠ¶æ€å†…å­˜å¤§å°
+*         work_buf      -I    å·¥ä½œå†…å­˜åœ°å€
+*         work_size     -I    æ‰€åˆ†é…å·¥ä½œå†…å­˜å¤§å°
+* è¿”å›å€¼ï¼šçŠ¶æ€ç 
+* å¤‡  æ³¨ï¼š
+***************************************************************************************************/
+HLM_STATUS HLMD_INIT_AllocModuleBuf(HLMD_SW_SPEC  *spec,
+                                    HLM_U08       *status_buf,
+                                    HLM_SZT        status_size,
+                                    HLM_U08       *work_buf,
+                                    HLM_SZT        work_size);
+
+#ifdef __cplusplus
+}
+#endif
+
+#endif // _HLMD_INIT_H_
