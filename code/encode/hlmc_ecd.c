@@ -1231,12 +1231,10 @@ HLM_VOID HLMC_ECD_CU(HLMC_CU_INFO            *cur_cu,
         // Direct mode does not encode MVD
     }
 
-    //cbf
-    HLMC_ECD_write_cbf(cur_cu->com_cu_info.cu_type, cur_cu->com_cu_info.cbf, yuv_comp, bs);
-
-    //qp¡¢coeff
-    if (cur_cu->com_cu_info.cbf[0] || cur_cu->com_cu_info.cbf[1] || cur_cu->com_cu_info.cbf[2])
+    // For Direct mode, always encode residuals (no CBF needed)
+    if (cur_cu->com_cu_info.cu_type == HLM_P_DIRECT)
     {
+        // Direct mode always has residuals, so encode QP and coefficients directly without CBF
         if (cur_cu->com_cu_info.cu_delta_qp_enable_flag)
         {
             delta_qp = (HLM_S16)cur_cu->com_cu_info.qp[0] - (HLM_S16)cur_cu->com_cu_info.last_code_qp;
@@ -1244,11 +1242,8 @@ HLM_VOID HLMC_ECD_CU(HLMC_CU_INFO            *cur_cu,
             cur_cu->com_cu_info.last_code_qp = cur_cu->com_cu_info.qp[0];
             if (yuv_comp > 1)
             {
-                if (cur_cu->com_cu_info.cbf[1] || cur_cu->com_cu_info.cbf[2])
-                {
-                    delta_qp = (HLM_S16)cur_cu->com_cu_info.qp[1] - (HLM_S16)cur_cu->com_cu_info.qp[0];
-                    HLMC_ECD_PutSeBits(bs, delta_qp, 1, "chroma_qp_delta");
-                }
+                delta_qp = (HLM_S16)cur_cu->com_cu_info.qp[1] - (HLM_S16)cur_cu->com_cu_info.qp[0];
+                HLMC_ECD_PutSeBits(bs, delta_qp, 1, "chroma_qp_delta");
             }
         }
 
@@ -1257,6 +1252,37 @@ HLM_VOID HLMC_ECD_CU(HLMC_CU_INFO            *cur_cu,
         {
             HLMC_ECD_write_coeff_16x8(cur_cu, nbi_info, HLM_CHROMA_U, bs);
             HLMC_ECD_write_coeff_16x8(cur_cu, nbi_info, HLM_CHROMA_V, bs);
+        }
+    }
+    else
+    {
+        //cbf - for non-Direct modes
+        HLMC_ECD_write_cbf(cur_cu->com_cu_info.cu_type, cur_cu->com_cu_info.cbf, yuv_comp, bs);
+
+        //qp¡¢coeff
+        if (cur_cu->com_cu_info.cbf[0] || cur_cu->com_cu_info.cbf[1] || cur_cu->com_cu_info.cbf[2])
+        {
+            if (cur_cu->com_cu_info.cu_delta_qp_enable_flag)
+            {
+                delta_qp = (HLM_S16)cur_cu->com_cu_info.qp[0] - (HLM_S16)cur_cu->com_cu_info.last_code_qp;
+                HLMC_ECD_PutSeBits(bs, delta_qp, 1, "luma_qp_delta");
+                cur_cu->com_cu_info.last_code_qp = cur_cu->com_cu_info.qp[0];
+                if (yuv_comp > 1)
+                {
+                    if (cur_cu->com_cu_info.cbf[1] || cur_cu->com_cu_info.cbf[2])
+                    {
+                        delta_qp = (HLM_S16)cur_cu->com_cu_info.qp[1] - (HLM_S16)cur_cu->com_cu_info.qp[0];
+                        HLMC_ECD_PutSeBits(bs, delta_qp, 1, "chroma_qp_delta");
+                    }
+                }
+            }
+
+            HLMC_ECD_write_coeff_16x8(cur_cu, nbi_info, HLM_LUMA_Y, bs);
+            if (yuv_comp > 1)
+            {
+                HLMC_ECD_write_coeff_16x8(cur_cu, nbi_info, HLM_CHROMA_U, bs);
+                HLMC_ECD_write_coeff_16x8(cur_cu, nbi_info, HLM_CHROMA_V, bs);
+            }
         }
     }
 }

@@ -1051,39 +1051,26 @@ HLM_VOID HLMD_ECD_CU(HLMD_CU_INFO         *cur_cu,
         assert(HLM_P_SKIP == cur_cu->com_cu_info.cu_type);
     }
 
-    // 解析cbf
-    if (HLM_P_SKIP != cur_cu->com_cu_info.cu_type)
-    {
-        HLMD_ECD_parse_cbf(bs, cur_cu->com_cu_info.cu_type, cur_cu->com_cu_info.cbf, yuv_comp);
-    }
-
     // 解析qp和系数
-    if (cur_cu->com_cu_info.cbf[0] || cur_cu->com_cu_info.cbf[1] || cur_cu->com_cu_info.cbf[2])
+    if (HLM_P_DIRECT == cur_cu->com_cu_info.cu_type)
     {
+        // For Direct mode, always decode coefficients (no CBF to parse)
         if (cur_cu->com_cu_info.cu_delta_qp_enable_flag)
         {
             luma_delta_qp = HLMD_ECD_ReadSeGolomb(bs);
             cur_cu->com_cu_info.qp[0] = cur_cu->com_cu_info.qp[0] + luma_delta_qp;
             if (yuv_comp > 1)
             {
-                if (cur_cu->com_cu_info.cbf[1] || cur_cu->com_cu_info.cbf[2])
-                {
-                    chroma_delta_qp = HLMD_ECD_ReadSeGolomb(bs);
-                    cur_cu->com_cu_info.qp[1] = cur_cu->com_cu_info.qp[0] + chroma_delta_qp;
-                    cur_cu->com_cu_info.qp[2] = cur_cu->com_cu_info.qp[1];
-                }
-                else
-                {
-                    cur_cu->com_cu_info.qp[1] = cur_cu->com_cu_info.qp[0];
-                    cur_cu->com_cu_info.qp[2] = cur_cu->com_cu_info.qp[1];
-                }
+                chroma_delta_qp = HLMD_ECD_ReadSeGolomb(bs);
+                cur_cu->com_cu_info.qp[1] = cur_cu->com_cu_info.qp[0] + chroma_delta_qp;
+                cur_cu->com_cu_info.qp[2] = cur_cu->com_cu_info.qp[1];
             }
         }
         else
         {
             cur_cu->com_cu_info.qp[0] = regs->patch_ctx->patch_header.pps.pic_luma_qp;
             cur_cu->com_cu_info.qp[1] = regs->patch_ctx->patch_header.pps.pic_luma_qp
-                                      + regs->patch_ctx->patch_header.pps.pic_chroma_delta_qp;
+                + regs->patch_ctx->patch_header.pps.pic_chroma_delta_qp;
             cur_cu->com_cu_info.qp[2] = cur_cu->com_cu_info.qp[1];
         }
         cur_cu->com_cu_info.qp[0] = HLM_CLIP(cur_cu->com_cu_info.qp[0], 0, (HLM_U08)HLM_MAX_QP(regs->dec_pic_luma_bitdepth));
@@ -1092,27 +1079,79 @@ HLM_VOID HLMD_ECD_CU(HLMD_CU_INFO         *cur_cu,
 
         for (i = 0; i < yuv_comp; i++)
         {
-            if (cur_cu->com_cu_info.cbf[i] != 0)
+            // For Direct mode, always decode coefficients
+            if (!cur_cu->com_cu_info.ts_flag)
             {
-                if (!cur_cu->com_cu_info.ts_flag)
-                {
-                    HLMD_ECD_parse_dc(cur_cu, nbi_info, i, bs);
-                }
-                HLMD_ECD_parse_ac(cur_cu, nbi_info, i, bs);
-#if LINE_BY_LINE_4x1_RESI
-                if (cur_cu->com_cu_info.cu_type == HLM_I_LINE || cur_cu->com_cu_info.cu_type == HLM_I_ROW)
-                    cur_cu->com_cu_info.cu_line_resi[i] = HLMD_ECD_ReadBits(bs, 2);
-#endif
+                HLMD_ECD_parse_dc(cur_cu, nbi_info, i, bs);
             }
+            HLMD_ECD_parse_ac(cur_cu, nbi_info, i, bs);
         }
-#if LINE_BY_LINE_4x1_RESI
-        if (cur_cu->com_cu_info.cu_type == HLM_I_LINE || cur_cu->com_cu_info.cu_type == HLM_I_ROW)
+    }
+    else
+    {
+        // For non-Direct modes, parse CBF first
+        if (HLM_P_SKIP != cur_cu->com_cu_info.cu_type)
         {
+            HLMD_ECD_parse_cbf(bs, cur_cu->com_cu_info.cu_type, cur_cu->com_cu_info.cbf, yuv_comp);
+        }
+
+        // 解析qp和系数
+        if (cur_cu->com_cu_info.cbf[0] || cur_cu->com_cu_info.cbf[1] || cur_cu->com_cu_info.cbf[2])
+        {
+            if (cur_cu->com_cu_info.cu_delta_qp_enable_flag)
+            {
+                luma_delta_qp = HLMD_ECD_ReadSeGolomb(bs);
+                cur_cu->com_cu_info.qp[0] = cur_cu->com_cu_info.qp[0] + luma_delta_qp;
+                if (yuv_comp > 1)
+                {
+                    if (cur_cu->com_cu_info.cbf[1] || cur_cu->com_cu_info.cbf[2])
+                    {
+                        chroma_delta_qp = HLMD_ECD_ReadSeGolomb(bs);
+                        cur_cu->com_cu_info.qp[1] = cur_cu->com_cu_info.qp[0] + chroma_delta_qp;
+                        cur_cu->com_cu_info.qp[2] = cur_cu->com_cu_info.qp[1];
+                    }
+                    else
+                    {
+                        cur_cu->com_cu_info.qp[1] = cur_cu->com_cu_info.qp[0];
+                        cur_cu->com_cu_info.qp[2] = cur_cu->com_cu_info.qp[1];
+                    }
+                }
+            }
+            else
+            {
+                cur_cu->com_cu_info.qp[0] = regs->patch_ctx->patch_header.pps.pic_luma_qp;
+                cur_cu->com_cu_info.qp[1] = regs->patch_ctx->patch_header.pps.pic_luma_qp
+                    + regs->patch_ctx->patch_header.pps.pic_chroma_delta_qp;
+                cur_cu->com_cu_info.qp[2] = cur_cu->com_cu_info.qp[1];
+            }
+            cur_cu->com_cu_info.qp[0] = HLM_CLIP(cur_cu->com_cu_info.qp[0], 0, (HLM_U08)HLM_MAX_QP(regs->dec_pic_luma_bitdepth));
+            cur_cu->com_cu_info.qp[1] = HLM_CLIP(cur_cu->com_cu_info.qp[1], 0, (HLM_U08)HLM_MAX_QP(regs->dec_pic_chroma_bitdepth));
+            cur_cu->com_cu_info.qp[2] = HLM_CLIP(cur_cu->com_cu_info.qp[2], 0, (HLM_U08)HLM_MAX_QP(regs->dec_pic_chroma_bitdepth));
+
             for (i = 0; i < yuv_comp; i++)
             {
-                HLMD_ECD_resi_pred(cur_cu, i);
-            }
-        }
+                if (cur_cu->com_cu_info.cbf[i] != 0)
+                {
+                    if (!cur_cu->com_cu_info.ts_flag)
+                    {
+                        HLMD_ECD_parse_dc(cur_cu, nbi_info, i, bs);
+                    }
+                    HLMD_ECD_parse_ac(cur_cu, nbi_info, i, bs);
+#if LINE_BY_LINE_4x1_RESI
+                    if (cur_cu->com_cu_info.cu_type == HLM_I_LINE || cur_cu->com_cu_info.cu_type == HLM_I_ROW)
+                        cur_cu->com_cu_info.cu_line_resi[i] = HLMD_ECD_ReadBits(bs, 2);
 #endif
+                }
+            }
+#if LINE_BY_LINE_4x1_RESI
+            if (cur_cu->com_cu_info.cu_type == HLM_I_LINE || cur_cu->com_cu_info.cu_type == HLM_I_ROW)
+            {
+                for (i = 0; i < yuv_comp; i++)
+                {
+                    HLMD_ECD_resi_pred(cur_cu, i);
+                }
+            }
+#endif
+        }
     }
 }

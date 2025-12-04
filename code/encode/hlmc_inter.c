@@ -608,13 +608,6 @@ HLM_VOID HLMC_INTER_direct_rdcost(HLMC_CU_INFO*      cur_cu,
 
     HLMC_TQ_Process(0, 16, regs->bitdepth, yuv_comp, cur_cu);
 
-    //// 恢复原始系数指针和res指针
-    //for (i = 0; i < yuv_comp; i++)
-    //{
-    //    cur_cu->com_cu_info.cu_pred_info.coeff[i] = temp_coeffs[i];
-    //    cur_cu->com_cu_info.cu_pred_info.res[i] = temp_res[i];
-    //}
-
     for (i = 0; i < yuv_comp; i++)
     {
         part_4x4_num = (1 << (cur_cu->com_cu_info.cu_width[i] + cur_cu->com_cu_info.cu_height[i] - 4));
@@ -628,30 +621,20 @@ HLM_VOID HLMC_INTER_direct_rdcost(HLMC_CU_INFO*      cur_cu,
         distortion += HLMC_COM_ComputeSse(cur_cu_src[i], rec_tmp, cu_width_w[i], cu_width_h[i], src_stride[i], HLM_WIDTH_SIZE);
     }
 
-    // 比特估计 - direct模式不编码MVD，但需要编码残差系数
+    // 比特估计 - direct模式不编码MVD，但总是编码残差系数（不同于常规inter模式）
     HLMC_COM_GetCbf(cur_cu->com_cu_info.cu_type, cur_cu->com_cu_info.cbf, cur_cu->com_cu_info.coeffs_num);
 
-    if (cur_cu->com_cu_info.cbf[0] && cur_cu->com_cu_info.cbf[1] && cur_cu->com_cu_info.cbf[2])
+    // 对于Direct模式，总是编码QP和残差系数，不需要CBF标志
+    bits += HLMC_ECD_PutSeBits(HLM_NULL, cur_cu->com_cu_info.qp[0] - cur_cu->com_cu_info.last_code_qp, 0, HLM_NULL);
+    if (yuv_comp > 1)
     {
-        bits += 1;  // cbf bits
+        bits += HLMC_ECD_PutSeBits(HLM_NULL, cur_cu->com_cu_info.qp[1] - cur_cu->com_cu_info.qp[0], 0, HLM_NULL);
     }
-    else
+    bits += HLMC_ECD_EstimateCoeff16x8(cur_cu, nbi_info, 0);
+    if (regs->image_format != HLM_IMG_YUV_400)
     {
-        bits += (cur_cu->com_cu_info.cbf[1] && cur_cu->com_cu_info.cbf[2]) ? 3 : 4;  // cfb bits
-    }
-    if (cur_cu->com_cu_info.cbf[0] || cur_cu->com_cu_info.cbf[1] || cur_cu->com_cu_info.cbf[2])
-    {
-        bits += HLMC_ECD_PutSeBits(HLM_NULL, cur_cu->com_cu_info.qp[0] - cur_cu->com_cu_info.last_code_qp, 0, HLM_NULL);
-        if (yuv_comp > 1 && (cur_cu->com_cu_info.cbf[1] || cur_cu->com_cu_info.cbf[2]))
-        {
-            bits += HLMC_ECD_PutSeBits(HLM_NULL, cur_cu->com_cu_info.qp[1] - cur_cu->com_cu_info.qp[0], 0, HLM_NULL);
-        }
-        bits += HLMC_ECD_EstimateCoeff16x8(cur_cu, nbi_info, 0);
-        if (regs->image_format != HLM_IMG_YUV_400)
-        {
-            bits += HLMC_ECD_EstimateCoeff16x8(cur_cu, nbi_info, 1);
-            bits += HLMC_ECD_EstimateCoeff16x8(cur_cu, nbi_info, 2);
-        }
+        bits += HLMC_ECD_EstimateCoeff16x8(cur_cu, nbi_info, 1);
+        bits += HLMC_ECD_EstimateCoeff16x8(cur_cu, nbi_info, 2);
     }
 
     // 恢复原始系数指针和res指针
@@ -761,7 +744,7 @@ HLM_VOID HLMC_INTER_rdo_pk(HLMC_CU_INFO           *cur_cu,
             memcpy(cur_chan->coeff[i], cur_chan->direct_coeff[i], HLM_CU_SIZE * sizeof(HLM_COEFF));
 
             memcpy(cur_cu->com_cu_info.coeffs_num[i], cur_cu->com_cu_info.direct_coeffs_num[i], 2 * 4 * sizeof(HLM_U08));
-            cur_cu->com_cu_info.cbf[i] = cur_cu->com_cu_info.direct_cbf[i];
+            cur_cu->com_cu_info.cbf[i] = 1;
         }
     }
     if (best_rdcost < best_cu->intra_rd_cost)
