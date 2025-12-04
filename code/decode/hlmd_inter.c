@@ -142,6 +142,46 @@ HLM_VOID HLMD_INTER_Process(HLMD_REGS           *regs,
             }
         }
     }
+    else if (HLM_P_DIRECT == cur_cu->com_cu_info.cu_type)
+    {
+        // Direct mode uses direct_mvp for prediction (same as skip_mvp) without MVD
+        HLM_COM_InterSkipMvp(&cur_cu->com_cu_info, nbi_info, is_right_cu, &cur_cu->com_cu_info.cu_pred_info.skip_mvp);
+
+        // Set direct_mvp equal to skip_mvp (as specified in requirements)
+        cur_cu->com_cu_info.cu_pred_info.direct_mvp.mvx = cur_cu->com_cu_info.cu_pred_info.skip_mvp.mvx;
+        cur_cu->com_cu_info.cu_pred_info.direct_mvp.mvy = cur_cu->com_cu_info.cu_pred_info.skip_mvp.mvy;
+
+        cur_cu->com_cu_info.cu_pred_info.pu_info[0].inter_mv = cur_cu->com_cu_info.cu_pred_info.direct_mvp;
+        HLMD_INTER_pred(regs, nbi_info, cur_cu, &cur_cu->com_cu_info.cu_pred_info.pu_info[0].inter_mv, 0, 0);
+
+        HLMD_TQ_Process(cur_cu, 0, yuv_comp);
+
+        // øΩ±¥÷ÿΩ®
+        for (yuv_idx = 0; yuv_idx < yuv_comp; yuv_idx++)
+        {
+            if (yuv_idx == HLM_LUMA_Y)
+            {
+                cur_cu_rec = regs->dec_recon_y_base;
+                rec_stride = regs->dec_output_luma_stride;
+            }
+            else if (yuv_idx == HLM_CHROMA_U)
+            {
+                cur_cu_rec = regs->dec_recon_cb_base;
+                rec_stride = regs->dec_output_chroma_stride;
+            }
+            else
+            {
+                cur_cu_rec = regs->dec_recon_cr_base;
+                rec_stride = regs->dec_output_chroma_stride;
+            }
+            cur_cu_rec += (cur_cu->com_cu_info.cu_y * rec_stride * cu_height[yuv_idx] + cur_cu->com_cu_info.cu_x * cu_width[yuv_idx]);
+            for (j = 0; j < cu_height[yuv_idx]; j++)
+            {
+                memcpy(cur_cu_rec + rec_stride * j,
+                    cur_cu->com_cu_info.cu_pred_info.rec[yuv_idx] + HLM_WIDTH_SIZE * j, cu_width[yuv_idx] * sizeof(HLM_U16));
+            }
+        }
+    }
     else
     {
         if (HLM_P_16x8 == cur_cu->com_cu_info.cu_type)

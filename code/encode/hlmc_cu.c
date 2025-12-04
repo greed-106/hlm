@@ -272,6 +272,12 @@ HLM_VOID HLMC_CU_recon(HLMC_REGS           *regs,
             memcpy(&best_cu->pu_info_enc[0].inter_pu_info.inter_mv, &cur_chan->skip_mvp, sizeof(HLM_MV));
             memset(best_cu->com_cu_info.coeffs_num, 0, 3 * 2 * 4);
         }
+        else if (best_cu->com_cu_info.cu_type == HLM_P_DIRECT)
+        {
+            // Direct mode uses direct_mvp (same as skip_mvp) for prediction but may have residual
+            rec_tmp = cur_chan->rec;  // Use reconstructed data since direct mode has residual
+            memcpy(&best_cu->pu_info_enc[0].inter_pu_info.inter_mv, &cur_chan->direct_mvp, sizeof(HLM_MV));
+        }
         else
         {
             if (best_cu->com_cu_info.cu_type == HLM_P_16x8)

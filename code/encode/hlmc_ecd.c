@@ -1020,12 +1020,12 @@ HLM_U32 HLMC_ECD_EncodePartType(HLM_IBC_PART_TYPE  part_type,
 ***************************************************************************************************/
 HLM_VOID HLMC_ECD_CU(HLMC_CU_INFO            *cur_cu,
                      HLM_NEIGHBOR_INFO       *nbi_info,
-                     HLM_FRAME_TYPE           frame_type,
-                     HLM_U32                  yuv_comp,
+    HLM_FRAME_TYPE           frame_type,
+    HLM_U32                  yuv_comp,
                      HLMC_BITSTREAM          *bs,
-                     HLM_U08                  segment_enable_flag,
-                     HLM_U32                  segment_width_in_log2,
-                     HLM_U08                  ibc_enable_flag)
+    HLM_U08                  segment_enable_flag,
+    HLM_U32                  segment_width_in_log2,
+    HLM_U08                  ibc_enable_flag)
 {
     HLM_U08 mpm       = 0;
     HLM_U08 zscan_idx = 0;
@@ -1051,9 +1051,20 @@ HLM_VOID HLMC_ECD_CU(HLMC_CU_INFO            *cur_cu,
         {
             return;
         }
+
+        // Add direct mode flag after skip flag
+        HLMC_ECD_PutShortBits(bs, (cur_cu->com_cu_info.cu_type == HLM_P_DIRECT), 1, "cu_direct");
+        if ((cur_cu->com_cu_info.cu_type == HLM_P_DIRECT))
+        {
+            // Direct mode doesn't encode MVD, but still encodes residual like normal inter mode
+            // Continue with residual encoding but skip MVD encoding
+            // printf("use direct mode");
+        }
     }
 
-    HLMC_ECD_EncodeCuType(cur_cu->com_cu_info.cu_type, frame_type, 1, bs, ibc_enable_flag);
+    if (cur_cu->com_cu_info.cu_type != HLM_P_DIRECT) {
+        HLMC_ECD_EncodeCuType(cur_cu->com_cu_info.cu_type, frame_type, 1, bs, ibc_enable_flag);
+    }
     if (!ibc_enable_flag)
     {
         assert(cur_cu->com_cu_info.cu_type != HLM_IBC_4x4);
@@ -1217,6 +1228,7 @@ HLM_VOID HLMC_ECD_CU(HLMC_CU_INFO            *cur_cu,
             HLMC_ECD_PutSeBits(bs, mvd.mvx, 1, "mvd_l0_x");
             HLMC_ECD_PutSeBits(bs, mvd.mvy, 1, "mvd_l0_y");
         }
+        // Direct mode does not encode MVD
     }
 
     //cbf

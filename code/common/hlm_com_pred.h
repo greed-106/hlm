@@ -157,8 +157,12 @@ typedef struct _HLM_CU_PRED_INFO
     HLM_U16            *rec[3];                          // 重构值
     HLM_COEFF          *res[3];                          // 预测残差
     HLM_COEFF          *coeff[3];                        // 残差系数
+    HLM_U16            *direct_rec[3];                   // direct模式重构值
+    HLM_COEFF          *direct_res[3];                   // direct模式残差
+    HLM_COEFF          *direct_coeff[3];                 // direct模式系数
     HLM_MV              skip_mvp;                        // skip模式的mvp
     HLM_MV              inter_mvp[3];                    // inter模式三种子块的mvp
+    HLM_MV              direct_mvp;                      // direct模式的mvp(和skip模式保持一致)
 } HLM_CU_PRED_INFO;
 
 typedef struct _HLM_CU_INFO
@@ -175,6 +179,8 @@ typedef struct _HLM_CU_INFO
     HLM_U08             chroma_offset_y;
     HLM_CU_PRED_INFO    cu_pred_info;
     HLM_U08             coeffs_num[3][2][4];             // 4x4块非零系数个数
+    HLM_U08             direct_coeffs_num[3][2][4];      // direct模式4x4块非零系数个数
+    HLM_U08             direct_cbf[3];                   // direct模式非零系数标志
 #if LINE_BY_LINE
     HLM_CU_TYPE         line_row_pread_mode;                         // 当前cu的类型
 #if LINE_BY_LINE_4x1_RESI

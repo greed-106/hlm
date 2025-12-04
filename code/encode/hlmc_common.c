@@ -96,6 +96,9 @@ HLM_VOID HLMC_COM_copy_com_cu(HLM_CU_INFO    *cur_cu,
         memcpy(best_cu_info->rec[i],        cur_cu_info->rec[i],        sizeof(HLM_U16)   * HLM_CU_SIZE);
         memcpy(best_cu_info->res[i],        cur_cu_info->res[i],        sizeof(HLM_COEFF) * HLM_CU_SIZE);
         memcpy(best_cu_info->coeff[i],      cur_cu_info->coeff[i],      sizeof(HLM_COEFF) * HLM_CU_SIZE);
+        //memcpy(best_cu_info->direct_rec[i], cur_cu_info->direct_rec[i], sizeof(HLM_U16) * HLM_CU_SIZE);
+        //memcpy(best_cu_info->direct_res[i], cur_cu_info->direct_res[i], sizeof(HLM_COEFF) * HLM_CU_SIZE);
+        //memcpy(best_cu_info->direct_coeff[i], cur_cu_info->direct_coeff[i], sizeof(HLM_COEFF) * HLM_CU_SIZE);
     }
 }
 

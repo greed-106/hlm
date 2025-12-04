@@ -316,6 +316,13 @@ HLM_STATUS HLMC_HLS_AllocRam(HLM_RAM_BUF         *ram_buf,
         HLM_CHECK_ERROR(HLM_NULL == cur_cu->com_cu_info.cu_pred_info.skip_pred[i], HLM_STS_ERR_MEM_LACK);
         cur_cu->com_cu_info.cu_pred_info.inter_pred[i] = (HLM_U16 *)HLM_MEM_Calloc(ram_buf, HLM_CU_SIZE * sizeof(HLM_U16), 16);
         HLM_CHECK_ERROR(HLM_NULL == cur_cu->com_cu_info.cu_pred_info.inter_pred[i], HLM_STS_ERR_MEM_LACK);
+        cur_cu->com_cu_info.cu_pred_info.direct_rec[i] = (HLM_U16*)HLM_MEM_Calloc(ram_buf, HLM_CU_SIZE * sizeof(HLM_U16), 16);
+        HLM_CHECK_ERROR(HLM_NULL == cur_cu->com_cu_info.cu_pred_info.direct_rec[i], HLM_STS_ERR_MEM_LACK);
+        cur_cu->com_cu_info.cu_pred_info.direct_res[i] = (HLM_COEFF*)HLM_MEM_Calloc(ram_buf, HLM_CU_SIZE * sizeof(HLM_COEFF), 16);
+        HLM_CHECK_ERROR(HLM_NULL == cur_cu->com_cu_info.cu_pred_info.direct_res[i], HLM_STS_ERR_MEM_LACK);
+        cur_cu->com_cu_info.cu_pred_info.direct_coeff[i] = (HLM_COEFF*)HLM_MEM_Calloc(ram_buf, HLM_CU_SIZE * sizeof(HLM_COEFF), 16);
+        HLM_CHECK_ERROR(HLM_NULL == cur_cu->com_cu_info.cu_pred_info.direct_coeff[i], HLM_STS_ERR_MEM_LACK);
+
         best_cu->com_cu_info.cu_pred_info.inter_pred[i] = (HLM_U16 *)HLM_MEM_Calloc(ram_buf, HLM_CU_SIZE * sizeof(HLM_U16), 16);
         HLM_CHECK_ERROR(HLM_NULL == best_cu->com_cu_info.cu_pred_info.inter_pred[i], HLM_STS_ERR_MEM_LACK);
         best_cu->com_cu_info.cu_pred_info.pred[i] = (HLM_U16 *)HLM_MEM_Calloc(ram_buf, HLM_CU_SIZE * sizeof(HLM_U16), 16);
@@ -328,6 +335,12 @@ HLM_STATUS HLMC_HLS_AllocRam(HLM_RAM_BUF         *ram_buf,
         HLM_CHECK_ERROR(HLM_NULL == best_cu->com_cu_info.cu_pred_info.coeff[i], HLM_STS_ERR_MEM_LACK);
         best_cu->com_cu_info.cu_pred_info.skip_pred[i] = (HLM_U16 *)HLM_MEM_Calloc(ram_buf, HLM_CU_SIZE * sizeof(HLM_U16), 16);
         HLM_CHECK_ERROR(HLM_NULL == best_cu->com_cu_info.cu_pred_info.skip_pred[i], HLM_STS_ERR_MEM_LACK);
+        best_cu->com_cu_info.cu_pred_info.direct_rec[i] = (HLM_U16*)HLM_MEM_Calloc(ram_buf, HLM_CU_SIZE * sizeof(HLM_U16), 16);
+        HLM_CHECK_ERROR(HLM_NULL == best_cu->com_cu_info.cu_pred_info.direct_rec[i], HLM_STS_ERR_MEM_LACK);
+        best_cu->com_cu_info.cu_pred_info.direct_res[i] = (HLM_COEFF*)HLM_MEM_Calloc(ram_buf, HLM_CU_SIZE * sizeof(HLM_COEFF), 16);
+        HLM_CHECK_ERROR(HLM_NULL == best_cu->com_cu_info.cu_pred_info.direct_res[i], HLM_STS_ERR_MEM_LACK);
+        best_cu->com_cu_info.cu_pred_info.direct_coeff[i] = (HLM_COEFF*)HLM_MEM_Calloc(ram_buf, HLM_CU_SIZE * sizeof(HLM_COEFF), 16);
+        HLM_CHECK_ERROR(HLM_NULL == best_cu->com_cu_info.cu_pred_info.direct_coeff[i], HLM_STS_ERR_MEM_LACK);
     }
 
     // nbi_info

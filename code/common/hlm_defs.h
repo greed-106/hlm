@@ -324,6 +324,7 @@ typedef enum _HLM_CU_TYPE
     HLM_P_8x8,
     HLM_P_16x8,
     HLM_P_SKIP,
+    HLM_P_DIRECT,
 }HLM_CU_TYPE;
 
 // ´¦Àí½×¶Î

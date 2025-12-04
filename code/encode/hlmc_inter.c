@@ -194,6 +194,9 @@ HLM_VOID HLMC_INTER_search(HLMC_CU_INFO        *cur_cu,
     memcpy(cur_cu->com_cu_info.cu_pred_info.inter_mvp, mvp, PART_NUM * sizeof(HLM_MV));
 
     HLM_COM_InterSkipMvp(&cur_cu->com_cu_info, nbi_info, is_right_cu, &cur_cu->com_cu_info.cu_pred_info.skip_mvp);
+
+    // 实现从skip_mvp -> direct_mvp结构的深拷贝
+    memcpy(&cur_cu->com_cu_info.cu_pred_info.direct_mvp, &cur_cu->com_cu_info.cu_pred_info.skip_mvp, sizeof(HLM_MV));
 }
 
 /***************************************************************************************************
@@ -445,6 +448,9 @@ HLM_VOID HLMC_INTER_me_rdcost(HLMC_CU_INFO        *cur_cu,
             HLM_COM_4x4_Block_To_Coeff_Pos(part_4x4_num, idx_4, &x, &y, &cur_cu->com_cu_info, i);
         }
         rec_tmp = cur_chan->rec[i];
+        //if (cur_cu->com_cu_info.cu_x == 100 && cur_cu->com_cu_info.cu_y == 10) {
+        //    printf("here\n");
+        //}
         HLM_COM_AddRes(rec_tmp, cur_cu_pred[i], cur_chan->res[i], regs->bitdepth,
             cu_width_w[i], cu_width_h[i], HLM_WIDTH_SIZE, HLM_WIDTH_SIZE, HLM_WIDTH_SIZE);
         distortion += HLMC_COM_ComputeSse(cur_cu_src[i], rec_tmp, cu_width_w[i], cu_width_h[i], src_stride[i], HLM_WIDTH_SIZE);
@@ -512,6 +518,166 @@ HLM_VOID HLMC_INTER_me_rdcost(HLMC_CU_INFO        *cur_cu,
     *me_rdcost = distortion + ((lambda * bits) >> HLMC_LAMBDA_SHIFT);
 }
 
+// 计算Direct模式下的Rdcost（direct模式与skip模式使用相同的预测像素，但需编码残差）
+HLM_VOID HLMC_INTER_direct_rdcost(HLMC_CU_INFO*      cur_cu,
+                                  HLM_NEIGHBOR_INFO* nbi_info,
+                                  HLMC_REGS*         regs,
+                                  HLM_U32*           direct_rdcost)
+{
+    HLM_S32 i = 0;
+    HLM_S32 idx_4 = 0;
+    HLM_U32 bits = 2;  // 比skip模式多1bit，用于区分direct模式
+    HLM_U16* cur_cu_src[3] = { HLM_NULL };
+    HLM_U16* cur_cu_pred[3] = { HLM_NULL };
+    HLM_U16* cur_cu_rec[3] = { HLM_NULL };
+    HLM_COEFF* cur_cu_res[3] = { HLM_NULL };
+    HLM_U16* rec_tmp = HLM_NULL;
+    HLM_U32 src_stride[3] = { 0 };
+    HLM_U32 distortion = 0;
+    HLM_S32 is_right_cu = 0;
+    HLM_U32 channel_size = 16;
+    HLM_CU_PRED_INFO* cur_chan = &cur_cu->com_cu_info.cu_pred_info;
+    HLM_U32 lambda = regs->enc_sse_lamda[cur_cu->com_cu_info.qp[0]];
+    HLM_U32 available[PART_NUM][3] = { 0 };
+    HLM_MV  nbi_mv[PART_NUM][3] = { 0 };
+    HLM_S32 ref_idx[PART_NUM][3] = { 0 };
+    HLM_U08 part_4x4_num = (1 << (cur_cu->com_cu_info.cu_width[0] + cur_cu->com_cu_info.cu_height[0] - 4));
+    HLM_U08 x = 0;
+    HLM_U08 y = 0;
+    HLM_U32 cu_width_w[3] = { 1 << cur_cu->com_cu_info.cu_width[0],  1 << cur_cu->com_cu_info.cu_width[1],  1 << cur_cu->com_cu_info.cu_width[2] };
+    HLM_U32 cu_width_h[3] = { 1 << cur_cu->com_cu_info.cu_height[0], 1 << cur_cu->com_cu_info.cu_height[1], 1 << cur_cu->com_cu_info.cu_height[2] };
+    HLM_S32 yuv_comp = regs->image_format == HLM_IMG_YUV_400 ? 1 : HLM_MAX_COMP_NUM;
+
+    // 使用与skip模式相同的预测像素
+    for (i = 0; i < yuv_comp; i++)
+    {
+        if (i == HLM_LUMA_Y)
+        {
+            cur_cu_src[i] = regs->enc_input_y_base;
+            src_stride[i] = regs->enc_input_luma_stride;
+        }
+        else if (i == HLM_CHROMA_U)
+        {
+            cur_cu_src[i] = regs->enc_input_cb_base;
+            src_stride[i] = regs->enc_input_chroma_stride;
+        }
+        else
+        {
+            cur_cu_src[i] = regs->enc_input_cr_base;
+            src_stride[i] = regs->enc_input_chroma_stride;
+        }
+        cur_cu_src[i] += (cur_cu->com_cu_info.cu_y * src_stride[i] * cu_width_h[i] + cur_cu->com_cu_info.cu_x * cu_width_w[i]);
+        cur_cu_pred[i] = cur_cu->com_cu_info.cu_pred_info.skip_pred[i];  // Use skip prediction pixels
+        cur_cu_res[i] = cur_cu->com_cu_info.cu_pred_info.direct_res[i]; // Use direct-specific residual buffer
+        cur_cu_rec[i] = cur_cu->com_cu_info.cu_pred_info.direct_rec[i]; // Use direct-specific reconstruction buffer
+
+        // 计算残差
+        HLMC_COM_ComputeRes(cur_cu_src[i], cur_cu_pred[i], cur_cu_res[i],
+            cu_width_w[i], cu_width_h[i], src_stride[i], HLM_WIDTH_SIZE, HLM_WIDTH_SIZE);
+    }
+
+    // 重建和失真 - 使用direct-specific的系数缓冲区，临时替换系数指针
+    cur_cu->com_cu_info.cu_type = HLM_P_DIRECT;  // Set to direct for TQ processing
+
+    // 备份原始coeffs_num和cbf数组
+    HLM_U08 backup_coeffs_num[3][2][4];
+    HLM_U08 backup_cbf[3];
+    for (i = 0; i < 3; i++)
+    {
+        backup_cbf[i] = cur_cu->com_cu_info.cbf[i];
+        memcpy(backup_coeffs_num[i], cur_cu->com_cu_info.coeffs_num[i], 2 * 4 * sizeof(HLM_U08));
+    }
+
+    // 清零coeffs_num和cbf数组，确保TQ过程在一个干净的状态下开始
+    for (i = 0; i < 3; i++)
+    {
+        cur_cu->com_cu_info.cbf[i] = 0;
+        memset(cur_cu->com_cu_info.coeffs_num[i], 0, 2 * 4 * sizeof(HLM_U08));
+    }
+
+    // 临时替换系数指针，使TQ处理direct模式的系数
+    HLM_COEFF* temp_coeffs[3];
+    HLM_COEFF* temp_res[3];
+    for (i = 0; i < yuv_comp; i++)
+    {
+        temp_coeffs[i] = cur_cu->com_cu_info.cu_pred_info.coeff[i];
+        temp_res[i] = cur_cu->com_cu_info.cu_pred_info.res[i];
+        cur_cu->com_cu_info.cu_pred_info.coeff[i] = cur_cu->com_cu_info.cu_pred_info.direct_coeff[i];
+        cur_cu->com_cu_info.cu_pred_info.res[i] = cur_cu->com_cu_info.cu_pred_info.direct_res[i];
+    }
+
+    HLMC_TQ_Process(0, 16, regs->bitdepth, yuv_comp, cur_cu);
+
+    //// 恢复原始系数指针和res指针
+    //for (i = 0; i < yuv_comp; i++)
+    //{
+    //    cur_cu->com_cu_info.cu_pred_info.coeff[i] = temp_coeffs[i];
+    //    cur_cu->com_cu_info.cu_pred_info.res[i] = temp_res[i];
+    //}
+
+    for (i = 0; i < yuv_comp; i++)
+    {
+        part_4x4_num = (1 << (cur_cu->com_cu_info.cu_width[i] + cur_cu->com_cu_info.cu_height[i] - 4));
+        for (idx_4 = 0; idx_4 < part_4x4_num; idx_4++)
+        {
+            HLM_COM_4x4_Block_To_Coeff_Pos(part_4x4_num, idx_4, &x, &y, &cur_cu->com_cu_info, i);
+        }
+        rec_tmp = cur_cu->com_cu_info.cu_pred_info.direct_rec[i]; // Use direct-specific reconstruction
+        HLM_COM_AddRes(rec_tmp, cur_cu->com_cu_info.cu_pred_info.skip_pred[i], cur_cu->com_cu_info.cu_pred_info.direct_res[i], regs->bitdepth,
+            cu_width_w[i], cu_width_h[i], HLM_WIDTH_SIZE, HLM_WIDTH_SIZE, HLM_WIDTH_SIZE);
+        distortion += HLMC_COM_ComputeSse(cur_cu_src[i], rec_tmp, cu_width_w[i], cu_width_h[i], src_stride[i], HLM_WIDTH_SIZE);
+    }
+
+    // 比特估计 - direct模式不编码MVD，但需要编码残差系数
+    HLMC_COM_GetCbf(cur_cu->com_cu_info.cu_type, cur_cu->com_cu_info.cbf, cur_cu->com_cu_info.coeffs_num);
+
+    if (cur_cu->com_cu_info.cbf[0] && cur_cu->com_cu_info.cbf[1] && cur_cu->com_cu_info.cbf[2])
+    {
+        bits += 1;  // cbf bits
+    }
+    else
+    {
+        bits += (cur_cu->com_cu_info.cbf[1] && cur_cu->com_cu_info.cbf[2]) ? 3 : 4;  // cfb bits
+    }
+    if (cur_cu->com_cu_info.cbf[0] || cur_cu->com_cu_info.cbf[1] || cur_cu->com_cu_info.cbf[2])
+    {
+        bits += HLMC_ECD_PutSeBits(HLM_NULL, cur_cu->com_cu_info.qp[0] - cur_cu->com_cu_info.last_code_qp, 0, HLM_NULL);
+        if (yuv_comp > 1 && (cur_cu->com_cu_info.cbf[1] || cur_cu->com_cu_info.cbf[2]))
+        {
+            bits += HLMC_ECD_PutSeBits(HLM_NULL, cur_cu->com_cu_info.qp[1] - cur_cu->com_cu_info.qp[0], 0, HLM_NULL);
+        }
+        bits += HLMC_ECD_EstimateCoeff16x8(cur_cu, nbi_info, 0);
+        if (regs->image_format != HLM_IMG_YUV_400)
+        {
+            bits += HLMC_ECD_EstimateCoeff16x8(cur_cu, nbi_info, 1);
+            bits += HLMC_ECD_EstimateCoeff16x8(cur_cu, nbi_info, 2);
+        }
+    }
+
+    // 恢复原始系数指针和res指针
+    for (i = 0; i < yuv_comp; i++)
+    {
+        cur_cu->com_cu_info.cu_pred_info.coeff[i] = temp_coeffs[i];
+        cur_cu->com_cu_info.cu_pred_info.res[i] = temp_res[i];
+    }
+
+    // 在恢复原始数组之前，将Direct模式的计算结果保存到direct专用缓冲区
+    for (i = 0; i < 3; i++)
+    {
+        memcpy(cur_cu->com_cu_info.direct_coeffs_num[i], cur_cu->com_cu_info.coeffs_num[i], 2 * 4 * sizeof(HLM_U08));
+        cur_cu->com_cu_info.direct_cbf[i] = cur_cu->com_cu_info.cbf[i];
+    }
+
+    // 恢复原始coeffs_num和cbf数组，以避免影响其他模式的处理
+    for (i = 0; i < 3; i++)
+    {
+        cur_cu->com_cu_info.cbf[i] = backup_cbf[i];
+        memcpy(cur_cu->com_cu_info.coeffs_num[i], backup_coeffs_num[i], 2 * 4 * sizeof(HLM_U08));
+    }
+
+    *direct_rdcost = distortion + ((lambda * bits) >> HLMC_LAMBDA_SHIFT);
+}
+
 // 计算16x8Skip模式下的SkipRdcost
 HLM_VOID HLMC_INTER_skip_rdcost(HLMC_CU_INFO      *cur_cu,
                                 HLMC_REGS         *regs,
@@ -558,7 +724,8 @@ HLM_VOID HLMC_INTER_rdo_pk(HLMC_CU_INFO           *cur_cu,
                            HLMC_REGS              *regs,
                            HLM_NEIGHBOR_INFO      *nbi_info,
                            HLM_U32                 me_rdcost,
-                           HLM_U32                 skip_rdcost)
+                           HLM_U32                 skip_rdcost,
+                           HLM_U32                 direct_rdcost)
 {
     HLM_S32 i                  = 0;
     HLM_U32 j                  = 0;
@@ -569,15 +736,33 @@ HLM_VOID HLMC_INTER_rdo_pk(HLMC_CU_INFO           *cur_cu,
     HLM_U32 rec_stride         = 0;
     HLM_U32 channel_size       = 16;
 
-    if (me_rdcost <= skip_rdcost)
+    // Find the best among me, skip and direct modes
+    if (me_rdcost <= skip_rdcost && me_rdcost <= direct_rdcost)
     {
         cur_cu->com_cu_info.cu_type = cur_chan->part_type;
         best_rdcost = me_rdcost;
     }
-    else
+    else if (skip_rdcost <= direct_rdcost)
     {
         cur_cu->com_cu_info.cu_type = HLM_P_SKIP;
         best_rdcost = skip_rdcost;
+    }
+    else
+    {
+        cur_cu->com_cu_info.cu_type = HLM_P_DIRECT;
+        best_rdcost = direct_rdcost;
+
+        // Copy direct mode buffers to main buffers for entropy coding
+        HLM_S32 yuv_comp = regs->image_format == HLM_IMG_YUV_400 ? 1 : 3;
+        for (i = 0; i < yuv_comp; i++)
+        {
+            memcpy(cur_chan->rec[i], cur_chan->direct_rec[i], HLM_CU_SIZE * sizeof(HLM_U16));
+            memcpy(cur_chan->res[i], cur_chan->direct_res[i], HLM_CU_SIZE * sizeof(HLM_COEFF));
+            memcpy(cur_chan->coeff[i], cur_chan->direct_coeff[i], HLM_CU_SIZE * sizeof(HLM_COEFF));
+
+            memcpy(cur_cu->com_cu_info.coeffs_num[i], cur_cu->com_cu_info.direct_coeffs_num[i], 2 * 4 * sizeof(HLM_U08));
+            cur_cu->com_cu_info.cbf[i] = cur_cu->com_cu_info.direct_cbf[i];
+        }
     }
     if (best_rdcost < best_cu->intra_rd_cost)
     {
@@ -605,10 +790,13 @@ HLM_VOID HLMC_INTER_RDO(HLM_U32                 channel_index,
 {
     HLM_U32 me_rdcost   = 0;
     HLM_U32 skip_rdcost = 0;
+    HLM_U32 direct_rdcost = 0;
 
     HLMC_INTER_me_rdcost(cur_cu, nbi_info, regs, &me_rdcost);
 
     HLMC_INTER_skip_rdcost(cur_cu, regs, &skip_rdcost);
 
-    HLMC_INTER_rdo_pk(cur_cu, best_cu, regs, nbi_info, me_rdcost, skip_rdcost);
+    HLMC_INTER_direct_rdcost(cur_cu, nbi_info, regs, &direct_rdcost);
+
+    HLMC_INTER_rdo_pk(cur_cu, best_cu, regs, nbi_info, me_rdcost, skip_rdcost, direct_rdcost);
 }

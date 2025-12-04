@@ -785,6 +785,7 @@ HLM_VOID HLMD_ECD_CU(HLMD_CU_INFO         *cur_cu,
     HLM_U08 intra_flag        = 0;
     HLM_U08 ibc_flag          = 0;
     HLM_U08 partition_flag    = 0;
+    HLM_U08 direct_flag       = 0;  // For direct mode
     HLM_U08 ibc_enable_flag   = (patch_type == HLM_FRAME_TYPE_I)
                               ? regs->patch_ctx->patch_header.sps.i_frame_enable_ibc
                               : regs->patch_ctx->patch_header.sps.p_frame_enable_ibc;
@@ -824,7 +825,17 @@ HLM_VOID HLMD_ECD_CU(HLMD_CU_INFO         *cur_cu,
         }
         else
         {
-            intra_flag = HLMD_ECD_ReadBits(bs, 1);
+            // Read direct mode flag after skip flag
+            direct_flag = HLMD_ECD_ReadBits(bs, 1);
+            if (direct_flag)
+            {
+                cur_cu->com_cu_info.cu_type = HLM_P_DIRECT;
+                //printf("cu_x = %d, cu_y = %d\n", cur_cu->com_cu_info.cu_x, cur_cu->com_cu_info.cu_y);
+            }
+            else
+            {
+                intra_flag = HLMD_ECD_ReadBits(bs, 1);
+            }
         }
     }
     else  // I֡
@@ -832,7 +843,7 @@ HLM_VOID HLMD_ECD_CU(HLMD_CU_INFO         *cur_cu,
         skip_flag = 0;
         intra_flag = 1;
     }
-    if (!skip_flag)
+    if (!skip_flag && !direct_flag)
     {
         if (intra_flag)
         {
@@ -1029,6 +1040,11 @@ HLM_VOID HLMD_ECD_CU(HLMD_CU_INFO         *cur_cu,
     {
         cur_cu->mvd_l0[0].mvx = HLMD_ECD_ReadSeGolomb(bs);
         cur_cu->mvd_l0[0].mvy = HLMD_ECD_ReadSeGolomb(bs);
+    }
+    else if (HLM_P_DIRECT == cur_cu->com_cu_info.cu_type)
+    {
+        // For direct mode, we don't decode MVD, we use the same prediction as skip mode
+        // The MV is obtained from the direct_mvp
     }
     else
     {
