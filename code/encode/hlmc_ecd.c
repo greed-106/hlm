@@ -844,15 +844,25 @@ HLM_VOID HLMC_ECD_write_cbf(HLM_CU_TYPE        cu_type,
         {
             HLMC_ECD_PutShortBits(bs, y_cbf, 1, "y_cbf");
             HLMC_ECD_PutShortBits(bs, cb_cbf, 1, "cb_cbf");
-            if ((y_cbf && cb_cbf) == 0)
+            if (((y_cbf && cb_cbf)) == 0)
             {
-                HLMC_ECD_PutShortBits(bs, cr_cbf, 1, "cr_cbf");
+                if (cu_type == HLM_P_DIRECT && y_cbf == 0 && cb_cbf == 0)
+                {
+                    assert(cr_cbf == 1);
+                }
+                else
+                {
+                    HLMC_ECD_PutShortBits(bs, cr_cbf, 1, "cr_cbf");
+                }
             }
         }
     }
     else
     {
-        HLMC_ECD_PutShortBits(bs, y_cbf, 1, "y_cbf");
+        if (cu_type != HLM_P_DIRECT)
+        {
+            HLMC_ECD_PutShortBits(bs, y_cbf, 1, "y_cbf");
+        }
     }
 }
 
@@ -1234,6 +1244,8 @@ HLM_VOID HLMC_ECD_CU(HLMC_CU_INFO            *cur_cu,
     // For Direct mode, always encode residuals (no CBF needed)
     if (cur_cu->com_cu_info.cu_type == HLM_P_DIRECT)
     {
+        //cbf - for Direct modes
+        HLMC_ECD_write_cbf(cur_cu->com_cu_info.cu_type, cur_cu->com_cu_info.cbf, yuv_comp, bs);
         // Direct mode always has residuals, so encode QP and coefficients directly without CBF
         if (cur_cu->com_cu_info.cu_delta_qp_enable_flag)
         {
@@ -1242,8 +1254,11 @@ HLM_VOID HLMC_ECD_CU(HLMC_CU_INFO            *cur_cu,
             cur_cu->com_cu_info.last_code_qp = cur_cu->com_cu_info.qp[0];
             if (yuv_comp > 1)
             {
-                delta_qp = (HLM_S16)cur_cu->com_cu_info.qp[1] - (HLM_S16)cur_cu->com_cu_info.qp[0];
-                HLMC_ECD_PutSeBits(bs, delta_qp, 1, "chroma_qp_delta");
+                if (cur_cu->com_cu_info.cbf[1] || cur_cu->com_cu_info.cbf[2])
+                {
+                    delta_qp = (HLM_S16)cur_cu->com_cu_info.qp[1] - (HLM_S16)cur_cu->com_cu_info.qp[0];
+                    HLMC_ECD_PutSeBits(bs, delta_qp, 1, "chroma_qp_delta");
+                }
             }
         }
 

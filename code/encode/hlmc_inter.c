@@ -387,7 +387,7 @@ HLM_VOID HLMC_INTER_me_rdcost(HLMC_CU_INFO        *cur_cu,
 {
     HLM_S32 i                      = 0;
     HLM_S32 idx_4                  = 0;
-    HLM_U32 bits                   = 0;
+    HLM_U32 bits                   = 2; // skip and direct flag bit number
     HLM_MV  mvd_l0[2]              = {0};
     HLM_MV  mvp[PART_NUM]          = {0};
     HLM_U16 *cur_cu_src[3]         = { HLM_NULL };
@@ -471,7 +471,7 @@ HLM_VOID HLMC_INTER_me_rdcost(HLMC_CU_INFO        *cur_cu,
     }
     HLMC_COM_GetCbf(cur_cu->com_cu_info.cu_type, cur_cu->com_cu_info.cbf, cur_cu->com_cu_info.coeffs_num);
 
-    bits = HLMC_ECD_EncodeCuType(cur_chan->part_type, HLM_FRAME_TYPE_P, 0, HLM_NULL, regs->p_frame_enable_ibc);
+    bits += HLMC_ECD_EncodeCuType(cur_chan->part_type, HLM_FRAME_TYPE_P, 0, HLM_NULL, regs->p_frame_enable_ibc);
     if (cur_chan->part_type == HLM_P_16x8)
     {
         mvd_l0[0].mvx = cur_cu->pu_info_enc[0].mv_16x8.mvx - cur_cu->pu_info_enc[0].inter_pu_info.inter_mvp.mvx;
@@ -502,10 +502,12 @@ HLM_VOID HLMC_INTER_me_rdcost(HLMC_CU_INFO        *cur_cu,
     }
     if (cur_cu->com_cu_info.cbf[0] || cur_cu->com_cu_info.cbf[1] || cur_cu->com_cu_info.cbf[2])
     {
-        bits += HLMC_ECD_PutSeBits(HLM_NULL, cur_cu->com_cu_info.qp[0] - cur_cu->com_cu_info.last_code_qp, 0, HLM_NULL);
-        if (yuv_comp > 1 && (cur_cu->com_cu_info.cbf[1] || cur_cu->com_cu_info.cbf[2]))
-        {
-            bits += HLMC_ECD_PutSeBits(HLM_NULL, cur_cu->com_cu_info.qp[1] - cur_cu->com_cu_info.qp[0], 0, HLM_NULL);
+        if (cur_cu->com_cu_info.cu_delta_qp_enable_flag) {
+            bits += HLMC_ECD_PutSeBits(HLM_NULL, cur_cu->com_cu_info.qp[0] - cur_cu->com_cu_info.last_code_qp, 0, HLM_NULL);
+            if (yuv_comp > 1 && (cur_cu->com_cu_info.cbf[1] || cur_cu->com_cu_info.cbf[2]))
+            {
+                bits += HLMC_ECD_PutSeBits(HLM_NULL, cur_cu->com_cu_info.qp[1] - cur_cu->com_cu_info.qp[0], 0, HLM_NULL);
+            }
         }
         bits += HLMC_ECD_EstimateCoeff16x8(cur_cu, nbi_info, 0);
         if (regs->image_format != HLM_IMG_YUV_400)
@@ -625,10 +627,12 @@ HLM_VOID HLMC_INTER_direct_rdcost(HLMC_CU_INFO*      cur_cu,
     HLMC_COM_GetCbf(cur_cu->com_cu_info.cu_type, cur_cu->com_cu_info.cbf, cur_cu->com_cu_info.coeffs_num);
 
     // 对于Direct模式，总是编码QP和残差系数，不需要CBF标志
+    if (cur_cu->com_cu_info.cu_delta_qp_enable_flag) {
     bits += HLMC_ECD_PutSeBits(HLM_NULL, cur_cu->com_cu_info.qp[0] - cur_cu->com_cu_info.last_code_qp, 0, HLM_NULL);
-    if (yuv_comp > 1)
-    {
-        bits += HLMC_ECD_PutSeBits(HLM_NULL, cur_cu->com_cu_info.qp[1] - cur_cu->com_cu_info.qp[0], 0, HLM_NULL);
+        if (yuv_comp > 1)
+        {
+            bits += HLMC_ECD_PutSeBits(HLM_NULL, cur_cu->com_cu_info.qp[1] - cur_cu->com_cu_info.qp[0], 0, HLM_NULL);
+        }
     }
     bits += HLMC_ECD_EstimateCoeff16x8(cur_cu, nbi_info, 0);
     if (regs->image_format != HLM_IMG_YUV_400)
@@ -656,6 +660,10 @@ HLM_VOID HLMC_INTER_direct_rdcost(HLMC_CU_INFO*      cur_cu,
     {
         cur_cu->com_cu_info.cbf[i] = backup_cbf[i];
         memcpy(cur_cu->com_cu_info.coeffs_num[i], backup_coeffs_num[i], 2 * 4 * sizeof(HLM_U08));
+    }
+
+    if (!cur_cu->com_cu_info.direct_cbf[0] && !cur_cu->com_cu_info.direct_cbf[1] && !cur_cu->com_cu_info.direct_cbf[2]) {
+        *direct_rdcost = HLM_MAX_U32;
     }
 
     *direct_rdcost = distortion + ((lambda * bits) >> HLMC_LAMBDA_SHIFT);
@@ -744,7 +752,7 @@ HLM_VOID HLMC_INTER_rdo_pk(HLMC_CU_INFO           *cur_cu,
             memcpy(cur_chan->coeff[i], cur_chan->direct_coeff[i], HLM_CU_SIZE * sizeof(HLM_COEFF));
 
             memcpy(cur_cu->com_cu_info.coeffs_num[i], cur_cu->com_cu_info.direct_coeffs_num[i], 2 * 4 * sizeof(HLM_U08));
-            cur_cu->com_cu_info.cbf[i] = 1;
+            cur_cu->com_cu_info.cbf[i] = cur_cu->com_cu_info.direct_cbf[i];
         }
     }
     if (best_rdcost < best_cu->intra_rd_cost)

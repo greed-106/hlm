@@ -405,7 +405,14 @@ HLM_VOID HLMD_ECD_parse_cbf(HLMD_BITSTREAM       *bs,
             cbf[1] = HLMD_ECD_ReadBits(bs, 1);
             if ((cbf[0] && cbf[1]) == 0)
             {
-                cbf[2] = HLMD_ECD_ReadBits(bs, 1);
+                if (cu_type == HLM_P_DIRECT && cbf[0] == 0 && cbf[1] == 0)
+                {
+                    cbf[2] = 1;
+                }
+                else
+                {
+                    cbf[2] = HLMD_ECD_ReadBits(bs, 1);
+                }
             }
             else
             {
@@ -415,7 +422,14 @@ HLM_VOID HLMD_ECD_parse_cbf(HLMD_BITSTREAM       *bs,
     }
     else
     {
-        cbf[0] = HLMD_ECD_ReadBits(bs, 1);
+        if (cu_type != HLM_P_DIRECT)
+        {
+            cbf[0] = HLMD_ECD_ReadBits(bs, 1);
+        }
+        else
+        {
+            cbf[0] = 1;
+        }
         cbf[1] = 0;
         cbf[2] = 0;
     }
@@ -1054,15 +1068,21 @@ HLM_VOID HLMD_ECD_CU(HLMD_CU_INFO         *cur_cu,
     // 解析qp和系数
     if (HLM_P_DIRECT == cur_cu->com_cu_info.cu_type)
     {
-        // For Direct mode, always decode coefficients (no CBF to parse)
+        HLMD_ECD_parse_cbf(bs, cur_cu->com_cu_info.cu_type, cur_cu->com_cu_info.cbf, yuv_comp);
+        // For Direct mode, always decode coefficients
         if (cur_cu->com_cu_info.cu_delta_qp_enable_flag)
         {
             luma_delta_qp = HLMD_ECD_ReadSeGolomb(bs);
             cur_cu->com_cu_info.qp[0] = cur_cu->com_cu_info.qp[0] + luma_delta_qp;
-            if (yuv_comp > 1)
+            if (cur_cu->com_cu_info.cbf[1] || cur_cu->com_cu_info.cbf[2])
             {
                 chroma_delta_qp = HLMD_ECD_ReadSeGolomb(bs);
                 cur_cu->com_cu_info.qp[1] = cur_cu->com_cu_info.qp[0] + chroma_delta_qp;
+                cur_cu->com_cu_info.qp[2] = cur_cu->com_cu_info.qp[1];
+            }
+            else
+            {
+                cur_cu->com_cu_info.qp[1] = cur_cu->com_cu_info.qp[0];
                 cur_cu->com_cu_info.qp[2] = cur_cu->com_cu_info.qp[1];
             }
         }
@@ -1079,12 +1099,15 @@ HLM_VOID HLMD_ECD_CU(HLMD_CU_INFO         *cur_cu,
 
         for (i = 0; i < yuv_comp; i++)
         {
-            // For Direct mode, always decode coefficients
-            if (!cur_cu->com_cu_info.ts_flag)
+            if (cur_cu->com_cu_info.cbf[i] != 0)
             {
-                HLMD_ECD_parse_dc(cur_cu, nbi_info, i, bs);
+                // For Direct mode, always decode coefficients
+                if (!cur_cu->com_cu_info.ts_flag)
+                {
+                    HLMD_ECD_parse_dc(cur_cu, nbi_info, i, bs);
+                }
+                HLMD_ECD_parse_ac(cur_cu, nbi_info, i, bs);
             }
-            HLMD_ECD_parse_ac(cur_cu, nbi_info, i, bs);
         }
     }
     else
