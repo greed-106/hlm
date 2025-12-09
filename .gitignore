@@ -18,7 +18,9 @@ x64/
 *.log
 *.user
 
-build目录下除了linux目录和vs2017目录之外的所有内容
+# build目录下除了linux目录和vs2017目录之外的所有内容
 build/
 !build/linux/
 !build/vs2017/
+
+.cache/
