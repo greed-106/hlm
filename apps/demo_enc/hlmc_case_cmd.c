@@ -1,4 +1,4 @@
-/***************************************************************************************************
+﻿/***************************************************************************************************
 
 The copyright in this software is being made available under the License included below.
 This software may be subject to other third party and contributor rights, including patent
@@ -69,7 +69,7 @@ HLM_S32 HLMC_CMD_extract_numbers(HLM_S08  *str,
     content = start + 1;
     *end = '\0';    // 截断右括号后的内容
 
-                    // 按逗号拆分
+    // 按逗号拆分
     token = strtok(content, ",");
     while (token && count < HLM_MAX_PATCH_NUM)
     {
@@ -173,7 +173,7 @@ HLM_VOID HLMC_CMD_SetParameter(HLMC_DEMO_CMD        *cmd,
     {
         if (ele_num[0] == ele_num[1] && ele_num[1] == ele_num[2] && ele_num[2] == ele_num[3])
         {
-            assert(0 < ele_num[0] && ele_num[0] < HLM_MAX_PATCH_NUM);
+            assert(0 < ele_num[0] && ele_num[0] <= HLM_MAX_PATCH_NUM);
             coding_ctrl->patch_info.patch_num = ele_num[0];
             for (i = 0; i < coding_ctrl->patch_info.patch_num; i++)
             {
@@ -205,6 +205,10 @@ HLM_VOID HLMC_CMD_SetParameter(HLMC_DEMO_CMD        *cmd,
     {
         coding_ctrl->p_frame_enable_ibc = cmd->p_frame_enable_ibc;
     }
+    if (cmd->sub_ibc_enable_flag != 0xffff)
+    {
+        coding_ctrl->sub_ibc_enable_flag = cmd->sub_ibc_enable_flag;
+    }
     if (cmd->mv_ref_cross_patch != 0xffff)
     {
         coding_ctrl->mv_ref_cross_patch = cmd->mv_ref_cross_patch;
@@ -229,6 +233,42 @@ HLM_VOID HLMC_CMD_SetParameter(HLMC_DEMO_CMD        *cmd,
     {
         coding_ctrl->intra_8x8_enable_flag = cmd->intra_8x8_enable_flag;
     }
+    if (cmd->intra_16x1_2x8_enable_flag != 0xffff)
+    {
+        coding_ctrl->intra_16x1_2x8_enable_flag = cmd->intra_16x1_2x8_enable_flag;
+    }
+#if INTRA_CHROMA_MODE_SEPARATE
+    if (cmd->intra_chroma_mode_enable_flag != 0xffff)
+    {
+        coding_ctrl->intra_chroma_mode_enable_flag = cmd->intra_chroma_mode_enable_flag;
+    }
+    if (cmd->intra_sub_chroma_mode_enable_flag != 0xffff)
+    {
+        coding_ctrl->intra_sub_chroma_mode_enable_flag = cmd->intra_sub_chroma_mode_enable_flag;
+    }
+#endif
+#if FIX_CFG_ENC
+    if (cmd->chroma_qp_offset != 0xffff)
+    {
+        coding_ctrl->chroma_qp_offset = cmd->chroma_qp_offset;
+    }
+    if (cmd->segment_enable_flag != 0xffff)
+    {
+        coding_ctrl->segment_enable_flag = cmd->segment_enable_flag;
+    }
+    if (cmd->segment_width_in_log2 != 0xffff)
+    {
+        coding_ctrl->segment_width_in_log2 = cmd->segment_width_in_log2;
+    }
+    if (cmd->segment_height_in_log2 != 0xffff)
+    {
+        coding_ctrl->segment_height_in_log2 = cmd->segment_height_in_log2;
+    }
+    if (cmd->patch_extra_params_present_flag != 0xffff)
+    {
+        coding_ctrl->patch_extra_params_present_flag = cmd->patch_extra_params_present_flag;
+    }
+#endif
     if (cmd->frame_num != 0xffff)
     {
         parm->total_frames = cmd->frame_num;
@@ -354,43 +394,55 @@ HLM_VOID HLMC_CMD_SetDefaultCommand(HLMC_DEMO_CMD *cmd)
 {
     memset(cmd, 0, sizeof(HLMC_DEMO_CMD));
 
-    cmd->file_cfg                 = "../../../data/config/encode_AI.cfg";
-    cmd->file_log                 = "../../../data/output/enc_log.txt";
-    cmd->file_input               = HLM_NULL;
-    cmd->file_output              = HLM_NULL;
-    cmd->file_rec                 = HLM_NULL;
-    cmd->width                    = 0xffff;
-    cmd->height                   = 0xffff;
-    cmd->uniform_patch_split      = 0xffff;
-    cmd->patch_x                  = HLM_NULL;
-    cmd->patch_y                  = HLM_NULL;
-    cmd->patch_width              = HLM_NULL;
-    cmd->patch_height             = HLM_NULL;
-    cmd->i_frame_enable_ibc       = 0xffff;
-    cmd->p_frame_enable_ibc       = 0xffff;
-    cmd->mv_ref_cross_patch       = 0xffff;
-    cmd->mv_search_width          = 0xffff;
-    cmd->mv_search_height         = 0xffff;
-    cmd->frame_num                = 0xffff;
-    cmd->frame_rate_num           = 0xffff;
-    cmd->frame_rate_den           = 0xffff;
-    cmd->intra_period             = 0xffff;
-    cmd->initqp                   = 0xffff;
-    cmd->rc_mode                  = 0xffff;
-    cmd->bpp_i                    = 0xffff;
-    cmd->bpp_p                    = 0xffff;
-    cmd->rc_buffer_size_log2      = 0xffff;
-    cmd->minqp                    = 0xffff;
-    cmd->maxqp                    = 0xffff;
-    cmd->iminqp                   = 0xffff;
-    cmd->imaxqp                   = 0xffff;
-    cmd->qp_i                     = 0xffff;
-    cmd->qp_p                     = 0xffff;
-    cmd->rec_on                   = 0xffff;
-    cmd->bitdepth                 = 0xffff;
-    cmd->img_format               = 0xffff;
-    cmd->intra_8x8_enable_flag    = 0xffff;
-
+    cmd->file_cfg                   = "../../../data/config/encode_AI.cfg";
+    cmd->file_log                   = "../../../data/output/enc_log.txt";
+    cmd->file_input                 = HLM_NULL;
+    cmd->file_output                = HLM_NULL;
+    cmd->file_rec                   = HLM_NULL;
+    cmd->width                      = 0xffff;
+    cmd->height                     = 0xffff;
+    cmd->uniform_patch_split        = 0xffff;
+    cmd->patch_x                    = HLM_NULL;
+    cmd->patch_y                    = HLM_NULL;
+    cmd->patch_width                = HLM_NULL;
+    cmd->patch_height               = HLM_NULL;
+    cmd->i_frame_enable_ibc         = 0xffff;
+    cmd->p_frame_enable_ibc         = 0xffff;
+    cmd->sub_ibc_enable_flag        = 0xffff;
+    cmd->mv_ref_cross_patch         = 0xffff;
+    cmd->mv_search_width            = 0xffff;
+    cmd->mv_search_height           = 0xffff;
+    cmd->frame_num                  = 0xffff;
+    cmd->frame_rate_num             = 0xffff;
+    cmd->frame_rate_den             = 0xffff;
+    cmd->intra_period               = 0xffff;
+    cmd->initqp                     = 0xffff;
+    cmd->rc_mode                    = 0xffff;
+    cmd->bpp_i                      = 0xffff;
+    cmd->bpp_p                      = 0xffff;
+    cmd->rc_buffer_size_log2        = 0xffff;
+    cmd->minqp                      = 0xffff;
+    cmd->maxqp                      = 0xffff;
+    cmd->iminqp                     = 0xffff;
+    cmd->imaxqp                     = 0xffff;
+    cmd->qp_i                       = 0xffff;
+    cmd->qp_p                       = 0xffff;
+    cmd->rec_on                     = 0xffff;
+    cmd->bitdepth                   = 0xffff;
+    cmd->img_format                 = 0xffff;
+    cmd->intra_8x8_enable_flag      = 0xffff;
+    cmd->intra_16x1_2x8_enable_flag = 0xffff;
+#if INTRA_CHROMA_MODE_SEPARATE
+    cmd->intra_chroma_mode_enable_flag     = 0xffff;
+    cmd->intra_sub_chroma_mode_enable_flag = 0xffff;
+#endif
+#if FIX_CFG_ENC
+    cmd->chroma_qp_offset                  = 0xffff;
+    cmd->segment_enable_flag               = 0xffff;
+    cmd->segment_width_in_log2             = 0xffff;
+    cmd->segment_height_in_log2            = 0xffff;
+    cmd->patch_extra_params_present_flag   = 0xffff;
+#endif
     return;
 }
 
@@ -472,6 +524,10 @@ HLM_S32 HLMC_CMD_ParseCommand(int              argc,
         {
             cmd->p_frame_enable_ibc = atoi(argv[++i]);
         }
+        else if (!strcmp(argv[i], "-subibc"))
+        {
+            cmd->sub_ibc_enable_flag = atoi(argv[++i]);
+        }
         else if (!strcmp(argv[i], "-mvrefcrosspatch"))
         {
             cmd->mv_ref_cross_patch = atoi(argv[++i]);
@@ -484,6 +540,28 @@ HLM_S32 HLMC_CMD_ParseCommand(int              argc,
         {
             cmd->mv_search_height = atoi(argv[++i]);
         }
+#if FIX_CFG_ENC
+        else if (!strcmp(argv[i], "-chromaqpoffset"))
+        {
+            cmd->chroma_qp_offset = atoi(argv[++i]);
+        }
+        else if (!strcmp(argv[i], "-segmentenable"))
+        {
+            cmd->segment_enable_flag = atoi(argv[++i]);
+        }
+        else if (!strcmp(argv[i], "-segmentwidthlog"))
+        {
+            cmd->segment_width_in_log2 = atoi(argv[++i]);
+        }
+        else if (!strcmp(argv[i], "-segmentheightlog"))
+        {
+            cmd->segment_height_in_log2 = atoi(argv[++i]);
+        }
+        else if (!strcmp(argv[i], "-patchextraparampresent"))
+        {
+            cmd->patch_extra_params_present_flag = atoi(argv[++i]);
+        }
+#endif
         else if (!strcmp(argv[i], "-bitdepth"))
         {
             cmd->bitdepth = atoi(argv[++i]);
@@ -495,6 +573,20 @@ HLM_S32 HLMC_CMD_ParseCommand(int              argc,
         else if (!strcmp(argv[i], "-intra8x8"))
         {
             cmd->intra_8x8_enable_flag = atoi(argv[++i]);
+        }
+#if INTRA_CHROMA_MODE_SEPARATE
+        else if (!strcmp(argv[i], "-intra_chroma_pm"))
+        {
+            cmd->intra_chroma_mode_enable_flag = atoi(argv[++i]);
+        }
+        else if (!strcmp(argv[i], "-intra_sub_chroma_pm"))
+        {
+            cmd->intra_sub_chroma_mode_enable_flag = atoi(argv[++i]);
+        }
+#endif
+        else if (!strcmp(argv[i], "-intra16x1and8x2"))
+        {
+            cmd->intra_16x1_2x8_enable_flag = atoi(argv[++i]);
         }
         else if (!strcmp(argv[i], "-fn"))
         {

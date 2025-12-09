@@ -14,7 +14,7 @@ SOURCES  = $(notdir $(wildcard $(SRC_DIR1)/*.c $(SRC_DIR2)/*.c $(SRC_DIR3)/*.c))
 
 OBJS     = $(patsubst %.c,$(OBJ_DIR)/%.o,$(SOURCES))
 
-CFLAGS   = -O3 -m64 -mavx -mavx2 -msse4.2 -D_LINUX64 -D_M_X64 -I$(INC_DIR1) -I$(INC_DIR2) -I$(INC_DIR3) 
+CFLAGS   = -O3 -m64 -msse4.2 -D_LINUX64 -D_M_X64 -I$(INC_DIR1) -I$(INC_DIR2) -I$(INC_DIR3) 
 
 EXECUTABLE = ../demo_hlmc_linux64
 

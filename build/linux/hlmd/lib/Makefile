@@ -11,7 +11,7 @@ OBJ_DIR  = ./obj
 SOURCES  = $(notdir $(wildcard $(SRC_DIR1)/*.c $(SRC_DIR2)/*.c))
 OBJS     = $(patsubst %.c,$(OBJ_DIR)/%.o,$(SOURCES))
 
-CFLAGS   = -O3 -fPIC -m64 -mavx -mavx2 -msse4.2 -D_M_X64 -D_LINUX64 -I$(INC_DIR1) -I$(INC_DIR2)
+CFLAGS   = -O3 -fPIC -m64 -D_M_X64 -D_LINUX64 -I$(INC_DIR1) -I$(INC_DIR2)
 
 EXECUTABLE = hlmd_linux64.a
 

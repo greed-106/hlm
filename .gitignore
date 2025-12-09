@@ -1,0 +1,24 @@
+QWEN.md
+*.vs
+bin/
+# C++ 构建产物
+*.obj
+*.pdb
+*.idb
+*.ilk
+*.exe
+*.lib
+*.dll
+
+# Visual Studio 中间文件
+Debug/
+Release/
+x64/
+*.tlog
+*.log
+*.user
+
+build目录下除了linux目录和vs2017目录之外的所有内容
+build/
+!build/linux/
+!build/vs2017/
