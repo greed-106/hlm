@@ -33,6 +33,7 @@ POSSIBILITY OF SUCH DAMAGE.
 #include "hlmc_case_lib.h"
 #include "hlmc_case_cmd.h"
 #include <math.h>
+#include <stdlib.h>
 #if defined(_MSC_VER)
 #include <windows.h>
 #elif defined(__GNUC__)
